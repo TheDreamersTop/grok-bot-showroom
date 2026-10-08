@@ -609,7 +609,7 @@ function forgeDrawings(draws, titles) {
 let wordNo = 0;
 function forgeWordWork(word) {
   const P = PRESET_LIST.findIndex(p => p.word === word); if (P >= 0) return { idx: P };
-  const letters = [...word]; const srcs = letters.map(c => { const cv = document.createElement('canvas'); cv.width = cv.height = 1000; const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.strokeStyle = '#fff'; letterFig(c)(g); return cv; });
+  const letters = [...word]; const srcs = letters.map(c => { const cv = document.createElement('canvas'); cv.width = cv.height = 1000; const g = cv.getContext('2d', { willReadFrequently: true }); g.fillStyle = '#fff'; g.strokeStyle = '#fff'; letterFig(c)(g); return cv; });
   const t0 = performance.now(); wordNo++; const no = PRESET_LIST.length + userNo + wordNo;
   const prom = Promise.all(srcs.map(c => createImageBitmap(c))).then(bitmaps => new Promise((resolve) => {
     const done = (m, perm) => { const order = perm || [0, 1, 2]; const tl = order.map(i => `字 ${letters[i]}`);

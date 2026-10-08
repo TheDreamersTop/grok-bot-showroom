@@ -2,7 +2,10 @@
 import { fitFigures, maskFromDrawT, repairTight, forgeRods, Hull, rayCoverage, fidelity, quickFidelity } from './forge.js';
 self.onmessage = (e) => {
   const { bitmaps, evals, seed, T: T0, lim, perm: doPerm } = e.data; const t0 = performance.now();
-  let draws = bitmaps.map(b => (g) => g.drawImage(b, 0, 0, 1000, 1000)); let perm = [0, 1, 2];
+  // copy each bitmap once into a CPU canvas: a GPU-backed ImageBitmap would cost a GPU readback on every drawImage,
+  // queued behind the page's WebGL frames (this stalled the forge while the scene was rendering)
+  const cpu = bitmaps.map(b => { const c = new OffscreenCanvas(1000, 1000); const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(b, 0, 0, 1000, 1000); g.getImageData(0, 0, 1, 1); if (b.close) b.close(); return c; });
+  let draws = cpu.map(c => (g) => g.drawImage(c, 0, 0, 1000, 1000)); let perm = [0, 1, 2];
   if (doPerm) { // letters: any letter may take any wall; quick-score all 6 assignments, keep the best (deterministic)
     const P = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]]; let best = -1;
     for (const p of P) { const d = p.map(i => draws[i]); const f = fitFigures(d, { evals: 16, step: 6, noFid: true, lim, seed: 5, init: [0, 1, 2].map(() => ({ sx: 0.9, sy: 0.9, tx: 0, ty: 0, r: 0 })) });
