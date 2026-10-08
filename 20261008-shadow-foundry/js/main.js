@@ -752,7 +752,7 @@ addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey || st.mode === 'draw') return;
   if (/^[a-zA-Z]$/.test(e.key)) { if (wordState.s.length >= 3) wordState.s = ''; wordState.s += e.key.toUpperCase(); drawSlots(); clearTimeout(wordState.timer); if (wordState.s.length === 3) wordState.timer = setTimeout(submitWord, 1100); sound.start(); }
   else if (e.key === 'Backspace') { wordState.s = wordState.s.slice(0, -1); clearTimeout(wordState.timer); drawSlots(); }
-  else if (e.key === 'Enter') submitWord();
+  else if (e.key === 'Enter') { if (wordState.s) e.preventDefault(); /* a focused button must not also fire */ submitWord(); }
   else if (e.key === 'Escape' && wordState.s) { wordState.s = ''; clearTimeout(wordState.timer); drawSlots(); }
 });
 $('bCopy').onclick = async (e) => { e.stopPropagation(); if (!work || !work.word) return; const url = location.origin + location.pathname + '#w=' + work.word;
