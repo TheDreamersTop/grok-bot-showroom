@@ -60,7 +60,7 @@ export const FIGURES = {
 export const PRESETS = [
   { no: 1, title: ['貓 Cat', '樹 Tree', '燕 Swallow'], figs: ['catFront', 'tree', 'swallow'], T: [{ sx: 1.12, sy: 0.9732, tx: -0.041, ty: -0.0314, r: 0.15 }, { sx: 0.6735, sy: 0.8, tx: 0.0171, ty: 0.0944, r: -0.1229 }, { sx: 0.6592, sy: 1.0938, tx: -0.0027, ty: 0.0039, r: -0.0274 }] },
   { no: 2, title: ['手 Hand', '鑰 Key', '蝶 Butterfly'], figs: ['hand', 'key', 'butterfly'], T: [{ sx: 1.12, sy: 0.9925, tx: -0.0302, ty: 0.0151, r: -0.0467 }, { sx: 1.0969, sy: 0.9864, tx: 0.0044, ty: 0.0718, r: -0.0312 }, { sx: 0.66, sy: 0.731, tx: -0.0407, ty: 0.0003, r: 0.0546 }] },
-  { no: 3, title: ['字 G', '字 E', '字 B'], figs: ['L_G', 'L_E', 'L_B'], word: 'GEB', T: [{ sx: 0.95, sy: 0.9392, tx: -0.0223, ty: 0, r: 0.0187 }, { sx: 0.95, sy: 0.9402, tx: 0.0242, ty: 0.002, r: -0.0272 }, { sx: 0.95, sy: 0.95, tx: 0.0096, ty: -0.0079, r: -0.0027 }] },
+  { no: 3, title: ['字 E', '字 G', '字 B'], figs: ['W_E', 'W_G', 'WF_B'], word: 'GEB', T: [{sx: 0.95, sy: 0.8995, tx: 0.0169, ty: -0.0169, r: -0.0219}, {sx: 1, sy: 0.9742, tx: 0, ty: -0.014, r: -0.0112}, {sx: 0.9384, sy: 0.95, tx: -0.002, ty: -0.0079, r: -0.0223}] }, // typed order: left wall G, right wall E, floor B (upright from the camera)
 ];
 
 // ---------------- heavy blocky alphabet (chamfered strokes, hull-friendly), A–Z
@@ -101,4 +101,8 @@ export function letterFig(chr) {
     g.restore(); };
 }
 for (const c of Object.keys(GLYPHS)) FIGURES['L_' + c] = letterFig(c);
-export const LETTER_LIM = { sx: [0.55, 1.08], sy: [0.55, 1.08], tx: [-0.12, 0.12], ty: [-0.12, 0.12], r: [-0.12, 0.12] };
+// word letters: ~80 % of the pool; the floor letter is turned so it reads upright from the hero camera
+export const WORD_SCALE = 0.8, FLOOR_ROT = 315;
+export function wordFig(chr, floor, rotDeg = FLOOR_ROT) { const f = letterFig(chr); return (g) => { g.save(); g.translate(500, 500); if (floor) g.rotate(rotDeg * Math.PI / 180); g.scale(WORD_SCALE, WORD_SCALE); g.translate(-500, -500); f(g); g.restore(); }; }
+for (const c of Object.keys(GLYPHS)) { FIGURES['W_' + c] = wordFig(c, false); FIGURES['WF_' + c] = wordFig(c, true); }
+export const LETTER_LIM = { sx: [0.55, 1.0], sy: [0.55, 1.0], tx: [-0.12, 0.12], ty: [-0.12, 0.12], r: [-0.12, 0.12] };

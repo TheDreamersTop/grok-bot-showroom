@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { FIGURES, PRESETS, letterFig, LETTER_LIM, GLYPHS } from './figures.js';
+import { FIGURES, PRESETS, letterFig, wordFig, FLOOR_ROT, LETTER_LIM, GLYPHS } from './figures.js';
 import { G, MR, maskFromDraw, maskFromDrawT, maskFromCanvas, repairTight, fitFigures, forgeRods, Hull, coverageFromHull, fidelity, maskToWorld, sdf as sdfOf, projectRodsPosed, downMask, maxIoU } from './forge.js';
 import { Sound } from './audio.js';
 import { rayPoint, rasterRodsSW, rayCoverage, quickFidelity } from './forge.js';
@@ -343,7 +343,7 @@ function animateNest(t) { // t: seconds since animation start
 
 // ---------------- labels in the light pools
 const labelMeshes = [];
-let LABEL_POS = (Q.get('lp') ? JSON.parse(Q.get('lp')) : [[6.35, 3.0, 0.004], [0.004, 3.0, 6.35], [6.1, 0.004, 2.1]]);
+let LABEL_POS = (Q.get('lp') ? JSON.parse(Q.get('lp')) : [[6.35, 3.0, 0.004], [0.004, 4.6, 5.75], [6.1, 0.004, 2.1]]);
 function makeLabel(text, sub, w) {
   const c = document.createElement('canvas'); c.width = 1024; c.height = 320; const g = c.getContext('2d');
   g.fillStyle = 'rgba(236,226,208,1)'; g.textBaseline = 'alphabetic';
@@ -366,16 +366,19 @@ ui.innerHTML = `
 <div id="placard"><div class="pt"><span class="zh">影鑄</span> Shadow Foundry</div><div class="pw" id="pw"></div><div class="pm" id="pm"></div></div>
 <div id="hint"></div>
 <button id="mute" title="Sound"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path id="mw" d="M16 8.5c1.2 1 1.2 6 0 7M18.5 6c2.5 2.3 2.5 9.7 0 12" stroke="currentColor" fill="none" stroke-width="1.4"/></svg></button>
-<div id="word"><div id="wslots"><canvas></canvas><canvas></canvas><canvas></canvas></div><div id="wprompt">Type 3 letters to forge a sculpture</div></div>
-<div id="actions"><button id="bCopy" class="hidden">Copy share link ⧉</button><button id="bDraw">Draw your own three shadows <span class="zh">畫你的影子</span></button><button id="bNext">Next sculpture →</button></div>
+<div id="actions"><div id="word"><div id="wslots"><canvas></canvas><canvas></canvas><canvas></canvas></div><div id="wprompt">Type any 3 letters to forge them in brass</div></div><button id="bCopy" class="hidden">Copy share link ⧉</button><button id="bDraw">Draw your own three shadows <span class="zh">畫你的影子</span></button><button id="bNext">Next sculpture →</button></div>
 <div id="drawbar" class="hidden"><div class="dt">Draw a silhouette on each lit wall. Closed outlines fill in by themselves.</div>
 <div class="db"><button id="bClear">Clear</button><button id="bCancel">Back</button><button id="bForge" disabled>Forge the sculpture →</button></div></div>
 <div id="forging" class="hidden">forging…</div>`;
 const $ = (id) => document.getElementById(id);
-function setPlacard(no, titles, nRods, fid, word) {
-  $('pw').innerHTML = `No. ${no} — ${titles.map(t => t.split(' ')[1]).join(', ')}${word && !PRESET_LIST.some(P => P.word === word) ? ' · forged for you' : ''}`;
+const placard = { full: '', hidden: '', shown: null };
+function setPlacard(no, titles, nRods, fid, word, reordered) { // the figure names stay hidden until the shadows lock (no spoilers)
+  const forged = word && !PRESET_LIST.some(P => P.word === word);
+  placard.full = word ? `No. ${no} — <span class="pword">${word}</span>${forged ? ' · forged for you' : ''}${reordered ? ' <span class="pnote">(letters rearranged for a cleaner cast)</span>' : ''}` : `No. ${no} — ${titles.map(t => t.split(' ')[1]).join(', ')}`;
+  placard.hidden = `No. ${no} — <span class="pdots">· · ·</span>`; placard.shown = null; showPlacard(false);
   $('pm').innerHTML = `aged brass &amp; blackened steel, ${nRods.toLocaleString('en-US')} rods · ${(100 * Math.min(...fid)).toFixed(1)} % shadow fidelity`;
 }
+function showPlacard(rev) { if (placard.shown === rev) return; placard.shown = rev; const e = $('pw'); e.innerHTML = rev ? placard.full : placard.hidden; e.classList.toggle('rev', rev); }
 let hintTimer = 0; function hint(txt) { const h = $('hint'); h.textContent = txt; h.classList.toggle('on', !!txt); }
 $('mute').onclick = (e) => { e.stopPropagation(); sound.start(); sound.setMuted(!sound.muted); $('mute').classList.toggle('off', sound.muted); };
 
@@ -389,8 +392,8 @@ const st = { mode: 'intro', t: 0, introT: 0, yaw: 0, tilt: 0, vy: 0, vt: 0, drag
 
 function loadWork(w) {
   work = w; current = w; scatLast = -1;
-  nest = prepNest({ rods: w.rods }); setLabels(w.titles, w.no); setPlacard(w.no, w.titles, w.rods.length, w.fidRods, w.word);
-  $('bCopy').classList.toggle('hidden', !w.word); if (w.word && !SHOT) history.replaceState(null, '', '#w=' + w.word);
+  nest = prepNest({ rods: w.rods }); setLabels(w.titles, w.no); setPlacard(w.no, w.titles, w.rods.length, w.fidRods, w.word, w.reordered);
+  $('bCopy').classList.toggle('hidden', !w.word); if (!SHOT) { if (w.word) history.replaceState(null, '', '#w=' + w.word); else if (location.hash) history.replaceState(null, '', location.pathname + location.search); }
   window.__forge = { current: w, fidRaw: w.fidHull, fidRep: w.fidRods };
 }
 function presetWork(i) {
@@ -411,6 +414,7 @@ async function loadPreset(i) {
   if (!Q.has('nobake')) { try { const r = await fetch(`data/preset-${P.no}.json`); if (r.ok) { const w = unpackWork(await r.json(), P); console.log(`preset ${P.no} (baked): rods ${w.rods.length}, rod coverage ${w.fidRods.map(x => (100 * x).toFixed(1)).join('/')}`); return w; } } catch (e) { console.warn('bake load failed', e.message); } }
   return presetWork(i);
 }
+window.__bakeFit = (i) => { const P = PRESET_LIST[i]; const w = forgeFrom(P.figs.map(n => FIGURES[n]), { evals: 60, seed: 31, lim: LETTER_LIM }); w.no = P.no; return packWork(w); };
 window.__bake = (i) => { const P = PRESET_LIST[i]; const w = forgeFrom(P.figs.map(n => FIGURES[n]), { T: P.T, seed: 11 }); w.no = P.no; return packWork(w); };
 
 // pose → guidance (penumbra radius, darkness): the signal the visitor sees (and hears)
@@ -427,7 +431,7 @@ function lockFX(dt) { // dt seconds since lock (<0: not locked)
 }
 
 // intro timeline (pure function of t) → pose & lamps
-const LAMP_T = [0.3, 0.62, 0.94], LOCK_T = 4.95, UNLOCK_T = 8.6, FREE_T = 10.8;
+const LAMP_T = [0.3, 0.62, 0.94], LOCK_T = 4.95, UNLOCK_T = 10.2, FREE_T = 12.4; // solved hero holds ~5 s before the loosen
 function lampOn(t, i) { const d = t - LAMP_T[i]; if (d < 0) return 0; const ramp = clamp(d / 0.09, 0, 1); const fl = d < 0.22 ? (Math.sin(d * 140 + i) > 0.2 ? 1 : 0.35) : 1; return ramp * fl; }
 const AXS = new THREE.Vector3(+(Q.get('ax') || 0.42), +(Q.get('ay') || 0.78), +(Q.get('az') || 0.46)).normalize(), A0 = +(Q.get('a0') || 2.05);
 const qIdent = new THREE.Quaternion();
@@ -492,9 +496,10 @@ function update(dt) {
   else { const q = poseQuat(st.yaw, st.tilt); if (st.blendQ) { const k = easeOut((t - st.blendT) / 0.7); q.copy(st.blendQ.clone().slerp(q, k)); if (k >= 1) st.blendQ = null; } pivot.quaternion.copy(q); }
   for (let i = 0; i < 3; i++) { S.lamp[i] = lamp[i] * st.lampMul; S.radius[i] = radius[i]; S.dark[i] = dark[i]; }
   // hero push-in after a reveal; eases back out as soon as the visitor interacts
-  if (st.mode === 'intro') heroAmt = sm(LOCK_T + 0.25, LOCK_T + 1.7, st.introT) * (1 - sm(UNLOCK_T - 0.2, UNLOCK_T + 0.9, st.introT));
+  if (st.mode === 'intro') heroAmt = sm(LOCK_T + 0.1, LOCK_T + 1.05, st.introT) * (1 - sm(UNLOCK_T - 0.2, UNLOCK_T + 0.9, st.introT));
   else { const tgt = (st.locked && !st.drag && LD.drag < 0 && !LD.homing.some(Boolean) && t - st.lockAt > 0.35) ? 1 : 0; heroAmt += (tgt - heroAmt) * (1 - Math.exp(-dt / (tgt ? 0.55 : 0.3))); if (SHOT && Q.get('pose') === 'solved') heroAmt = 1; }
   updateLamps(dt);
+  showPlacard(st.mode === 'intro' ? st.introT >= LOCK_T + 0.6 && !st.waitWork : (st.mode === 'free' || st.mode === 'forged' || st.mode === 'draw'));
   S.push = push; S.freeze = freeze; S.time = t;
   const drawAmt = st.mode === 'draw' ? 1 : 0; for (const m of wallMats) m.uniforms.drawAmt.value += (drawAmt - m.uniforms.drawAmt.value) * (SHOT ? 1 : 0.15);
   for (const m of labelMeshes) m.material.opacity = labels;
@@ -681,18 +686,19 @@ function forgeDrawings(draws, titles) {
 let wordNo = 0;
 function forgeWordWork(word) {
   const P = PRESET_LIST.findIndex(p => p.word === word); if (P >= 0) return { idx: P };
-  const letters = [...word]; const srcs = letters.map(c => { const cv = document.createElement('canvas'); cv.width = cv.height = 1000; const g = cv.getContext('2d', { willReadFrequently: true }); g.fillStyle = '#fff'; g.strokeStyle = '#fff'; letterFig(c)(g); return cv; });
+  const letters = [...word]; const FR = +(Q.get('fr') || FLOOR_ROT); const figOf = (c, floor) => wordFig(c, floor, FR);
+  const srcs = [false, true].flatMap(fl => letters.map(c => { const cv = document.createElement('canvas'); cv.width = cv.height = 1000; const g = cv.getContext('2d', { willReadFrequently: true }); g.fillStyle = '#fff'; g.strokeStyle = '#fff'; figOf(c, fl)(g); return cv; }));
   const t0 = performance.now(); wordNo++; const no = PRESET_LIST.length + userNo + wordNo;
   const prom = Promise.all(srcs.map(c => createImageBitmap(c))).then(bitmaps => new Promise((resolve) => {
-    const done = (m, perm) => { const order = perm || [0, 1, 2]; const tl = order.map(i => `字 ${letters[i]}`);
+    const done = (m, perm) => { const order = perm || [1, 0, 2]; const tl = order.map(i => `字 ${letters[i]}`);
       const w = { rods: m.rods, T: m.T, fidHull: m.fidHull, fidRods: m.fidRods, counts: m.counts, titles: tl, no, word, ms: performance.now() - t0, perm: order };
-      Object.defineProperty(w, 'orig', { get() { return this._o || (this._o = order.map((i, k) => maskFromDrawT(letterFig(letters[i]), m.T[k]))); } });
-      window.__lastWord = { word, perm: order.map(i => letters[i]).join(''), ms: Math.round(w.ms), rods: w.rods.length, fidHull: w.fidHull.map(x => +(100 * x).toFixed(1)), fidRods: w.fidRods.map(x => +(100 * x).toFixed(1)) };
+      Object.defineProperty(w, 'orig', { get() { return this._o || (this._o = order.map((i, k) => maskFromDrawT(figOf(letters[i], k === 2), m.T[k]))); } });
+      w.reordered = order.join() !== '1,0,2'; window.__lastWord = { word, reordered: w.reordered, perm: order.map(i => letters[i]).join(''), ms: Math.round(w.ms), rods: w.rods.length, fidHull: w.fidHull.map(x => +(100 * x).toFixed(1)), fidRods: w.fidRods.map(x => +(100 * x).toFixed(1)) };
       console.log(`forged word ${word} (walls ${window.__lastWord.perm}): rods ${w.rods.length}, rod coverage ${window.__lastWord.fidRods.join('/')}, ${Math.round(w.ms)} ms`); resolve(w); };
     const Wk = getWorker();
-    if (!Wk) { setTimeout(() => { const w = forgeFrom(letters.map(c => letterFig(c)), { evals: 60, seed: 21, lim: LETTER_LIM }); done(w, null); }, 30); return; }
+    if (!Wk) { setTimeout(() => { const w = forgeFrom([1, 0, 2].map((i, k) => figOf(letters[i], k === 2)), { evals: 60, seed: 21, lim: LETTER_LIM }); done(w, null); }, 30); return; }
     Wk.onmessage = (e) => { const m = e.data; if (m.type === 'done') done(m, m.perm); };
-    Wk.postMessage({ bitmaps, evals: 60, seed: 31, lim: LETTER_LIM, perm: true }, bitmaps);
+    Wk.postMessage({ bitmaps, evals: 60, seed: 31, lim: LETTER_LIM, perm: true, inOrder: Q.has('inorder') }, bitmaps);
   }));
   return { prom };
 }
@@ -704,7 +710,7 @@ function drawSlots() { wsCanv.forEach((c, i) => { const g = c.getContext('2d'); 
   if (ch) { g.save(); g.scale(0.064, 0.064); g.fillStyle = g.strokeStyle = 'rgba(236,226,208,0.95)'; letterFig(ch)(g); g.restore(); } });
   $('word').classList.toggle('typing', wordState.s.length > 0); }
 function submitWord() { clearTimeout(wordState.timer); if (wordState.s.length !== 3) return; const wd = wordState.s;
-  if (forgeWord(wd)) { setTimeout(() => { wordState.s = ''; drawSlots(); }, 900); } }
+  if (forgeWord(wd)) { wordState.s = ''; drawSlots(); } }
 addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey || st.mode === 'draw') return;
   if (st.mode === 'intro' && !st.forgeDone) return; if (st.mode === 'shatter' || st.mode === 'reforge') return;
@@ -716,6 +722,9 @@ addEventListener('keydown', (e) => {
 $('bCopy').onclick = async (e) => { e.stopPropagation(); if (!work || !work.word) return; const url = location.origin + location.pathname + '#w=' + work.word;
   try { await navigator.clipboard.writeText(url); hint('Link copied: ' + url.replace(/^https?:\/\//, '')); } catch (err) { hint(url); } setTimeout(() => hint(''), 4000); };
 window.__forgeWord = forgeWord;
+addEventListener('hashchange', () => { // a pasted #w= link in an open tab forges that word (retries until the current animation allows it)
+  const m = /^#w=([A-Za-z]{3})$/.exec(decodeURIComponent(location.hash || '')); if (!m) return; const wd = m[1].toUpperCase(); if (work && work.word === wd) return;
+  let n = 0; const tryIt = () => { if (forgeWord(wd)) return; if (++n < 60) setTimeout(tryIt, 500); }; tryIt(); });
 window.__wordTable = async (words) => { const out = []; for (const wd of words) { const r = forgeWordWork(wd); if (r.prom) { await r.prom; out.push(window.__lastWord); } } return out; };
 $('bNext').onclick = (e) => { e.stopPropagation(); shatterTo((presetIdx + 1) % PRESET_LIST.length); };
 
