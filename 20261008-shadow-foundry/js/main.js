@@ -360,7 +360,7 @@ function animateNest(t) { // t: seconds since animation start
 
 // ---------------- labels in the light pools
 const labelMeshes = [];
-let LABEL_POS = (Q.get('lp') ? JSON.parse(Q.get('lp')) : [[6.35, 3.0, 0.004], [0.004, 4.6, 5.75], [7.0, 0.004, 1.25]]);
+let LABEL_POS = (Q.get('lp') ? JSON.parse(Q.get('lp')) : [[6.35, 3.0, 0.004], [0.004, 4.6, 5.75], [6.0, 0.004, 0.6]]);
 function makeLabel(text, sub, w) {
   const c = document.createElement('canvas'); c.width = 1024; c.height = 320; const g = c.getContext('2d');
   g.fillStyle = 'rgba(236,226,208,1)'; g.textBaseline = 'alphabetic';
