@@ -10,6 +10,7 @@
 | 開始日期 Date | 專案 Project | 簡介 Description | 線上試玩 Live demo | 原始碼 Source |
 |---|---|---|---|---|
 | 2026-10-07 | 星鍛 Orbital Forge | 桌面 WebGL2 星核鍛造場：26 萬顆 GPU 粒子、HDR 泛光、超新星與重力井。<br/>*Desktop WebGL2 stellar forge — 262k GPU particles, HDR bloom, supernova & gravity well.* | [v2 ▶](https://thedreamerstop.github.io/grok-bot-showroom/20261007-orbital-forge/) · [v1](https://thedreamerstop.github.io/grok-bot-showroom/20261007-orbital-forge/v1/) | [`20261007-orbital-forge/`](20261007-orbital-forge/) |
+| 2026-10-08 | 影鑄 Shadow Foundry | 一團千根黃銅桿的雕塑，三盞燈投出三個影子；轉到唯一的角度，影子同時鎖定成貓、樹與燕。也能畫出自己的三個影子，當場鑄造新雕塑。<br/>*A tangle of ~1,000 brass rods lit by three lamps — turn it to the one true angle and its three shadows lock into a cat, a tree and a swallow. Draw your own three shadows and the foundry forges a new sculpture.* | [v1 ▶](https://thedreamerstop.github.io/grok-bot-showroom/20261008-shadow-foundry/) | [`20261008-shadow-foundry/`](20261008-shadow-foundry/) |
 
 ## 資料夾命名規則 · Folder naming
 

@@ -1,0 +1,21 @@
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:Cormorant,"Cormorant Garamond",serif;color:#e9dfcf}
+canvas#c{display:block;width:100vw;height:100vh;cursor:grab}
+.zh{font-family:NotoSerifTC,serif;font-weight:400}
+#placard{position:fixed;left:44px;bottom:38px;max-width:420px;pointer-events:none;opacity:.92}
+#placard .pt{font-size:26px;letter-spacing:.02em}
+#placard .pt .zh{font-size:24px;margin-right:.35em;letter-spacing:.08em}
+#placard .pw{font-size:18px;font-style:italic;margin-top:4px;opacity:.85}
+#placard .pm{font-size:15px;margin-top:2px;opacity:.6}
+#hint{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);font-size:20px;font-style:italic;opacity:0;transition:opacity 1.2s;pointer-events:none;text-shadow:0 0 12px #000}
+#hint.on{opacity:.85}
+#mute{position:fixed;right:40px;top:34px;background:none;border:0;color:#e9dfcf;opacity:.55;cursor:pointer;padding:6px}
+#mute:hover{opacity:.9} #mute.off #mw{display:none}
+#actions{position:fixed;right:44px;bottom:38px;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+button{font-family:Cormorant,serif;font-size:18px;color:#e9dfcf;background:none;border:0;border-bottom:1px solid rgba(233,223,207,.35);padding:2px 0;cursor:pointer;opacity:.8}
+button:hover{opacity:1;border-color:#e9dfcf} button:disabled{opacity:.3;cursor:default}
+#actions .zh{font-size:15px;margin-left:.4em;opacity:.8}
+#drawbar{position:fixed;left:50%;bottom:40px;transform:translateX(-50%);text-align:center}
+#drawbar .dt{font-size:20px;font-style:italic;margin-bottom:12px;text-shadow:0 0 10px #000}
+#drawbar .db{display:flex;gap:28px;justify-content:center}
+#forging{position:fixed;left:50%;top:48%;transform:translate(-50%,-50%);font-size:26px;font-style:italic;letter-spacing:.05em;text-shadow:0 0 14px #000}
+.hidden{display:none!important}
