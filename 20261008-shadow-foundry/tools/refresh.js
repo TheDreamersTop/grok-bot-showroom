@@ -1,0 +1,11 @@
+const puppeteer = require('/workspace/_tmp/overnight/20261007-wordverse/node_modules/puppeteer-core');
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+(async () => { const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', protocolTimeout: 0, args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--window-size=640,400'], defaultViewport: { width: 640, height: 400 } });
+  const U = process.argv[2]; let e = 0, w = 0, bad = 0; const L = [];
+  const watch = (p) => { p.on('console', m => { if (m.type() === 'error') { e++; L.push('E ' + m.text()); } if (m.type() === 'warning') { w++; L.push('W ' + m.text()); } }); p.on('pageerror', x => { e++; L.push('P ' + x.message); }); p.on('response', r => { if (r.status() >= 400) { bad++; L.push(r.status() + ' ' + r.url()); } }); p.on('requestfailed', r => { bad++; L.push('fail ' + r.url()); }); };
+  const p = await b.newPage(); watch(p); await p.setCacheEnabled(false);
+  await p.goto(U, { waitUntil: 'load' }); await sleep(15000); const a = await p.evaluate(() => __st.mode + ' t=' + __st.t.toFixed(1));
+  await p.reload({ waitUntil: 'load' }); await sleep(15000); const r = await p.evaluate(() => __st.mode + ' t=' + __st.t.toFixed(1) + ' hash="' + location.hash + '"');
+  const p2 = await b.newPage(); watch(p2); await p2.goto(U + '#w=GEB', { waitUntil: 'load' }); await p2.waitForFunction(`__st && __st.introT > 5.6`, { timeout: 900000, polling: 500 }); const g = await p2.evaluate(() => document.getElementById('pw').textContent + ' hash=' + location.hash);
+  await p2.reload({ waitUntil: 'load' }); await sleep(10000); const g2 = await p2.evaluate(() => __st.mode + ' hash=' + location.hash);
+  console.log(JSON.stringify({ first: a, afterHardRefresh: r, geb: g, gebReload: g2, errors: e, warnings: w, badRequests: bad, log: L.slice(0, 5) })); await b.close(); })();

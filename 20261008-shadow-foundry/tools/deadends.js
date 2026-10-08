@@ -1,0 +1,71 @@
+// usage: node deadends.js <baseUrl>   — runs each dead-end scenario in a fresh page, counts console errors + warnings
+const puppeteer = require('/workspace/_tmp/overnight/20261007-wordverse/node_modules/puppeteer-core');
+const BASE = process.argv[2]; const only = process.env.ONLY ? process.env.ONLY.split(',') : null;
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+(async () => {
+  const browser = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', protocolTimeout: 0, args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--window-size=480,300'], defaultViewport: { width: 480, height: 300 } });
+  const results = [];
+  async function scenario(name, hash, fn) {
+    if (only && !only.includes(name)) return;
+    const page = await browser.newPage(); const log = []; let errs = 0, warns = 0;
+    page.on('console', m => { const t = m.type(); if (t === 'error') { errs++; log.push('E ' + m.text()); } if (t === 'warning') { warns++; log.push('W ' + m.text()); } });
+    page.on('pageerror', e => { errs++; log.push('P ' + e.message); });
+    const W = (expr, to = 90000) => page.waitForFunction(expr, { timeout: to * 3, polling: 300 });
+    const t0 = Date.now(); let ok = true, note = '';
+    try { await page.goto(BASE + hash, { waitUntil: 'load' }); note = await fn(page, W) || ''; } catch (e) { ok = false; note = 'FAIL ' + e.message.split('\n')[0]; }
+    const r = { name, ok, note, errs, warns, s: Math.round((Date.now() - t0) / 1000), log: log.slice(0, 4) }; results.push(r); console.log(JSON.stringify(r));
+    await page.close();
+  }
+  const ready = `__st && (__st.mode !== 'intro' || __st.forgeDone)`;
+  const free = `__st && (__st.mode === 'free' || __st.mode === 'forged')`;
+  const pw = (p) => p.evaluate(() => document.getElementById('pw').textContent + ' | ' + document.getElementById('pm').textContent);
+  await scenario('esc-during-hash-forge', '#w=FOX', async (p, W) => { await sleep(1500); await p.keyboard.press('Escape'); const m1 = await p.evaluate(() => __st.mode + ' wait=' + !!__st.waitWork + ' skip=' + !!__st.skipWanted);
+    await W(`!__st.waitWork && __st.introT >= 5.6`, 120000); return `after Esc: ${m1}; placard: ${await pw(p)}; hash ${await p.evaluate(() => location.hash)}`; });
+  await scenario('type-during-shatter', '', async (p, W) => { await W(ready); await p.click('#bNext'); await W(`__st.mode === 'shatter'`, 20000);
+    for (const k of ['KeyD', 'KeyO', 'KeyG']) await p.keyboard.press(k); await p.keyboard.press('Enter');
+    await W(`(document.getElementById('pw').textContent || '').includes('DOG') && (__st.mode === 'forged' || __st.mode === 'free')`, 180000); return 'placard: ' + await pw(p); });
+  await scenario('copy-denied-fallback', '#w=TPE', async (p, W) => { await W(`!__st.waitWork`, 120000); await W(free, 120000);
+    await p.click('#bCopy'); await sleep(600);
+    const r = await p.evaluate(() => { const f = document.getElementById('copyField'); return { btn: document.getElementById('bCopy').textContent, field: !f.classList.contains('hidden'), val: f.value, sel: f.selectionEnd - f.selectionStart, focus: document.activeElement === f }; });
+    await p.keyboard.down('Control'); await p.keyboard.press('KeyC'); await p.keyboard.up('Control'); await sleep(300);
+    const r2 = await p.evaluate(() => document.getElementById('bCopy').textContent);
+    return JSON.stringify(r) + ' after Ctrl+C: ' + r2; });
+  await scenario('next-after-word', '#w=TPE', async (p, W) => { await W(`!__st.waitWork`, 120000); await W(free, 120000); await p.click('#bNext');
+    await W(`__st.mode === 'forged'`, 120000); return 'placard: ' + await pw(p) + ' hash="' + await p.evaluate(() => location.hash) + '"'; });
+  await scenario('empty-draw', '', async (p, W) => { await W(ready); await p.click('#bDraw'); await W(`__st.mode === 'draw'`, 20000);
+    const a = await p.evaluate(() => ({ dis: document.getElementById('bForge').disabled, txt: document.getElementById('bForge').textContent }));
+    await p.click('#bForge').catch(() => {}); await sleep(500); const m = await p.evaluate(() => __st.mode);
+    await p.click('#bCancel'); await W(free, 20000); return `forge ${JSON.stringify(a)}; after clicking it: ${m}; Back → ${await p.evaluate(() => __st.mode)}`; });
+  await scenario('resize-mid-forge', '', async (p, W) => { await W(ready); for (const k of ['KeyS', 'KeyU', 'KeyN']) await p.keyboard.press(k); await p.keyboard.press('Enter');
+    await W(`__st.mode === 'shatter'`, 20000); await p.setViewport({ width: 640, height: 400 }); await sleep(1500); await p.setViewport({ width: 420, height: 280 }); await sleep(1500); await p.setViewport({ width: 480, height: 300 });
+    await W(`(document.getElementById('pw').textContent || '').includes('SUN') && __st.mode === 'forged'`, 180000);
+    const c = await p.evaluate(() => { const cv = document.querySelector('canvas'); return cv.width + 'x' + cv.height; }); return 'placard: ' + await pw(p) + ' canvas ' + c; });
+  await scenario('three-shatters', '', async (p, W) => { await W(ready); const seen = [];
+    await p.click('#bNext'); await p.click('#bNext'); await p.click('#bNext'); // rapid triple: one runs, one queues
+    await W(`__st.mode === 'forged'`, 120000); seen.push(await p.evaluate(() => document.getElementById('pw').textContent));
+    await W(`__st.mode === 'shatter' || __st.mode === 'reforge'`, 8000).then(() => seen.push('queued shatter ran')).catch(() => seen.push('no queued'));
+    await W(`__st.mode === 'forged'`, 120000); seen.push(await p.evaluate(() => document.getElementById('pw').textContent));
+    await p.click('#bNext'); await W(`__st.mode === 'shatter'`, 8000); await W(`__st.mode === 'forged'`, 120000); seen.push(await p.evaluate(() => document.getElementById('pw').textContent));
+    return seen.join(' → '); });
+  await scenario('tab-hidden', '', async (p, W) => { await W(ready); await p.mouse.click(240, 60); await sleep(500);
+    const a0 = await p.evaluate(() => ({ v: document.visibilityState, ac: window.__sound ? __sound.ctx?.state : 'n/a', t: __st.t }));
+    const other = await browser.newPage(); await other.goto('about:blank'); await other.bringToFront(); await sleep(3000);
+    const a1 = await p.evaluate(() => ({ v: document.visibilityState, ac: window.__sound ? __sound.ctx?.state : 'n/a', t: __st.t }));
+    await p.bringToFront(); await other.close(); await sleep(3000);
+    const a2 = await p.evaluate(() => ({ v: document.visibilityState, ac: window.__sound ? __sound.ctx?.state : 'n/a', t: __st.t }));
+    return JSON.stringify([a0, a1, a2]); });
+  await scenario('paste-in-draw', '', async (p, W) => { await W(ready); await p.click('#bDraw'); await W(`__st.mode === 'draw'`, 20000);
+    await p.evaluate(() => { location.hash = '#w=SKY'; }); await sleep(4000); const h = await p.evaluate(() => __st.mode + ' / ' + document.getElementById('hint').textContent + ' / pending ' + __st.pendingWord);
+    await p.click('#bCancel'); await W(`(document.getElementById('pw').textContent || '').includes('SKY') && __st.mode === 'forged'`, 180000);
+    return 'in draw: ' + h + ' → placard: ' + await pw(p) + ' hash ' + await p.evaluate(() => location.hash); });
+  await scenario('copy-denied-forced', '#w=TPE', async (p, W) => { await W(`!__st.waitWork`, 120000); await W(free, 120000);
+    await p.evaluate(() => { navigator.clipboard.writeText = () => Promise.reject(new DOMException('denied', 'NotAllowedError')); });
+    await p.click('#bCopy'); await sleep(600);
+    const r = await p.evaluate(() => { const f = document.getElementById('copyField'); return { btn: document.getElementById('bCopy').textContent, field: !f.classList.contains('hidden'), val: f.value.replace(/^.*\//, '…/'), selected: f.selectionEnd - f.selectionStart === f.value.length, focus: document.activeElement === f }; });
+    await p.screenshot({ path: 'copy-denied.png' });
+    await p.evaluate(() => document.getElementById('copyField').dispatchEvent(new Event('copy'))); await sleep(800);
+    const r2 = await p.evaluate(() => document.getElementById('bCopy').textContent + ' field hidden=' + document.getElementById('copyField').classList.contains('hidden'));
+    return JSON.stringify(r) + ' after copy: ' + r2; });
+  console.log('SUMMARY', results.map(r => `${r.name}:${r.ok ? 'ok' : 'FAIL'} e${r.errs} w${r.warns}`).join('  '));
+  await browser.close();
+})();
