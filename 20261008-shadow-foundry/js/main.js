@@ -375,6 +375,17 @@ function makeLabel(text, sub, w) {
   if (w === 1) mesh.rotation.y = Math.PI / 2; else if (w === 2) { mesh.rotation.x = -Math.PI / 2; mesh.rotation.z = Math.PI / 4; }
   scene.add(mesh); return mesh;
 }
+// a label whose screen box hits the placard or the action links fades out (small windows, pushed-in camera)
+const _lv = new THREE.Vector3(); let _lrT = 0, _lr = [];
+function labelClear(m) {
+  if (performance.now() - _lrT > 500) { _lrT = performance.now(); _lr = ['placard', 'actions'].map(id => document.getElementById(id)).filter(e => e && !e.classList.contains('hidden')).map(e => e.getBoundingClientRect()); }
+  const g = m.geometry.parameters, W = innerWidth, H = innerHeight; let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const [u, v] of [[-.5, -.5], [.5, -.5], [-.5, .5], [.5, .5]]) { _lv.set(u * g.width, v * g.height, 0).applyMatrix4(m.matrixWorld).project(camera);
+    const sx = (_lv.x * .5 + .5) * W, sy = (-_lv.y * .5 + .5) * H; x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
+  let k = 1; for (const r of _lr) { const ox = Math.min(x1, r.right + 12) - Math.max(x0, r.left - 12), oy = Math.min(y1, r.bottom + 12) - Math.max(y0, r.top - 12); if (ox > 0 && oy > 0) k = 0; }
+  if (y1 > H - 4) k = 0;
+  m.userData.k = (m.userData.k ?? k) + (k - (m.userData.k ?? k)) * 0.15; return m.userData.k;
+}
 function setLabels(titles, no) { for (const m of labelMeshes) { scene.remove(m); m.material.map.dispose(); } labelMeshes.length = 0; titles.forEach((t, i) => labelMeshes.push(makeLabel(t.split(' '), `No. ${no}  ·  ${['first', 'second', 'third'][i]} shadow`, i))); }
 
 // ---------------- DOM UI
@@ -519,7 +530,7 @@ function update(dt) {
   showPlacard(st.mode === 'intro' ? st.introT >= LOCK_T + 0.6 && !st.waitWork : (st.mode === 'free' || st.mode === 'forged' || st.mode === 'draw'));
   S.push = push; S.freeze = freeze; S.time = t;
   const drawAmt = st.mode === 'draw' ? 1 : 0; for (const m of wallMats) m.uniforms.drawAmt.value += (drawAmt - m.uniforms.drawAmt.value) * (SHOT ? 1 : 0.15);
-  for (const m of labelMeshes) m.material.opacity = labels;
+  for (const m of labelMeshes) m.material.opacity = labels * labelClear(m);
   st.ang = ang;
 }
 
@@ -726,11 +737,12 @@ function drawSlots() { wsCanv.forEach((c, i) => { const g = c.getContext('2d'); 
   g.strokeStyle = 'rgba(236,226,208,0.35)'; g.lineWidth = 1.5; g.strokeRect(1, 1, 62, 62);
   if (ch) { g.save(); g.scale(0.064, 0.064); g.fillStyle = g.strokeStyle = 'rgba(236,226,208,0.95)'; letterFig(ch)(g); g.restore(); } });
   $('word').classList.toggle('typing', wordState.s.length > 0); }
+const canShatter = () => !(st.mode === 'shatter' || st.mode === 'reforge' || st.mode === 'draw' || (st.mode === 'intro' && !st.forgeDone));
 function submitWord() { clearTimeout(wordState.timer); if (wordState.s.length !== 3) return; const wd = wordState.s;
+  if (!canShatter()) { wordState.timer = setTimeout(submitWord, 400); return; } /* typed during the opening or a shatter: wait, then forge */
   if (forgeWord(wd)) { wordState.s = ''; drawSlots(); } }
 addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey || st.mode === 'draw') return;
-  if (st.mode === 'intro' && !st.forgeDone) return; if (st.mode === 'shatter' || st.mode === 'reforge') return;
   if (/^[a-zA-Z]$/.test(e.key)) { if (wordState.s.length >= 3) wordState.s = ''; wordState.s += e.key.toUpperCase(); drawSlots(); clearTimeout(wordState.timer); if (wordState.s.length === 3) wordState.timer = setTimeout(submitWord, 1100); sound.start(); }
   else if (e.key === 'Backspace') { wordState.s = wordState.s.slice(0, -1); clearTimeout(wordState.timer); drawSlots(); }
   else if (e.key === 'Enter') submitWord();
@@ -741,7 +753,7 @@ $('bCopy').onclick = async (e) => { e.stopPropagation(); if (!work || !work.word
 window.__forgeWord = forgeWord;
 addEventListener('hashchange', () => { // a pasted #w= link in an open tab forges that word (retries until the current animation allows it)
   const m = /^#w=([A-Za-z]{3})$/.exec(decodeURIComponent(location.hash || '')); if (!m) return; const wd = m[1].toUpperCase(); if (work && work.word === wd) return;
-  let n = 0; const tryIt = () => { if (forgeWord(wd)) return; if (++n < 60) setTimeout(tryIt, 500); }; tryIt(); });
+  let n = 0; const tryIt = () => { if (canShatter() && forgeWord(wd)) return; if (++n < 60) setTimeout(tryIt, 500); }; tryIt(); });
 window.__wordTable = async (words) => { const out = []; for (const wd of words) { const r = forgeWordWork(wd); if (r.prom) { await r.prom; out.push(window.__lastWord); } } return out; };
 $('bNext').onclick = (e) => { e.stopPropagation(); shatterTo((presetIdx + 1) % PRESET_LIST.length); };
 
