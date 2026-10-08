@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { FIGURES, PRESETS } from './figures.js';
+import { FIGURES, PRESETS, letterFig, LETTER_LIM, GLYPHS } from './figures.js';
 import { G, MR, maskFromDraw, maskFromDrawT, maskFromCanvas, repairTight, fitFigures, forgeRods, Hull, coverageFromHull, fidelity, maskToWorld, sdf as sdfOf, projectRodsPosed, downMask, maxIoU } from './forge.js';
 import { Sound } from './audio.js';
 import { rayPoint, rasterRodsSW, rayCoverage, quickFidelity } from './forge.js';
@@ -27,9 +27,11 @@ const camera = new THREE.PerspectiveCamera(+(Q.get('fov') || 31), innerWidth / i
 const CAMDIR = new THREE.Vector3(1, 0.8, 1).normalize();
 const CAMDIST = +(Q.get('cd') || 20.5);
 const LOOK = new THREE.Vector3(+(Q.get('lx') || 2.3), +(Q.get('ly') || 3.55), +(Q.get('lx') || 2.3));
-function placeCamera(px = 0, py = 0, push = 0) {
+const HERO = +(Q.get('hp') || 0.33), HERO_LOOK = new THREE.Vector3(...(Q.get('hl') || '0,-1.35,0').split(',').map(Number)); let heroAmt = 0;
+function placeCamera(px = 0, py = 0, push = 0) { // push includes the post-reveal hero push-in (heroAmt 0..1): pools fill ~60 % of the width
   const dir = CAMDIR.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), px * 0.035).applyAxisAngle(new THREE.Vector3(1, 0, -1).normalize(), -py * 0.03);
-  camera.position.copy(LOOK).addScaledVector(dir, CAMDIST * (1 - push)); camera.lookAt(LOOK);
+  const look = LOOK.clone().addScaledVector(HERO_LOOK, heroAmt); const k = heroAmt * heroAmt * (3 - 2 * heroAmt);
+  camera.position.copy(look).addScaledVector(dir, CAMDIST * (1 - push - HERO * k)); camera.lookAt(look);
 }
 placeCamera();
 
@@ -237,7 +239,7 @@ const fontsReady = (async () => {
 function forgeFrom(draws, opts) {
   const t0 = performance.now();
   let T = opts.T, fid0 = null;
-  if (!T) { const fit = fitFigures(draws, { evals: opts.evals || 70, init: [0, 1, 2].map(() => ({ sx: 0.95, sy: 0.95, tx: 0, ty: 0, r: 0 })) }); T = fit.T; }
+  if (!T) { const fit = fitFigures(draws, { evals: opts.evals || 70, lim: opts.lim, init: [0, 1, 2].map(() => ({ sx: 0.95, sy: 0.95, tx: 0, ty: 0, r: 0 })) }); T = fit.T; }
   const tFit = performance.now() - t0;
   const orig = draws.map((d, i) => maskFromDrawT(d, T[i]));
   const fixed = repairTight(orig, opts.repairIter || 3, opts.maxCost || 3.2);
@@ -357,13 +359,14 @@ ui.innerHTML = `
 <div id="placard"><div class="pt"><span class="zh">影鑄</span> Shadow Foundry</div><div class="pw" id="pw"></div><div class="pm" id="pm"></div></div>
 <div id="hint"></div>
 <button id="mute" title="Sound"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path id="mw" d="M16 8.5c1.2 1 1.2 6 0 7M18.5 6c2.5 2.3 2.5 9.7 0 12" stroke="currentColor" fill="none" stroke-width="1.4"/></svg></button>
-<div id="actions"><button id="bDraw">Draw your own three shadows <span class="zh">畫你的影子</span></button><button id="bNext">Next sculpture →</button></div>
+<div id="word"><div id="wslots"><canvas></canvas><canvas></canvas><canvas></canvas></div><div id="wprompt">Type 3 letters to forge a sculpture</div></div>
+<div id="actions"><button id="bCopy" class="hidden">Copy share link ⧉</button><button id="bDraw">Draw your own three shadows <span class="zh">畫你的影子</span></button><button id="bNext">Next sculpture →</button></div>
 <div id="drawbar" class="hidden"><div class="dt">Draw a silhouette on each lit wall. Closed outlines fill in by themselves.</div>
 <div class="db"><button id="bClear">Clear</button><button id="bCancel">Back</button><button id="bForge" disabled>Forge the sculpture →</button></div></div>
 <div id="forging" class="hidden">forging…</div>`;
 const $ = (id) => document.getElementById(id);
-function setPlacard(no, titles, nRods, fid) {
-  $('pw').innerHTML = `No. ${no} — ${titles.map(t => t.split(' ')[1]).join(', ')}`;
+function setPlacard(no, titles, nRods, fid, word) {
+  $('pw').innerHTML = `No. ${no} — ${titles.map(t => t.split(' ')[1]).join(', ')}${word && !PRESET_LIST.some(P => P.word === word) ? ' · forged for you' : ''}`;
   $('pm').innerHTML = `aged brass &amp; blackened steel, ${nRods.toLocaleString('en-US')} rods · ${(100 * Math.min(...fid)).toFixed(1)} % shadow fidelity`;
 }
 let hintTimer = 0; function hint(txt) { const h = $('hint'); h.textContent = txt; h.classList.toggle('on', !!txt); }
@@ -379,7 +382,8 @@ const st = { mode: 'intro', t: 0, introT: 0, yaw: 0, tilt: 0, vy: 0, vt: 0, drag
 
 function loadWork(w) {
   work = w; current = w; scatLast = -1;
-  nest = prepNest({ rods: w.rods }); setLabels(w.titles, w.no); setPlacard(w.no, w.titles, w.rods.length, w.fidHull);
+  nest = prepNest({ rods: w.rods }); setLabels(w.titles, w.no); setPlacard(w.no, w.titles, w.rods.length, w.fidRods, w.word);
+  $('bCopy').classList.toggle('hidden', !w.word); if (w.word && !SHOT) history.replaceState(null, '', '#w=' + w.word);
   window.__forge = { current: w, fidRaw: w.fidHull, fidRep: w.fidRods };
 }
 function presetWork(i) {
@@ -392,7 +396,7 @@ const KIND = ['long', 'repair', 'edge'];
 function packWork(w) { const f = (x) => +x.toFixed(4); return { no: w.no, T: w.T, fidHull: w.fidHull.map(f), fidRods: w.fidRods.map(f), counts: w.counts,
   rods: w.rods.map(r => [...r.a.map(f), ...r.b.map(f), f(r.r), r.g, KIND.indexOf(r.kind), f(r.depth), r.mat, f(r.tone)]) }; }
 function unpackWork(j, P) { const rods = j.rods.map(a => ({ a: [a[0], a[1], a[2]], b: [a[3], a[4], a[5]], r: a[6], g: a[7], kind: KIND[a[8]], depth: a[9], mat: a[10], tone: a[11] }));
-  const w = { rods, T: j.T, fidHull: j.fidHull, fidRods: j.fidRods, counts: j.counts, titles: P.title, no: P.no, ms: 0 };
+  const w = { rods, T: j.T, fidHull: j.fidHull, fidRods: j.fidRods, counts: j.counts, titles: P.title, no: P.no, word: P.word, ms: 0 };
   Object.defineProperty(w, 'orig', { get() { return this._o || (this._o = P.figs.map((n, i) => maskFromDrawT(FIGURES[n], j.T[i]))); } });
   Object.defineProperty(w, 'masks', { get() { return this._m || (this._m = repairTight(this.orig, 3, 3.2)); } }); return w; }
 async function loadPreset(i) {
@@ -431,7 +435,8 @@ function update(dt) {
   st.t += dt; const t = st.t;
   let lamp = [1, 1, 1], radius = [0, 0, 0], dark = [0, 0, 0], push = 0, freeze = 0, labels = 0, ang = 0;
   if (st.mode === 'intro') {
-    st.introT += dt; const it = st.introT; lamp = [0, 1, 2].map(i => lampOn(it, i));
+    st.introT += dt; if (st.waitWork && st.introT > FG.A0 - 0.05) { st.introT = FG.A0 - 0.05; if (!st.waitHint) { st.waitHint = 1; hint('forging your sculpture…'); } }
+    const it = st.introT; lamp = [0, 1, 2].map(i => lampOn(it, i));
     if (SHOT) lamp = lamp.map((v, i) => it > LAMP_T[i] + 0.25 ? 1 : v);
     [0, 1, 2].forEach(i => { const was = st['lamp' + i]; const now = lamp[i] > 0.5; if (now && !was) sound.clunk(i); st['lamp' + i] = now; });
     st.q = introQuat(it); if (it >= UNLOCK_T) { const k = easeOut((it - UNLOCK_T) / (FREE_T - UNLOCK_T)); const kk = k * k * (3 - 2 * k); st.yaw = SCR[1].yaw * kk; st.tilt = SCR[1].tilt * kk; }
@@ -462,8 +467,10 @@ function update(dt) {
     push = L.push; freeze = L.freeze; labels = L.labels; lamp = lamp.map(v => v * (1 + L.flash));
     sound.update(Math.abs(st.vy) * 60 * 0.05 + Math.abs(st.vt) * 60 * 0.05, ang, st.drag || (t - st.lastMove) < 1.5);
   } else if (st.mode === 'shatter') {
-    const e = t - st.shT; shatterPose(e); ang = 0.6; for (let i = 0; i < 3; i++) { radius[i] = FG.STORM_R; dark[i] = 0.975; }
-    if (e >= SH.DUR && st.next) { loadWork(st.next); st.next = null; st.mode = 'reforge'; st.rfT = t; st.yaw = 0; st.tilt = 0; st.vy = st.vt = 0; for (const m of nest.meshes) m.data.forEach(d => d.ticked = false); }
+    const e = t - st.shT; if (st.next && !st.shrinkT && e >= SH.DUR - 0.3) st.shrinkT = t;
+    shatterPose(e, st.shrinkT ? clamp((t - st.shrinkT) / 0.3, 0, 1) : 0); ang = 0.6; for (let i = 0; i < 3; i++) { radius[i] = FG.STORM_R; dark[i] = 0.975; }
+    if (!st.next && e > SH.DUR + 0.4) hint('forging…');
+    if (st.shrinkT && t - st.shrinkT >= 0.3) { hint(''); loadWork(st.next); st.next = null; st.mode = 'reforge'; st.rfT = t; st.yaw = 0; st.tilt = 0; st.vy = st.vt = 0; for (const m of nest.meshes) m.data.forEach(d => d.ticked = false); }
   } else if (st.mode === 'reforge') {
     const it = SH.IT0 + (t - st.rfT) * SH.RF; forgeIntroPose(it, !SHOT); ang = 0; for (let i = 0; i < 3; i++) { radius[i] = FG.STORM_R; dark[i] = 0.975; }
     if (it >= FG.END + 0.03) { forgeIntroPose(99, false); st.mode = 'forged'; st.lastLock = t; st.freeStart = t; sound.hit(); }
@@ -477,6 +484,9 @@ function update(dt) {
   else if (st.mode === 'reforge') pivot.quaternion.identity();
   else { const q = poseQuat(st.yaw, st.tilt); if (st.blendQ) { const k = easeOut((t - st.blendT) / 0.7); q.copy(st.blendQ.clone().slerp(q, k)); if (k >= 1) st.blendQ = null; } pivot.quaternion.copy(q); }
   for (let i = 0; i < 3; i++) { S.lamp[i] = lamp[i] * st.lampMul; S.radius[i] = radius[i]; S.dark[i] = dark[i]; }
+  // hero push-in after a reveal; eases back out as soon as the visitor interacts
+  if (st.mode === 'intro') heroAmt = sm(LOCK_T + 0.25, LOCK_T + 1.7, st.introT) * (1 - sm(UNLOCK_T - 0.2, UNLOCK_T + 0.9, st.introT));
+  else { const tgt = (st.locked && !st.drag && t - st.lockAt > 0.35) ? 1 : 0; heroAmt += (tgt - heroAmt) * (1 - Math.exp(-dt / (tgt ? 0.55 : 0.3))); if (SHOT && Q.get('pose') === 'solved') heroAmt = 1; }
   S.push = push; S.freeze = freeze; S.time = t;
   const drawAmt = st.mode === 'draw' ? 1 : 0; for (const m of wallMats) m.uniforms.drawAmt.value += (drawAmt - m.uniforms.drawAmt.value) * (SHOT ? 1 : 0.15);
   for (const m of labelMeshes) m.material.opacity = labels;
@@ -485,20 +495,22 @@ function update(dt) {
 
 // ---------------- shatter → re-forge (the repeatable verb): rods burst out under gravity, the next curated work forges in
 const SH = { DUR: 1.05, RF: 1.0, IT0: 3.3 };
-function shatterPose(e) {
+function shatterPose(e, shrink) {
   if (!nest) return; const R = mulberry(901);
   for (const { im, data } of nest.meshes) { for (let i = 0; i < data.length; i++) { const d = data[i];
     const tt = Math.max(0, e - R() * 0.06), u = clamp(tt / 0.55, 0, 1), k = 1 - Math.pow(1 - u, 3);
     cloudAt(d, FG.A1 + e, _sp); _p.lerpVectors(d.pos, _sp, k); _p.y -= 0.9 * Math.sin(Math.PI * u) * 0.5; // burst out with a gravity sag
     _qa.setFromAxisAngle(d.ax, d.spin * 5 * tt); _q.copy(_qa).multiply(d.q);
-    const sc = 1 - clamp((e - 0.75) / 0.3, 0, 1); _s.copy(d.sc).multiplyScalar(Math.max(1e-4, sc)); _m4.compose(_p, _q, _s); im.setMatrixAt(i, _m4); }
+    const sc = 1 - shrink; _s.copy(d.sc).multiplyScalar(Math.max(1e-4, sc)); _m4.compose(_p, _q, _s); im.setMatrixAt(i, _m4); }
     im.instanceMatrix.needsUpdate = true; }
 }
-function shatterTo(idx) {
-  if (st.mode === 'shatter' || st.mode === 'reforge' || st.mode === 'draw') return;
+function shatterTo(target) { // target: preset index or a Promise<work> (worker forge); the storm hides the wait
+  if (st.mode === 'shatter' || st.mode === 'reforge' || st.mode === 'draw') return false;
+  if (st.mode === 'intro') { if (!st.forgeDone) return false; st.mode = 'free'; st.freeStart = st.t; for (const m of labelMeshes) m.material.opacity = 0; scatterPose(0, st.t); } // leave the intro afterglow
   sound.start(); sound.hit(); sound.whoosh(); hint('');
-  presetIdx = idx; st.mode = 'shatter'; st.shT = st.t; st.locked = false; st.lockAt = -1; st.next = null; st.blendQ = null;
-  st.shQ = poseQuat(st.yaw, st.tilt); loadPreset(idx).then(w => { st.next = w; });
+  const p = typeof target === 'number' ? (presetIdx = target, loadPreset(target)) : target;
+  st.mode = 'shatter'; st.shT = st.t; st.shrinkT = 0; st.locked = false; st.lockAt = -1; st.next = null; st.blendQ = null;
+  st.shQ = poseQuat(st.yaw, st.tilt); p.then(w => { st.next = w; }); return true;
 }
 window.__shatter = (idx = (presetIdx + 1) % PRESET_LIST.length) => shatterTo(idx);
 // ---------------- input
@@ -593,14 +605,57 @@ function forgeDrawings(draws, titles) {
   });
   return { longP, doneP };
 }
+// ---------------- type three letters → forge (worker), share link #w=ABC
+let wordNo = 0;
+function forgeWordWork(word) {
+  const P = PRESET_LIST.findIndex(p => p.word === word); if (P >= 0) return { idx: P };
+  const letters = [...word]; const srcs = letters.map(c => { const cv = document.createElement('canvas'); cv.width = cv.height = 1000; const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.strokeStyle = '#fff'; letterFig(c)(g); return cv; });
+  const t0 = performance.now(); wordNo++; const no = PRESET_LIST.length + userNo + wordNo;
+  const prom = Promise.all(srcs.map(c => createImageBitmap(c))).then(bitmaps => new Promise((resolve) => {
+    const done = (m, perm) => { const order = perm || [0, 1, 2]; const tl = order.map(i => `字 ${letters[i]}`);
+      const w = { rods: m.rods, T: m.T, fidHull: m.fidHull, fidRods: m.fidRods, counts: m.counts, titles: tl, no, word, ms: performance.now() - t0, perm: order };
+      Object.defineProperty(w, 'orig', { get() { return this._o || (this._o = order.map((i, k) => maskFromDrawT(letterFig(letters[i]), m.T[k]))); } });
+      window.__lastWord = { word, perm: order.map(i => letters[i]).join(''), ms: Math.round(w.ms), rods: w.rods.length, fidHull: w.fidHull.map(x => +(100 * x).toFixed(1)), fidRods: w.fidRods.map(x => +(100 * x).toFixed(1)) };
+      console.log(`forged word ${word} (walls ${window.__lastWord.perm}): rods ${w.rods.length}, rod coverage ${window.__lastWord.fidRods.join('/')}, ${Math.round(w.ms)} ms`); resolve(w); };
+    const Wk = getWorker();
+    if (!Wk) { setTimeout(() => { const w = forgeFrom(letters.map(c => letterFig(c)), { evals: 60, seed: 21, lim: LETTER_LIM }); done(w, null); }, 30); return; }
+    Wk.onmessage = (e) => { const m = e.data; if (m.type === 'done') done(m, m.perm); };
+    Wk.postMessage({ bitmaps, evals: 60, seed: 31, lim: LETTER_LIM, perm: true }, bitmaps);
+  }));
+  return { prom };
+}
+function forgeWord(word) { const r = forgeWordWork(word); return shatterTo(r.prom || r.idx); }
+const wordState = { s: '', timer: 0 };
+const wsCanv = [...document.querySelectorAll('#wslots canvas')]; wsCanv.forEach(c => { c.width = c.height = 64; });
+function drawSlots() { wsCanv.forEach((c, i) => { const g = c.getContext('2d'); g.clearRect(0, 0, 64, 64); const ch = wordState.s[i];
+  g.strokeStyle = 'rgba(236,226,208,0.35)'; g.lineWidth = 1.5; g.strokeRect(1, 1, 62, 62);
+  if (ch) { g.save(); g.scale(0.064, 0.064); g.fillStyle = g.strokeStyle = 'rgba(236,226,208,0.95)'; letterFig(ch)(g); g.restore(); } });
+  $('word').classList.toggle('typing', wordState.s.length > 0); }
+function submitWord() { clearTimeout(wordState.timer); if (wordState.s.length !== 3) return; const wd = wordState.s;
+  if (forgeWord(wd)) { setTimeout(() => { wordState.s = ''; drawSlots(); }, 900); } }
+addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey || st.mode === 'draw') return;
+  if (st.mode === 'intro' && !st.forgeDone) return; if (st.mode === 'shatter' || st.mode === 'reforge') return;
+  if (/^[a-zA-Z]$/.test(e.key)) { if (wordState.s.length >= 3) wordState.s = ''; wordState.s += e.key.toUpperCase(); drawSlots(); clearTimeout(wordState.timer); if (wordState.s.length === 3) wordState.timer = setTimeout(submitWord, 1100); sound.start(); }
+  else if (e.key === 'Backspace') { wordState.s = wordState.s.slice(0, -1); clearTimeout(wordState.timer); drawSlots(); }
+  else if (e.key === 'Enter') submitWord();
+  else if (e.key === 'Escape' && wordState.s) { wordState.s = ''; clearTimeout(wordState.timer); drawSlots(); }
+});
+$('bCopy').onclick = async (e) => { e.stopPropagation(); if (!work || !work.word) return; const url = location.origin + location.pathname + '#w=' + work.word;
+  try { await navigator.clipboard.writeText(url); hint('Link copied: ' + url.replace(/^https?:\/\//, '')); } catch (err) { hint(url); } setTimeout(() => hint(''), 4000); };
+window.__forgeWord = forgeWord;
+window.__wordTable = async (words) => { const out = []; for (const wd of words) { const r = forgeWordWork(wd); if (r.prom) { await r.prom; out.push(window.__lastWord); } } return out; };
 $('bNext').onclick = (e) => { e.stopPropagation(); shatterTo((presetIdx + 1) % PRESET_LIST.length); };
 
 // ---------------- main loop (deterministic in ?shot mode)
 let frame = 0, last = performance.now();
 const SHOT_T = +(Q.get('t') || 6.0);
 const TEST_TITLES = { heart: '心 Heart', star: '星 Star', letterA: '字 A', tree: '樹 Tree', swallow: '燕 Swallow', catFront: '貓 Cat', key: '鑰 Key', hand: '手 Hand', butterfly: '蝶 Butterfly' };
+const HASHW = (/^#w=([A-Za-z]{3})$/.exec(decodeURIComponent(location.hash || '')) || [])[1]?.toUpperCase() || null;
 async function boot() {
-  const [, w0] = await Promise.all([fontsReady, loadPreset(presetIdx)]); loadWork(w0); setLabels(work.titles, work.no);
+  let w0 = null;
+  if (HASHW) { const r = forgeWordWork(HASHW); if (r.prom) { st.waitWork = true; r.prom.then(w => { loadWork(w); st.waitWork = false; hint(''); }); if (SHOT) { await fontsReady; await r.prom; } else await fontsReady; } else presetIdx = r.idx; }
+  if (!st.waitWork && !(HASHW && SHOT && work)) { [, w0] = await Promise.all([fontsReady, loadPreset(presetIdx)]); loadWork(w0); }
   if (SHOT) {
     const pose = Q.get('pose');
     if (pose) { // free-mode still: pose=scramble|solved|<k 0..1 toward scramble>
@@ -617,8 +672,9 @@ async function boot() {
         else FIGURES[n](g); g.restore(); refreshFill(w, true); });
       for (const m of wallMats) m.uniforms.drawAmt.value = 1; st.t += 5;
     } else if (Q.get('shatter')) { // still of the shatter → re-forge at <sec> after the click
-      st.mode = 'free'; st.freeStart = -100; st.lastLock = -100; update(0); const e = +Q.get('shatter'); st.t = 20; shatterTo((presetIdx + 1) % PRESET_LIST.length);
-      const w = await loadPreset(presetIdx); st.next = w; if (e < SH.DUR) st.shT = st.t - e + 1 / 60; else { st.shT = st.t - SH.DUR; update(1 / 60); st.rfT = st.t - (e - SH.DUR) + 1 / 60; }
+      st.mode = 'free'; st.freeStart = -100; st.lastLock = -100; update(0); const e = +Q.get('shatter'); st.t = 20; const QW = Q.get('word'); const r = QW ? forgeWordWork(QW.toUpperCase()) : null;
+      shatterTo(r ? (r.prom || r.idx) : (presetIdx + 1) % PRESET_LIST.length);
+      const w = r && r.prom ? await r.prom : await loadPreset(presetIdx); st.next = w; if (e < SH.DUR) st.shT = st.t - e + 1 / 60; else { st.shT = st.t - SH.DUR; st.shrinkT = st.t - 0.31; update(1 / 60); st.rfT = st.t - (e - SH.DUR) + 1 / 60; }
     } else { st.introT = SHOT_T - 1 / 60; st.t = SHOT_T; [0, 1, 2].forEach(i => st['lamp' + i] = true); st.lastLockIntro = SHOT_T >= LOCK_T; }
   }
   requestAnimationFrame(tick);
@@ -666,6 +722,8 @@ window.__scrSheet = (cands) => { // contact sheet of projected rod shadows for c
   return c.toDataURL();
 };
 
+window.__benchWords = (words, o = {}) => words.map(wd => { const w = forgeFrom([...wd].map(c => FIGURES['L_' + c]), { evals: 60, seed: 21, lim: LETTER_LIM, ...o });
+  const r = (a) => a.map(x => +(100 * x).toFixed(1)); return { word: wd, rods: w.rods.length, ms: Math.round(w.ms), hull: r(w.fidHull), cov: r(w.fidRods), min: +(100 * Math.min(...w.fidRods)).toFixed(1), T: w.T.map(t => Object.fromEntries(Object.entries(t).map(([k, v]) => [k, +v.toFixed(4)]))) }; });
 window.__bench = (names, o = {}) => { const w = names ? forgeFrom(names.map(n => FIGURES[n]), { evals: 60, seed: 21, ...o }) : forgeFrom(PRESET_LIST[presetIdx].figs.map(f => FIGURES[f]), { T: PRESET_LIST[presetIdx].T, seed: 11, ...o });
   const r = (a) => a.map(x => +(100 * x).toFixed(2)); return { ms: Math.round(w.ms), times: JSON.parse(JSON.stringify(w.times, (k, v) => typeof v === 'number' ? Math.round(v) : v)), counts: w.counts, rods: w.rods.length, hull: r(w.fidHull), cov: r(w.fidRods) }; };
 

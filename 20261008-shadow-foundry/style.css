@@ -19,3 +19,10 @@ button:hover{opacity:1;border-color:#e9dfcf} button:disabled{opacity:.3;cursor:d
 #drawbar .db{display:flex;gap:28px;justify-content:center}
 #forging{position:fixed;left:50%;top:48%;transform:translate(-50%,-50%);font-size:26px;font-style:italic;letter-spacing:.05em;text-shadow:0 0 14px #000}
 .hidden{display:none!important}
+
+#word{position:fixed;left:50%;top:34px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.55;transition:opacity .4s}
+#word.typing{opacity:1}
+#wslots{display:flex;gap:10px}
+#wslots canvas{width:44px;height:44px}
+#wprompt{font-size:15px;font-style:italic;letter-spacing:.04em;opacity:.8}
+#word.typing #wprompt::after{content:'  ·  Enter to forge'}
