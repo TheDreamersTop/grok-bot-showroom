@@ -413,7 +413,7 @@ ui.innerHTML = `
 <div id="placard"><div class="pt"><span class="zh">影鑄</span> Shadow Foundry</div><div class="pw" id="pw"></div><div class="pm" id="pm"></div></div>
 <div id="hint"></div>
 <button id="mute" title="Sound"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path id="mw" d="M16 8.5c1.2 1 1.2 6 0 7M18.5 6c2.5 2.3 2.5 9.7 0 12" stroke="currentColor" fill="none" stroke-width="1.4"/></svg></button>
-<div id="actions"><div id="word"><div id="wslots"><canvas></canvas><canvas></canvas><canvas></canvas></div><div id="wprompt">Type any 3 letters to forge them in brass</div></div><button id="bCopy" class="hidden">Copy share link ⧉</button><input id="copyField" class="hidden" readonly aria-label="Share link"><button id="bDraw">Draw your own three shadows <span class="zh">畫你的影子</span></button><button id="bNext">Next sculpture →</button></div>
+<div id="actions"><div id="word"><div id="wslots"><canvas></canvas><canvas></canvas><canvas></canvas></div><div id="wprompt">Type any 3 letters to forge them in brass</div></div><button id="bCopy" class="hidden">Copy share link ⧉</button><input id="copyField" class="hidden" readonly aria-label="Share link"><button id="bDraw">Draw your own three shadows <span class="zh">畫你的影子</span></button><button id="bLamp">Be the lamp · 1 2 3</button><button id="bNext">Next sculpture →</button></div><div id="sndcue">click anywhere for sound</div>
 <div id="drawbar" class="hidden"><div class="dt">Draw a silhouette on each lit wall. Closed outlines fill in by themselves.</div>
 <div class="db"><button id="bClear">Clear</button><button id="bCancel">Back</button><button id="bForge" disabled>Forge the sculpture →</button></div></div>
 <div id="forging" class="hidden">forging…</div><div id="lvcap">You are the lamp — Esc to step back</div>`;
@@ -510,7 +510,7 @@ function update(dt) {
     const r0 = it < UNLOCK_T ? FG.STORM_R : g.radius;
     for (let i = 0; i < 3; i++) { radius[i] = r0 + (1.0 - r0) * L.k[i]; dark[i] = 0.975; }
     freeze = L.freeze; if (it < UNLOCK_T) lamp = lamp.map(v => v * (1 + L.flash));
-    if (it > FREE_T) { st.mode = 'free'; st.freeStart = t; hint('Drag to turn the sculpture until its shadows become pictures'); }
+    if (it > FREE_T) { st.mode = 'free'; st.freeStart = t; hint('Drag to turn the sculpture until its shadows become pictures · press 1 2 3 to be a lamp'); }
   } else if (st.mode === 'free' || st.mode === 'forged') {
     if (!st.drag) { st.yaw += st.vy; st.tilt += st.vt; st.vy *= 0.92; st.vt *= 0.92; }
     if (LV.on) { const ty = Math.round(st.yaw / (2 * Math.PI)) * 2 * Math.PI; st.yaw += (ty - st.yaw) * (1 - Math.exp(-dt / 0.35)); st.tilt += (0 - st.tilt) * (1 - Math.exp(-dt / 0.35)); st.vy = st.vt = 0; }
@@ -573,7 +573,7 @@ function shatterPose(e, shrink) {
 function shatterTo(target) { // target: preset index or a Promise<work> (worker forge); the storm hides the wait
   if (st.mode === 'shatter' || st.mode === 'reforge' || st.mode === 'draw') return false;
   if (st.mode === 'intro') { if (!st.forgeDone) return false; st.mode = 'free'; st.freeStart = st.t; for (const m of labelMeshes) m.material.opacity = 0; scatterPose(0, st.t); } // leave the intro afterglow
-  sound.start(); sound.hit(); sound.whoosh(); hint('');
+  exitLamp(); sound.start(); sound.hit(); sound.whoosh(); hint('');
   const p = typeof target === 'number' ? (presetIdx = target, loadPreset(target)) : target;
   st.mode = 'shatter'; st.shT = st.t; st.shrinkT = 0; st.locked = false; st.lockAt = -1; st.next = null; st.blendQ = null;
   st.shQ = poseQuat(st.yaw, st.tilt); p.then(w => { st.next = w; }); return true;
@@ -707,6 +707,7 @@ function forgeLabel() { const left = fillCanvases.filter(c => { const d = c.getC
 }
 function enterDraw() { forgeLabel(); st.mode = 'draw'; st.locked = false; nest.mode = 'out'; st.anim = st.t; sound.whoosh(); hint(''); $('drawbar').classList.remove('hidden'); $('actions').classList.add('hidden'); canvas.style.cursor = 'crosshair'; for (const m of labelMeshes) m.material.opacity = 0; }
 function exitDraw() { $('drawbar').classList.add('hidden'); $('actions').classList.remove('hidden'); canvas.style.cursor = 'grab'; }
+$('bLamp').onclick = (e) => { e.stopPropagation(); sound.start(); if (LV.on) exitLamp(); else if (lampEnabled() && st.mode !== 'draw') enterLamp(0); };
 $('bDraw').onclick = (e) => { e.stopPropagation(); sound.start(); if (canShatter()) enterDraw(); else { st.pending = enterDraw; hint('drawing walls after this forge…'); } };
 $('bClear').onclick = () => { for (let i = 0; i < 3; i++) { drawCanvases[i].getContext('2d').clearRect(0, 0, MR, MR); refreshFill(i, true); } };
 $('bCancel').onclick = () => { exitDraw(); st.mode = 'free'; nest.mode = 'in'; nest.meshes.forEach(m => m.data.forEach(d => d.landed = false)); st.anim = st.t; st.yaw = 0; st.tilt = 0; st.lastLock = st.t; };
@@ -837,7 +838,7 @@ const DEBUG = Q.has('debug'); const dbg = DEBUG ? Object.assign(document.body.ap
 function governor(ms) {
   if (SHOT || document.hidden) return; const raw = ms; ms = Math.min(ms, 200); /* governor input is capped; the overlay uses the raw time */
   GOV.t += ms / 1000; GOV.ema += (ms - GOV.ema) * 0.05; GOV.raw += (raw - GOV.raw) * 0.05; GOV.hist.push(raw); if (GOV.hist.length > 120) GOV.hist.shift();
-  if (GOV.t > GOV.wait && !Q.has('noqgov')) { GOV.slow = GOV.ema > 28 ? GOV.slow + ms / 1000 : 0; GOV.fast = GOV.ema < 14 ? GOV.fast + ms / 1000 : 0;
+  if (GOV.t > GOV.wait && !Q.has('noqgov')) { GOV.slow = GOV.ema > 28 ? GOV.slow + ms / 1000 : 0; GOV.fast = GOV.ema < 18 ? GOV.fast + ms / 1000 : 0;
     if (GOV.slow > 2 && GOV.level < LEVELS.length - 1) { setQuality(GOV.level + 1); GOV.slow = GOV.fast = 0; GOV.wait = GOV.t + 2.5; }
     else if (GOV.fast > 5 && GOV.level > 0) { setQuality(GOV.level - 1); GOV.slow = GOV.fast = 0; GOV.wait = GOV.t + 2.5; } }
   if (dbg && GOV.t - GOV.lastShow > 0.5) { GOV.lastShow = GOV.t; const so = [...GOV.hist].sort((a, b) => a - b); const p95 = so[Math.floor(so.length * 0.95)] || 0;
@@ -855,6 +856,7 @@ function tick(now) {
   frame++; const rawMs = now - last; const dt = SHOT ? 1 / 60 : Math.min(0.05, rawMs / 1000); last = now; if (frame > 1) governor(rawMs);
   if (st.pendingWord && canShatter()) { const wd = st.pendingWord; st.pendingWord = null; st.pending = null; if (!(work && work.word === wd)) forgeWord(wd); }
   if (st.pending && canShatter()) { const f = st.pending; st.pending = null; f(); }
+  if (!st.cueDone) { const on = !SHOT && !sound.muted && !sound.ok(); document.body.classList.toggle('sndcue', on); if (sound.ok()) st.cueDone = true; }
   hazeMat.uniforms.streak.value = streakAmt();
   if (SHOT && Q.get('pose')) { update(0); } else update(dt);
   render();
