@@ -157,7 +157,12 @@ void main(){
   if(sc.a>.5){ // solid: emitter or ink
     vec3 e=pow(sc.rgb,vec3(2.2));
     float lum=dot(e,vec3(.3,.6,.1));
-    col = lum>.02 ? e*2.2 : vec3(.010,.011,.016)+L*.03;
+    // find light just outside this cut-paper edge: probe a few directions
+    vec3 rimL=vec3(0); float best=0.;
+    for(int k=0;k<8;k++){ float a=float(k)*.785398; vec2 dir=vec2(cos(a),sin(a));
+      for(int s2=1;s2<=3;s2++){ vec2 q=uv+dir*float(s2)*2./R; vec4 sq=texture(sceneT,vec2(q.x,1.-q.y)); if(sq.a<.5){ vec2 gq=q*R/2.-.5; ivec2 pq=clamp(ivec2(floor(gq+.5)),ivec2(0),PN-1); vec3 s3=vec3(0); for(int m=0;m<4;m++) s3+=texelFetch(c0,pq*2+ivec2(m%2,m/2),0).rgb; rimL+=s3*.25*(1.-float(s2-1)/3.); best+=1.; break; } } }
+    rimL/=max(best,1.);
+    col = lum>.02 ? e*2.2 : vec3(.012,.012,.018)+L*.02+rimL*.55*smoothstep(0.,3.,best);
   } else {
     col = paper*L*1.6;
     col *= .85+.15*smoothstep(0.,6.,sd); // contact darkening near cut paper

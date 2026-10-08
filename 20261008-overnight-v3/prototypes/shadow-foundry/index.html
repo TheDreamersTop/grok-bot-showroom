@@ -83,21 +83,21 @@ const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: SHOT });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b0a09);
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.1, 100);
-camera.position.set(9.5, 5.2, 11.5); camera.lookAt(-0.6, 2.35, -0.8);
+camera.position.set(11.2, 6.4, 10.4); camera.lookAt(-0.9, 2.2, -0.9);
 
 // plaster texture
 function plaster() {
   const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d');
-  const id = g.createImageData(512, 512);
-  for (let i = 0; i < 512 * 512; i++) { const v = 200 + (Math.random() * 30 - 15) + 10 * Math.sin(i * 0.0007); id.data[i * 4] = v; id.data[i * 4 + 1] = v * 0.97; id.data[i * 4 + 2] = v * 0.92; id.data[i * 4 + 3] = 255; }
-  g.putImageData(id, 0, 0); g.filter = 'blur(1.2px)'; g.drawImage(c, 0, 0);
-  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 3); t.colorSpace = THREE.SRGBColorSpace; return t;
+  g.fillStyle = '#c8c8c8'; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 1400; i++) { const x = Math.random() * 512, y = Math.random() * 512, r = 6 + Math.random() * 40; const gr = g.createRadialGradient(x, y, 0, x, y, r); const v = Math.random() < 0.5 ? 255 : 0; gr.addColorStop(0, `rgba(${v},${v},${v},0.035)`); gr.addColorStop(1, `rgba(${v},${v},${v},0)`); g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r); }
+  const id = g.getImageData(0, 0, 512, 512); for (let i = 0; i < id.data.length; i += 4) { const n = (Math.random() - 0.5) * 14; id.data[i] += n; id.data[i + 1] += n; id.data[i + 2] += n; } g.putImageData(id, 0, 0);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 2); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 const wallMat = new THREE.MeshStandardMaterial({ color: 0xa89c8c, map: plaster(), roughness: 0.95 });
 const W = 3.2, E = 7;
@@ -112,12 +112,13 @@ const s2 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 20), sk); s2.positio
 
 scene.add(new THREE.HemisphereLight(0x8090a0, 0x201810, 0.035));
 const CEN = new THREE.Vector3(0, 2.55, 0), S = 2.5;
+const spots = [];
 function spot(color, inten, pos, ang) {
   const l = new THREE.SpotLight(color, inten, 0, ang, 0.55, 0);
   l.position.copy(pos); l.target.position.copy(CEN); scene.add(l.target);
   l.castShadow = true; l.shadow.mapSize.set(2048, 2048); l.shadow.bias = -0.0004; l.shadow.normalBias = 0.01; l.shadow.radius = 1.5;
   l.shadow.camera.near = pos.distanceTo(CEN) - 3; l.shadow.camera.far = pos.distanceTo(CEN) + 6;
-  scene.add(l); return l;
+  scene.add(l); spots.push(l); return l;
 }
 const D = 30;
 spot(0xffc58f, 4.2, new THREE.Vector3(0, CEN.y, D), 0.085);   // -> back wall (cat)
@@ -125,23 +126,43 @@ spot(0xbfd4ff, 3.4, new THREE.Vector3(D, CEN.y, 0), 0.085);   // -> left wall (t
 spot(0xffe6c8, 3.4, new THREE.Vector3(0, D, 0), 0.085);       // -> floor (bird)
 
 // sculpture
-const bronze = new THREE.MeshStandardMaterial({ color: 0x8a6440, metalness: 1, roughness: 0.3, envMapIntensity: 1.0 });
+const bronze = new THREE.MeshPhysicalMaterial({ color: 0x7a5636, metalness: 1, roughness: 0.42, clearcoat: 0.6, clearcoatRoughness: 0.25, envMapIntensity: 1.2 });
 const mc = new MarchingCubes(R, bronze, false, false, 400000);
 mc.isolation = 0.5;
 const f = mc.field;
 for (let k = 0; k < N; k++) for (let j = 0; j < N; j++) for (let i = 0; i < N; i++)
   f[(k + PAD) * R * R + (j + PAD) * R + (i + PAD)] = occ[(k * N + j) * N + i];
 // smoothing (box blur 3^3, 2 passes)
-for (let pass = 0; pass < 2; pass++) { const g = f.slice(); for (let z = 1; z < R - 1; z++) for (let y = 1; y < R - 1; y++) for (let x = 1; x < R - 1; x++) { let s = 0; for (let dz = -1; dz <= 1; dz++) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) s += g[(z + dz) * R * R + (y + dy) * R + x + dx]; f[z * R * R + y * R + x] = s / 27; } }
+for (let pass = 0; pass < 3; pass++) { const g = f.slice(); for (let z = 1; z < R - 1; z++) for (let y = 1; y < R - 1; y++) for (let x = 1; x < R - 1; x++) { let s = 0; for (let dz = -1; dz <= 1; dz++) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) s += g[(z + dz) * R * R + (y + dy) * R + x + dx]; f[z * R * R + y * R + x] = s / 27; } }
 const t0 = performance.now(); mc.update(); console.log('mc tris', mc.count / 3, (performance.now() - t0).toFixed(0) + 'ms');
 mc.castShadow = true; mc.receiveShadow = true;
 mc.scale.setScalar(S / 2 * R / N);
-const pivot = new THREE.Group(); pivot.position.copy(CEN); pivot.add(mc); scene.add(pivot);
+const pivot = new THREE.Group(); pivot.position.copy(CEN); scene.add(pivot);
+const STYLE = Q.get('style') || 'solid';
+if (STYLE === 'solid') pivot.add(mc);
+else { // wire nest: thousands of straight brass rods, each lying entirely inside the shadow hull
+  const inside = (x, y, z) => { const i = Math.floor(x), j = Math.floor(y), k = Math.floor(z); if (i < 0 || j < 0 || k < 0 || i >= N || j >= N || k >= N) return false; return occ[(k * N + j) * N + i] === 1; };
+  const solid = []; for (let i = 0; i < occ.length; i++) if (occ[i]) solid.push(i);
+  const rods = []; const NR = +(Q.get('rods') || 5200); let rs = 12345; const rnd = () => (rs = (rs * 16807) % 2147483647) / 2147483647;
+  for (let t = 0; t < NR * 4 && rods.length < NR; t++) {
+    const id = solid[Math.floor(rnd() * solid.length)]; const x = id % N + rnd(), y = Math.floor(id / N) % N + rnd(), z = Math.floor(id / N / N) + rnd();
+    const u = rnd() * 2 - 1, ph = rnd() * 6.283, sq = Math.sqrt(1 - u * u); const d = [sq * Math.cos(ph), u, sq * Math.sin(ph)];
+    let a = 0, b = 0; while (a < 90 && inside(x - d[0] * (a + 1), y - d[1] * (a + 1), z - d[2] * (a + 1))) a++; while (b < 90 && inside(x + d[0] * (b + 1), y + d[1] * (b + 1), z + d[2] * (b + 1))) b++;
+    if (a + b < 10) continue; rods.push([x - d[0] * a, y - d[1] * a, z - d[2] * a, x + d[0] * b, y + d[1] * b, z + d[2] * b]);
+  }
+  const geo = new THREE.CylinderGeometry(1, 1, 1, 6, 1); geo.translate(0, 0.5, 0);
+  const im = new THREE.InstancedMesh(geo, new THREE.MeshPhysicalMaterial({ color: 0xc9964e, metalness: 1, roughness: 0.28, clearcoat: 0.3 }), rods.length);
+  const m4 = new THREE.Matrix4(), qq = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), v0 = new THREE.Vector3(), v1 = new THREE.Vector3(), dv = new THREE.Vector3();
+  const sc = S / N, rad = +(Q.get('rad') || 0.011);
+  rods.forEach((r, i) => { v0.set(r[0] - N / 2, r[1] - N / 2, r[2] - N / 2).multiplyScalar(sc); v1.set(r[3] - N / 2, r[4] - N / 2, r[5] - N / 2).multiplyScalar(sc); dv.subVectors(v1, v0); const L = dv.length(); qq.setFromUnitVectors(up, dv.normalize()); m4.compose(v0, qq, new THREE.Vector3(rad, L, rad)); im.setMatrixAt(i, m4); });
+  im.castShadow = true; im.receiveShadow = true; pivot.add(im);
+  console.log('rods', rods.length);
+}
 
 // ---------- interaction ----------
 const target = new THREE.Quaternion();
 const scramble = () => new THREE.Quaternion().setFromEuler(new THREE.Euler(0.9, -1.3, 0.5));
-let q = SHOT ? (Q.get('a') === '1' ? scramble() : new THREE.Quaternion().slerp(scramble(), +(Q.get('a') || 0))) : scramble();
+let q = SHOT ? ( new THREE.Quaternion().slerp(scramble(), +(Q.get('a') || 0))) : scramble();
 pivot.quaternion.copy(q);
 let drag = false, px = 0, py = 0, vx = 0, vy = 0;
 canvas.addEventListener('pointerdown', e => { drag = true; px = e.clientX; py = e.clientY; canvas.style.cursor = 'grabbing'; });
@@ -165,6 +186,7 @@ function tick() {
     pivot.position.y = CEN.y + Math.sin(frame * 0.01) * 0.0;
     alEl.textContent = (100 * Math.max(0, 1 - ang / Math.PI)).toFixed(1) + '%';
   } else alEl.textContent = (100 * Math.max(0, 1 - pivot.quaternion.angleTo(target) / Math.PI)).toFixed(1) + '%';
+  { const mis = Math.min(1, pivot.quaternion.angleTo(target) / 0.6); for (const l of spots) l.shadow.radius = 1 + 7 * mis; }
   renderer.render(scene, camera);
   if (SHOT && frame > 3) window.__ready = true;
   if (!SHOT || frame < 6) requestAnimationFrame(tick);
