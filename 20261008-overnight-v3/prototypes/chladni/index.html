@@ -126,7 +126,7 @@ function step(n) {
 }
 function tick() {
   frame++;
-  if (SHOT) { if (frame === 1) { const mi = +(Q.get('mode') || 6); freq = modeHz[mi]; curMode = mi; } step(frame < 3 ? 160 : 0); }
+  if (SHOT) { if (frame === 1) { const mi = Q.get('mode') === 'none' ? 4 : +(Q.get('mode') || 6); freq = modeHz[mi]; curMode = mi; } step(frame < 3 && Q.get('mode') !== 'none' ? 160 : 0); }
   else { step(2); drive *= dragging ? 0.985 : 0.97; if (ac) { osc.frequency.setTargetAtTime(freq, ac.currentTime, 0.02); filt.frequency.setTargetAtTime(freq * 2, ac.currentTime, 0.05); gain.gain.setTargetAtTime(0.12 * drive * (0.3 + 0.7 * resonance()[1]), ac.currentTime, 0.05); } }
   const tp = gpu.getCurrentRenderTarget(posVar).texture; sandMat.uniforms.tPos.value = tp; shadowMat.uniforms.tPos.value = tp;
   fEl.textContent = freq.toFixed(0); mEl.textContent = `(${MODES[curMode][0]}, ${MODES[curMode][1]})`;

@@ -90,6 +90,7 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.1, 100);
 camera.position.set(11.2, 6.4, 10.4); camera.lookAt(-0.9, 2.2, -0.9);
+if (Q.get('cam') === 'close') { camera.position.set(6.6, 3.9, 7.4); camera.lookAt(-1.2, 2.45, -1.0); camera.fov = 38; camera.updateProjectionMatrix(); }
 
 // plaster texture
 function plaster() {
@@ -148,7 +149,7 @@ else { // wire nest: thousands of straight brass rods, each lying entirely insid
     const id = solid[Math.floor(rnd() * solid.length)]; const x = id % N + rnd(), y = Math.floor(id / N) % N + rnd(), z = Math.floor(id / N / N) + rnd();
     const u = rnd() * 2 - 1, ph = rnd() * 6.283, sq = Math.sqrt(1 - u * u); const d = [sq * Math.cos(ph), u, sq * Math.sin(ph)];
     let a = 0, b = 0; while (a < 90 && inside(x - d[0] * (a + 1), y - d[1] * (a + 1), z - d[2] * (a + 1))) a++; while (b < 90 && inside(x + d[0] * (b + 1), y + d[1] * (b + 1), z + d[2] * (b + 1))) b++;
-    if (a + b < 10) continue; rods.push([x - d[0] * a, y - d[1] * a, z - d[2] * a, x + d[0] * b, y + d[1] * b, z + d[2] * b]);
+    if (a + b < +(Q.get('minlen') || 10)) continue; rods.push([x - d[0] * a, y - d[1] * a, z - d[2] * a, x + d[0] * b, y + d[1] * b, z + d[2] * b]);
   }
   const geo = new THREE.CylinderGeometry(1, 1, 1, 6, 1); geo.translate(0, 0.5, 0);
   const im = new THREE.InstancedMesh(geo, new THREE.MeshPhysicalMaterial({ color: 0xc9964e, metalness: 1, roughness: 0.28, clearcoat: 0.3 }), rods.length);
