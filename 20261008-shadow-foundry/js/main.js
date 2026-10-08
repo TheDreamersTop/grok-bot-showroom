@@ -278,7 +278,7 @@ $('mute').onclick = (e) => { e.stopPropagation(); sound.start(); sound.setMuted(
 const PRESET_LIST = PRESETS;
 let presetIdx = +(Q.get('preset') || 0);
 let work = null;          // current forged work {orig, masks, rods, fidHull, fidRods, titles, no}
-let SCR = [{ yaw: 2.27, tilt: 0.62 }, { yaw: +(Q.get('sy') || -0.6), tilt: +(Q.get('st') || 0.65) }];
+let SCR = [{ yaw: 2.27, tilt: 0.62 }, { yaw: +(Q.get('sy') || -0.9), tilt: +(Q.get('st') || 0.45) }];
 const st = { mode: 'intro', t: 0, introT: 0, yaw: 0, tilt: 0, vy: 0, vt: 0, drag: false, lockAt: -1, locked: false, lastMove: 0, freeStart: 0, labelA: 0, anim: 0, lastLockIntro: false, lampMul: 1 };
 
 function loadWork(w) {
