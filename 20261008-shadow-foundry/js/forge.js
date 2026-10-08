@@ -247,6 +247,24 @@ export function forgeRods(masks, opts = {}) {
   return { rods, fidelity: fid, ms: performance.now() - t0, cov, times, counts: { long: rods.filter(r => r.kind === 'long').length, repair: nRep, edge: nEdge, miss, missInfo } };
 }
 
+// spur trim: rods whose shadow strays outside a target ("hairs") are clipped to their longest inside run, or dropped if mostly outside
+export function trimSpurs(rods, targets, opts = {}) {
+  const tol = opts.tol ?? 2.5, N = opts.n ?? 14, keepFrac = opts.keep ?? 0.45, minLen = opts.minLen ?? 0.12;
+  const S = targets.map(t => sdf(t)); const tmp = [0, 0, 0], out = []; let clipped = 0, dropped = 0;
+  const inside = (p) => { for (let w = 0; w < 3; w++) { projectToMask(G.walls[w], p, tmp); const x = tmp[0], y = tmp[1]; if (x < 0 || y < 0 || x >= MR || y >= MR) return false; if (sample(S[w], x, y) > tol) return false; } return true; };
+  const P = [0, 0, 0];
+  for (const r of rods) {
+    const ok = []; for (let k = 0; k <= N; k++) { const t = k / N; P[0] = r.a[0] + (r.b[0] - r.a[0]) * t; P[1] = r.a[1] + (r.b[1] - r.a[1]) * t; P[2] = r.a[2] + (r.b[2] - r.a[2]) * t; ok.push(inside(P)); }
+    if (ok.every(Boolean)) { out.push(r); continue; }
+    let best = [0, -1], s0 = -1; for (let k = 0; k <= N + 1; k++) { if (k <= N && ok[k]) { if (s0 < 0) s0 = k; } else if (s0 >= 0) { if (k - 1 - s0 > best[1] - best[0]) best = [s0, k - 1]; s0 = -1; } }
+    const L = Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1], r.b[2] - r.a[2]); const frac = best[1] < 0 ? 0 : (best[1] - best[0]) / N;
+    if (frac < keepFrac || frac * L < minLen) { dropped++; continue; }
+    const ta = best[0] / N, tb = best[1] / N; const lerp = (t) => [0, 1, 2].map(i => r.a[i] + (r.b[i] - r.a[i]) * t);
+    out.push({ ...r, a: lerp(ta), b: lerp(tb) }); clipped++;
+  }
+  const cov = rasterRodsSW(out); return { rods: out, fidelity: fidelity(targets, cov), clipped, dropped };
+}
+
 // shadow projection of the posed hull for scramble entropy (IoU) — uses rods for speed
 export function projectRodsPosed(rods, quat, res = 96) {
   const masks = [0, 1, 2].map(() => new Uint8Array(res * res)); const tmp = [0, 0, 0]; const sc = res / MR;

@@ -14,7 +14,7 @@ const CEN = V3(G.C);
 // ---------------- renderer & targets
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: SHOT });
-const DPR = Math.min(devicePixelRatio, 1.5);
+const DPR0 = Math.min(devicePixelRatio, 1.5); let DPR = DPR0;
 renderer.setPixelRatio(DPR); renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 let W = Math.floor(innerWidth * DPR), H = Math.floor(innerHeight * DPR);
@@ -52,9 +52,15 @@ const cookieTex = (() => { const c = document.createElement('canvas'); c.width =
   gr.addColorStop(0, '#fff'); gr.addColorStop(0.55, '#f4f4f4'); gr.addColorStop(0.78, '#d8d8d8'); gr.addColorStop(0.86, '#e6e6e6'); gr.addColorStop(0.93, '#555'); gr.addColorStop(1, '#000');
   g.fillStyle = gr; g.fillRect(0, 0, 256, 256); const t = new THREE.CanvasTexture(c); return t; })();
 const ANG = Math.atan(2.45 / (G.L + G.d));
+const VENN = Q.get('venn') !== '0';
+const POOL = VENN ? [ { ang: 1.07, ell: [1.0, 0.86], soft: 0.30, barn: [0, 0, 0], aim: [0.22, 0.05, 0] },
+                      { ang: 1.0, ell: [1, 1], soft: 0.012, barn: [-0.94, 0.34, 0.415], aim: [0, 0.08, 0.2] },
+                      { ang: 1.16, ell: [1, 1], soft: 0.10, barn: [0, 0, 0], aim: [0.16, 0, 0.16] } ]
+                   : [0, 1, 2].map(() => ({ ang: 1, ell: [1, 1], soft: null, barn: [0, 0, 0], aim: [0, 0, 0] }));
+const AIM = POOL.map(p => CEN.clone().add(new THREE.Vector3(...p.aim)));
 const lamps = G.walls.map((w, i) => {
-  const l = new THREE.SpotLight(LAMP_COL[i], 0, 0, ANG, 0.18, 0);
-  l.position.copy(V3(w.lamp)); l.target.position.copy(CEN); scene.add(l.target);
+  const l = new THREE.SpotLight(LAMP_COL[i], 0, 0, ANG * POOL[i].ang, 0.18, 0);
+  l.position.copy(V3(w.lamp)); l.target.position.copy(AIM[i]); scene.add(l.target);
   l.castShadow = true; l.shadow.mapSize.set(SMAP, SMAP); l.shadow.bias = -0.0004; l.shadow.normalBias = 0.012;
   l.shadow.camera.near = G.L - 2.0; l.shadow.camera.far = G.L + G.d + 1; l.map = cookieTex;
   scene.add(l); return l;
@@ -99,9 +105,9 @@ const LENS = [[0.10, 0.06, 0.005, 0.14], [0.05, 0.08, 0.006, 0.05], [0.15, 0.035
 function wall(i, geo, pos, rot, N, axis) {
   const m = new THREE.ShaderMaterial({ vertexShader: WALL_VS, fragmentShader: WALL_FS, uniforms: {
     lampPos: { value: V3(G.walls[i].lamp) }, lampDir: { value: CEN.clone().sub(V3(G.walls[i].lamp)).normalize() }, lampColor: { value: LAMP_COL[i] }, lampInt: { value: 0 },
-    cosOuter: { value: Math.cos(ANG) }, cosInner: { value: Math.cos(ANG * 0.82) }, shadowMap: { value: null }, cookie: { value: cookieTex }, drawTex: { value: null },
+    cosOuter: { value: Math.cos(ANG * POOL[i].ang) }, cosInner: { value: Math.cos(ANG * POOL[i].ang * 0.82) }, shape: { value: new THREE.Vector4(POOL[i].ell[0], POOL[i].ell[1], 0, 0) }, barn: { value: new THREE.Vector3(...POOL[i].barn) }, plaster: { value: Q.get('pl') === '0' ? 0 : +(Q.get('pl') || 0.034) }, shadowMap: { value: null }, cookie: { value: cookieTex }, drawTex: { value: null },
     shadowMatrix: { value: new THREE.Matrix4() }, radius: { value: 2 }, smap: { value: SMAP }, darkness: { value: 0.95 }, drawAmt: { value: 0 }, workLight: { value: 0 }, time: { value: 0 },
-    N: { value: N }, axis: { value: axis }, bounce: { value: new THREE.Vector3() }, reflTex: { value: null }, reflMat: { value: new THREE.Matrix4() }, reflAmt: { value: axis === 1 ? 1 : 0 }, pc: { value: [V3([G.d, G.h, 0]), V3([0, G.h, G.d]), V3([G.d, 0, G.d])] }, pcol: { value: [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()] }, lens: { value: new THREE.Vector4(...LENS[i]) }, res: { value: new THREE.Vector2(1, 1) }, mo: { value: V3(G.walls[i].o) }, mu: { value: V3(G.walls[i].u) }, mv: { value: V3(G.walls[i].v) }, M: { value: G.M } } });
+    N: { value: N }, axis: { value: axis }, bounce: { value: new THREE.Vector3() }, reflTex: { value: null }, reflMat: { value: new THREE.Matrix4() }, reflAmt: { value: axis === 1 ? 1 : 0 }, pc: { value: [V3([G.d, G.h, 0]), V3([0, G.h, G.d]), V3([G.d, 0, G.d])] }, pcol: { value: [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()] }, lens: { value: new THREE.Vector4(POOL[i].soft ?? LENS[i][0], LENS[i][1], LENS[i][2], LENS[i][3]) }, res: { value: new THREE.Vector2(1, 1) }, mo: { value: V3(G.walls[i].o) }, mu: { value: V3(G.walls[i].u) }, mv: { value: V3(G.walls[i].v) }, M: { value: G.M } } });
   const mesh = new THREE.Mesh(geo, m); mesh.position.copy(pos); mesh.rotation.copy(rot); scene.add(mesh); wallMats[i] = m; return mesh;
 }
 const wallBack = wall(0, new THREE.PlaneGeometry(14, CEIL), new THREE.Vector3(7, CEIL / 2, 0), new THREE.Euler(0, 0, 0), new THREE.Vector3(0, 0, 1), 2);
@@ -109,7 +115,7 @@ const wallLeft = wall(1, new THREE.PlaneGeometry(14, CEIL), new THREE.Vector3(0,
 const wallFloor = wall(2, new THREE.PlaneGeometry(14, 14), new THREE.Vector3(7, 0, 7), new THREE.Euler(-Math.PI / 2, 0, 0), new THREE.Vector3(0, 1, 0), 1);
 const WALLS = [wallBack, wallLeft, wallFloor];
 const ceilMat = new THREE.ShaderMaterial({ vertexShader: WALL_VS, fragmentShader: WALL_FS, uniforms: THREE.UniformsUtils.clone(wallMats[0].uniforms) });
-ceilMat.uniforms.lampInt.value = 0; ceilMat.uniforms.N.value = new THREE.Vector3(0, -1, 0); ceilMat.uniforms.axis.value = 1; ceilMat.uniforms.reflAmt.value = 0;
+ceilMat.uniforms.lampInt.value = 0; ceilMat.uniforms.plaster.value *= 0.5; ceilMat.uniforms.N.value = new THREE.Vector3(0, -1, 0); ceilMat.uniforms.axis.value = 1; ceilMat.uniforms.reflAmt.value = 0;
 const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), ceilMat); ceiling.rotation.x = Math.PI / 2; ceiling.position.set(7, CEIL, 7); scene.add(ceiling);
 
 // ---------------- pin + plinth
@@ -119,11 +125,21 @@ const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, G.walls[2
 // ---------------- the nest (rods)
 const pivot = new THREE.Group(); pivot.position.copy(CEN); scene.add(pivot);
 const rodGeo = new THREE.CylinderGeometry(1, 1, 1, 14, 1, false); rodGeo.translate(0, 0.5, 0);
+// brass pop: a sculpture-only warm key highlight + fresnel rim, done in the rod shader (no light leaks onto the walls / shadows)
+const ROD_FX = { keyDirV: { value: new THREE.Vector3(0, 1, 0) }, rimAmt: { value: Q.get('rim') === '0' ? 0 : 1 }, keyAmt: { value: Q.get('rim') === '0' ? 0 : 1 } };
+const KEY_W = new THREE.Vector3().copy(CAMDIR).multiplyScalar(0.55).add(new THREE.Vector3(-1, 0, 1).normalize().multiplyScalar(0.75)).add(new THREE.Vector3(0, 0.7, 0)).normalize();
 function rodMaterial(color, metal, rough) {
   const m = new THREE.MeshStandardMaterial({ color, metalness: metal, roughness: rough, envMap: ENV, envMapIntensity: 0.9 });
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aRough; varying float vRough;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvRough = aRough;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vRough;').replace('#include <roughnessmap_fragment>', 'float roughnessFactor = vRough;');
+    Object.assign(sh.uniforms, ROD_FX);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vRough; uniform vec3 keyDirV; uniform float rimAmt, keyAmt;').replace('#include <roughnessmap_fragment>', 'float roughnessFactor = vRough;')
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      { vec3 Vv = normalize(vViewPosition); float ndv = clamp(dot(normal, Vv), 0., 1.);
+        float rim = pow(1. - ndv, 3.) * rimAmt; vec3 Hh = normalize(keyDirV + Vv);
+        float sp = pow(clamp(dot(normal, Hh), 0., 1.), mix(20., 110., 1. - vRough)) * keyAmt; float kd = clamp(dot(normal, keyDirV), 0., 1.) * keyAmt;
+        vec3 tint = diffuseColor.rgb / max(1e-3, max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)));
+        totalEmissiveRadiance += vec3(1.0, 0.8, 0.52) * tint * (rim * 0.32 + sp * 2.6 + kd * 0.06) * (0.35 + 0.65 * max(diffuseColor.r, 0.25) * 2.); }`);
   };
   return m;
 }
@@ -141,7 +157,7 @@ function buildNest(res) {
       a.set(...r.a).sub(CEN); b.set(...r.b).sub(CEN); const d = b.clone().sub(a); const L = d.length();
       q.setFromUnitVectors(up, d.normalize()); m4.compose(a, q, s.set(r.r, L, r.r)); im.setMatrixAt(i, m4);
       const ao = Math.min(1, 0.45 + r.depth * 2.5);
-      if (mi === 0) col.setRGB(0.15 + 0.07 * r.tone, 0.088 + 0.04 * r.tone, 0.03 + 0.015 * r.tone); // dark aged patina (#6e5530 base)
+      if (mi === 0) col.setRGB(0.19 + 0.08 * r.tone, 0.11 + 0.045 * r.tone, 0.038 + 0.017 * r.tone); // dark aged patina (#6e5530 base)
       else if (mi === 1) col.setRGB(0.80, 0.58, 0.28);
       else col.setRGB(0.07, 0.065, 0.06);
       col.multiplyScalar(ao); im.setColorAt(i, col);
@@ -163,7 +179,7 @@ const depthOnly = new THREE.MeshBasicMaterial({ colorWrite: false });
 const hazeMat = new THREE.ShaderMaterial({ vertexShader: QUAD_VS, fragmentShader: HAZE_FS, depthTest: false, depthWrite: false, uniforms: {
   depthTex: { value: depthRT.depthTexture }, sm0: { value: null }, sm1: { value: null }, sm2: { value: null }, smat0: { value: new THREE.Matrix4() }, smat1: { value: new THREE.Matrix4() }, smat2: { value: new THREE.Matrix4() },
   invVP: { value: new THREE.Matrix4() }, camPos: { value: new THREE.Vector3() }, lp: { value: G.walls.map(w => V3(w.lamp)) }, ld: { value: G.walls.map(w => CEN.clone().sub(V3(w.lamp)).normalize()) },
-  lc: { value: LAMP_COL.map(c => new THREE.Vector3(c.r, c.g, c.b)) }, li: { value: [0, 0, 0] }, cosOuter: { value: Math.cos(ANG) }, time: { value: 0 }, density: { value: +(Q.get('hz') || 0.045) }, freeze: { value: 0 } } });
+  lc: { value: LAMP_COL.map(c => new THREE.Vector3(c.r, c.g, c.b)) }, li: { value: [0, 0, 0] }, cosOuter: { value: Math.cos(ANG) }, time: { value: 0 }, density: { value: +(Q.get('hz') || 0.045) }, hsteps: { value: 64 }, freeze: { value: 0 } } });
 const compMat = new THREE.ShaderMaterial({ vertexShader: QUAD_VS, fragmentShader: COMP_FS, depthTest: false, depthWrite: false, uniforms: {
   sceneTex: { value: sceneRT.texture }, hazeTex: { value: hazeRT.texture }, res: { value: new THREE.Vector2(W, H) }, time: { value: 0 }, exposure: { value: 1.0 }, grain: { value: 0.028 }, fade: { value: 1 } } });
 // planar floor reflection (half res, mirrored camera)
@@ -214,7 +230,7 @@ function applyState() {
   placeCamera(cam.x, cam.y, S.push);
 }
 function render() {
-  applyState();
+  applyState(); ROD_FX.keyDirV.value.copy(KEY_W).transformDirection(camera.matrixWorldInverse);
   renderReflection();
   renderer.setRenderTarget(sceneRT); renderer.render(scene, camera);
   lamps.forEach((l, i) => { if (l.shadow.map) { const tex = l.shadow.map.texture; wallMats[i].uniforms.shadowMap.value = tex; wallMats[i].uniforms.shadowMatrix.value.copy(l.shadow.matrix); hazeMat.uniforms['sm' + i].value = tex; hazeMat.uniforms['smat' + i].value.copy(l.shadow.matrix); } });
@@ -225,11 +241,12 @@ function render() {
   renderer.setRenderTarget(hazeRT); renderer.render(hazeScene, postCam);
   renderer.setRenderTarget(null); renderer.render(compScene, postCam);
 }
-addEventListener('resize', () => {
-  renderer.setSize(innerWidth, innerHeight); W = Math.floor(innerWidth * DPR); H = Math.floor(innerHeight * DPR);
+function applySize() {
+  renderer.setPixelRatio(DPR); renderer.setSize(innerWidth, innerHeight); W = Math.floor(innerWidth * DPR); H = Math.floor(innerHeight * DPR);
   sceneRT.setSize(W, H); reflRT.setSize(W >> 1, H >> 1); depthRT.setSize(W >> 1, H >> 1); hazeRT.setSize(W >> 1, H >> 1); compMat.uniforms.res.value.set(W, H);
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
-});
+}
+addEventListener('resize', applySize);
 
 // ============================================================== V1 experience
 const sound = new Sound();
@@ -343,7 +360,7 @@ function animateNest(t) { // t: seconds since animation start
 
 // ---------------- labels in the light pools
 const labelMeshes = [];
-let LABEL_POS = (Q.get('lp') ? JSON.parse(Q.get('lp')) : [[6.35, 3.0, 0.004], [0.004, 4.6, 5.75], [6.1, 0.004, 2.1]]);
+let LABEL_POS = (Q.get('lp') ? JSON.parse(Q.get('lp')) : [[6.35, 3.0, 0.004], [0.004, 4.6, 5.75], [7.0, 0.004, 1.25]]);
 function makeLabel(text, sub, w) {
   const c = document.createElement('canvas'); c.width = 1024; c.height = 320; const g = c.getContext('2d');
   g.fillStyle = 'rgba(236,226,208,1)'; g.textBaseline = 'alphabetic';
@@ -372,9 +389,9 @@ ui.innerHTML = `
 <div id="forging" class="hidden">forging…</div>`;
 const $ = (id) => document.getElementById(id);
 const placard = { full: '', hidden: '', shown: null };
-function setPlacard(no, titles, nRods, fid, word, reordered) { // the figure names stay hidden until the shadows lock (no spoilers)
+function setPlacard(no, titles, nRods, fid, word, reordered, tilted) { // the figure names stay hidden until the shadows lock (no spoilers)
   const forged = word && !PRESET_LIST.some(P => P.word === word);
-  placard.full = word ? `No. ${no} — <span class="pword">${word}</span>${forged ? ' · forged for you' : ''}${reordered ? ' <span class="pnote">(letters rearranged for a cleaner cast)</span>' : ''}` : `No. ${no} — ${titles.map(t => t.split(' ')[1]).join(', ')}`;
+  placard.full = word ? `No. ${no} — <span class="pword">${word}</span>${forged ? ' · forged for you' : ''}${reordered || tilted ? ` <span class="pnote">(${reordered ? 'letters rearranged' : 'floor letter turned'} for a cleaner cast)</span>` : ''}` : `No. ${no} — ${titles.map(t => t.split(' ')[1]).join(', ')}`;
   placard.hidden = `No. ${no} — <span class="pdots">· · ·</span>`; placard.shown = null; showPlacard(false);
   $('pm').innerHTML = `aged brass &amp; blackened steel, ${nRods.toLocaleString('en-US')} rods · ${(100 * Math.min(...fid)).toFixed(1)} % shadow fidelity`;
 }
@@ -392,7 +409,7 @@ const st = { mode: 'intro', t: 0, introT: 0, yaw: 0, tilt: 0, vy: 0, vt: 0, drag
 
 function loadWork(w) {
   work = w; current = w; scatLast = -1;
-  nest = prepNest({ rods: w.rods }); setLabels(w.titles, w.no); setPlacard(w.no, w.titles, w.rods.length, w.fidRods, w.word, w.reordered);
+  nest = prepNest({ rods: w.rods }); setLabels(w.titles, w.no); setPlacard(w.no, w.titles, w.rods.length, w.fidRods, w.word, w.reordered, w.tilted);
   $('bCopy').classList.toggle('hidden', !w.word); if (!SHOT) { if (w.word) history.replaceState(null, '', '#w=' + w.word); else if (location.hash) history.replaceState(null, '', location.pathname + location.search); }
   window.__forge = { current: w, fidRaw: w.fidHull, fidRep: w.fidRods };
 }
@@ -609,12 +626,12 @@ function updateLamps(dt) {
 function placeLamp(i) {
   _lp.copy(LHOME[i]).add(LD.off[i]); const f = fixtures[i];
   lamps[i].position.copy(_lp); lamps[i].updateMatrixWorld();
-  f.g.position.copy(_lp); f.g.lookAt(CEN); f.drop.position.x = _lp.x; f.drop.position.z = _lp.z; f.carriage.position.x = _lp.x; f.carriage.position.z = _lp.z;
-  _ld.copy(CEN).sub(_lp); const dist = _ld.length(); _ld.normalize();
+  f.g.position.copy(_lp); f.g.lookAt(AIM[i]); f.drop.position.x = _lp.x; f.drop.position.z = _lp.z; f.carriage.position.x = _lp.x; f.carriage.position.z = _lp.z;
+  _ld.copy(AIM[i]).sub(_lp); const dist = CEN.distanceTo(_lp); _ld.normalize();
   const sc = lamps[i].shadow.camera; sc.near = Math.max(0.5, dist - 2.0); sc.far = dist * (G.L + G.d) / G.L + 2.5; sc.updateProjectionMatrix();
   const u = wallMats[i].uniforms; u.lampPos.value.copy(_lp); u.lampDir.value.copy(_ld);
   hazeMat.uniforms.lp.value[i].copy(_lp); hazeMat.uniforms.ld.value[i].copy(_ld); moteMat.uniforms.lp.value[i].copy(_lp); moteMat.uniforms.ld.value[i].copy(_ld);
-  const a = G.walls[i].axis; const tt = _lp.getComponent(a) / (_lp.getComponent(a) - CEN.getComponent(a)); const pc = _lp.clone().lerp(CEN, tt); // the pool centre (feeds the fake bounce)
+  const a = G.walls[i].axis; const tt = _lp.getComponent(a) / (_lp.getComponent(a) - CEN.getComponent(a)); const pc = _lp.clone().lerp(AIM[i], AIM[i].getComponent(a) === CEN.getComponent(a) ? tt : _lp.getComponent(a) / (_lp.getComponent(a) - AIM[i].getComponent(a))); // the pool centre (feeds the fake bounce)
   for (const m of [...wallMats, ceilMat]) m.uniforms.pc.value[i].copy(pc);
 }
 
@@ -690,15 +707,15 @@ function forgeWordWork(word) {
   const srcs = [false, true].flatMap(fl => letters.map(c => { const cv = document.createElement('canvas'); cv.width = cv.height = 1000; const g = cv.getContext('2d', { willReadFrequently: true }); g.fillStyle = '#fff'; g.strokeStyle = '#fff'; figOf(c, fl)(g); return cv; }));
   const t0 = performance.now(); wordNo++; const no = PRESET_LIST.length + userNo + wordNo;
   const prom = Promise.all(srcs.map(c => createImageBitmap(c))).then(bitmaps => new Promise((resolve) => {
-    const done = (m, perm) => { const order = perm || [1, 0, 2]; const tl = order.map(i => `字 ${letters[i]}`);
+    const done = (m, perm, tilt, trimInfo) => { const order = perm || [1, 0, 2]; const tl = order.map(i => `字 ${letters[i]}`);
       const w = { rods: m.rods, T: m.T, fidHull: m.fidHull, fidRods: m.fidRods, counts: m.counts, titles: tl, no, word, ms: performance.now() - t0, perm: order };
-      Object.defineProperty(w, 'orig', { get() { return this._o || (this._o = order.map((i, k) => maskFromDrawT(figOf(letters[i], k === 2), m.T[k]))); } });
-      w.reordered = order.join() !== '1,0,2'; window.__lastWord = { word, reordered: w.reordered, perm: order.map(i => letters[i]).join(''), ms: Math.round(w.ms), rods: w.rods.length, fidHull: w.fidHull.map(x => +(100 * x).toFixed(1)), fidRods: w.fidRods.map(x => +(100 * x).toFixed(1)) };
+      Object.defineProperty(w, 'orig', { get() { return this._o || (this._o = order.map((i, k) => maskFromDrawT(figOf(letters[i], k === 2 && !tilt), m.T[k]))); } });
+      w.reordered = order.join() !== '1,0,2'; w.tilted = !!tilt; window.__lastWord = { word, reordered: w.reordered, tilted: w.tilted, trim: trimInfo && { clipped: trimInfo.clipped, dropped: trimInfo.dropped, n0: trimInfo.n0, before: trimInfo.before.map(x => +(100 * x).toFixed(1)) }, perm: order.map(i => letters[i]).join(''), ms: Math.round(w.ms), rods: w.rods.length, fidHull: w.fidHull.map(x => +(100 * x).toFixed(1)), fidRods: w.fidRods.map(x => +(100 * x).toFixed(1)) };
       console.log(`forged word ${word} (walls ${window.__lastWord.perm}): rods ${w.rods.length}, rod coverage ${window.__lastWord.fidRods.join('/')}, ${Math.round(w.ms)} ms`); resolve(w); };
     const Wk = getWorker();
     if (!Wk) { setTimeout(() => { const w = forgeFrom([1, 0, 2].map((i, k) => figOf(letters[i], k === 2)), { evals: 60, seed: 21, lim: LETTER_LIM }); done(w, null); }, 30); return; }
-    Wk.onmessage = (e) => { const m = e.data; if (m.type === 'done') done(m, m.perm); };
-    Wk.postMessage({ bitmaps, evals: 60, seed: 31, lim: LETTER_LIM, perm: true, inOrder: Q.has('inorder') }, bitmaps);
+    Wk.onmessage = (e) => { const m = e.data; if (m.type === 'done') done(m, m.perm, m.tilt, m.trimInfo); };
+    Wk.postMessage({ bitmaps, evals: 60, seed: 31, lim: LETTER_LIM, perm: true, inOrder: Q.has('inorder'), trim: !Q.has('notrim') }, bitmaps);
   }));
   return { prom };
 }
@@ -760,8 +777,25 @@ async function boot() {
   }
   requestAnimationFrame(tick);
 }
+// ---------------- frame-time log + quality governor (rolling frame time > 20 ms → step down: haze samples, pixel ratio, shadow maps)
+const GOV = { ema: 16.7, slow: 0, wait: 2.5, level: 0, t: 0, hist: [], lastShow: 0 };
+const LEVELS = [{ hz: 64, dpr: 1, sm: SMAP }, { hz: 40, dpr: 1, sm: SMAP }, { hz: 40, dpr: 0.8, sm: SMAP }, { hz: 32, dpr: 0.8, sm: Math.min(SMAP, 1024) }, { hz: 24, dpr: 0.65, sm: Math.min(SMAP, 1024) }, { hz: 20, dpr: 0.5, sm: Math.min(SMAP, 1024) }];
+function setQuality(l) { GOV.level = l; const L = LEVELS[l]; hazeMat.uniforms.hsteps.value = L.hz;
+  const d = Math.max(0.5, DPR0 * L.dpr); if (Math.abs(d - DPR) > 1e-3) { DPR = d; applySize(); }
+  lamps.forEach((lp, i) => { if (lp.shadow.mapSize.x !== L.sm) { lp.shadow.mapSize.set(L.sm, L.sm); if (lp.shadow.map) { lp.shadow.map.dispose(); lp.shadow.map = null; } wallMats[i].uniforms.smap.value = L.sm; } });
+  console.log(`quality → level ${l}: haze ${L.hz} steps, pixel ratio ${DPR.toFixed(2)}, shadow maps ${L.sm}`); }
+const DEBUG = Q.has('debug'); const dbg = DEBUG ? Object.assign(document.body.appendChild(document.createElement('div')), { id: 'dbg' }) : null;
+function governor(ms) {
+  if (SHOT || document.hidden) return; ms = Math.min(ms, 200); /* long frames count (capped) */
+  GOV.t += ms / 1000; GOV.ema += (ms - GOV.ema) * 0.05; GOV.hist.push(ms); if (GOV.hist.length > 120) GOV.hist.shift();
+  if (GOV.t > GOV.wait) { if (GOV.ema > 20) GOV.slow += ms / 1000; else GOV.slow = 0;
+    if (GOV.slow > 2 && GOV.level < LEVELS.length - 1 && !Q.has('noqgov')) { setQuality(GOV.level + 1); GOV.slow = 0; GOV.wait = GOV.t + 2.5; } }
+  if (dbg && GOV.t - GOV.lastShow > 0.5) { GOV.lastShow = GOV.t; const so = [...GOV.hist].sort((a, b) => a - b); const p95 = so[Math.floor(so.length * 0.95)] || 0;
+    dbg.textContent = `${(1000 / GOV.ema).toFixed(0)} fps · ${GOV.ema.toFixed(1)} ms (p95 ${p95.toFixed(1)}) · q${GOV.level} · dpr ${DPR.toFixed(2)} · haze ${hazeMat.uniforms.hsteps.value} · shadow ${lamps[0].shadow.mapSize.x}`; }
+  window.__perf = { ema: +GOV.ema.toFixed(2), level: GOV.level, dpr: DPR };
+}
 function tick(now) {
-  frame++; const dt = SHOT ? 1 / 60 : Math.min(0.05, (now - last) / 1000); last = now;
+  frame++; const rawMs = now - last; const dt = SHOT ? 1 / 60 : Math.min(0.05, rawMs / 1000); last = now; if (frame > 1) governor(rawMs);
   if (SHOT && Q.get('pose')) { update(0); } else update(dt);
   render();
   if (SHOT && frame >= 3) { window.__ready = true; return; }

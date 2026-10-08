@@ -7,7 +7,7 @@ export const WALL_FS = /* glsl */`
 uniform vec3 lampPos, lampDir, lampColor; uniform float lampInt, cosOuter, cosInner;
 uniform sampler2D shadowMap, cookie, drawTex, reflTex; uniform mat4 shadowMatrix, reflMat; uniform float radius, darkness, drawAmt, workLight, time, reflAmt;
 uniform vec3 N; uniform int axis; uniform vec3 bounce; uniform vec3 mo, mu, mv; uniform float M;
-uniform vec3 pc[3], pcol[3]; uniform vec4 lens; uniform vec2 res;
+uniform vec3 pc[3], pcol[3]; uniform vec4 lens; uniform vec2 res; uniform vec4 shape; uniform vec3 barn; uniform float plaster;
 varying vec3 vW;
 float h3(vec3 p){ p=fract(p*.3183099+.1); p*=17.; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
 float n3(vec3 x){ vec3 i=floor(x), f=fract(x); f=f*f*(3.-2.*f);
@@ -30,11 +30,13 @@ float shadowAt(vec3 P){
 }
 // procedural lens cookie: soft edge (focus), faint lens ring, chromatic fringe, slight hotspot
 vec3 lensCookie(vec2 uv){
-  float r = length(uv-.5)*2.; float e0 = .92 - lens.x, e1 = .985;
+  vec2 q = (uv-.5)/shape.xy; float r = length(q)*2.; // shape.xy: ellipse (1 = round)
+  float door = barn.z > 0. ? 1. - smoothstep(barn.z - .0025, barn.z + .0025, dot(uv-.5, barn.xy)) : 1.; /* hard barn-door cut */
+  float e0 = .92 - lens.x, e1 = .985;
   vec3 c = vec3(1.-smoothstep(e0-lens.z, e1-lens.z, r), 1.-smoothstep(e0, e1, r), 1.-smoothstep(e0+lens.z, e1+lens.z*1.6, r));
   c *= 1. + lens.y*exp(-pow((r-.80)/.035,2.)) - lens.y*.6*exp(-pow((r-.86)/.03,2.));
   c *= 1. + lens.w*(1.-r*r);
-  return max(c, 0.);
+  return max(c, 0.) * door;
 }
 void main(){
   vec3 P = vW;
@@ -58,6 +60,7 @@ void main(){
   vec3 amb = bounce;
   for(int j=0;j<3;j++){ vec3 dv = P - pc[j]; float dd = length(dv); float fc = .12 + .88*clamp(dot(N, -dv)/max(dd,1e-3)*2., 0., 1.); amb += pcol[j] * fc * (.07*exp(-dd/2.2) + .03*exp(-dd/6.)); }
   amb *= (.6+.4*lo) * ao * (.8 + .4*ndl);
+  amb += vec3(.98,.94,.88) * plaster * (.75+.25*lo) * ao * (1. - .9*clamp(ck.g,0.,1.)); // lift the plaster outside the pools only
   vec3 col = albedo*(direct + amb);
   if(axis==1 && reflAmt>0.){ // polished floor: planar reflection with roughness blur + fresnel
     vec4 rp = reflMat * vec4(P,1.); vec2 ruv = rp.xy/rp.w; vec2 nrm = (n.xz)*.04;
@@ -78,7 +81,7 @@ void main(){
 export const HAZE_FS = /* glsl */`
 #include <packing>
 uniform sampler2D depthTex, sm0, sm1, sm2; uniform mat4 smat0, smat1, smat2, invVP; uniform vec3 camPos;
-uniform vec3 lp[3], ld[3], lc[3]; uniform float li[3]; uniform float cosOuter, time, density, freeze;
+uniform vec3 lp[3], ld[3], lc[3]; uniform float li[3]; uniform float cosOuter, time, density, freeze, hsteps;
 varying vec2 vUv;
 float h3(vec3 p){ p=fract(p*.3183099+.1); p*=17.; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
 float n3(vec3 x){ vec3 i=floor(x), f=fract(x); f=f*f*(3.-2.*f);
@@ -90,9 +93,9 @@ void main(){
   float d = texture2D(depthTex, vUv).x;
   vec4 wp = invVP * vec4(vUv*2.-1., d*2.-1., 1.); wp.xyz/=wp.w;
   vec3 ro = camPos, rd = wp.xyz-camPos; float tmax = length(rd); rd/=tmax; tmax = min(tmax, 40.);
-  const int STEPS = 64; float st = tmax/float(STEPS); float j = ign(gl_FragCoord.xy + time*7.);
+  const int STEPS = 64; float st = tmax/hsteps; float j = ign(gl_FragCoord.xy + time*7.);
   vec3 acc = vec3(0.);
-  for(int i=0;i<STEPS;i++){
+  for(int i=0;i<STEPS;i++){ if(float(i) >= hsteps) break;
     vec3 P = ro + rd*(float(i)+j)*st;
     float dust = .55 + .45*n3(P*1.7 + vec3(0., -time*.12, time*.07)*(1.-freeze)) * n3(P*5.3 - vec3(time*.05,0.,0.)*(1.-freeze));
     for(int k=0;k<3;k++){
