@@ -81,7 +81,7 @@ void main(){
 export const HAZE_FS = /* glsl */`
 #include <packing>
 uniform sampler2D depthTex, sm0, sm1, sm2; uniform mat4 smat0, smat1, smat2, invVP; uniform vec3 camPos;
-uniform vec3 lp[3], ld[3], lc[3]; uniform float li[3]; uniform float cosOuter, time, density, freeze, hsteps;
+uniform vec3 lp[3], ld[3], lc[3]; uniform float li[3]; uniform float cosOuter, time, density, freeze, hsteps, streak;
 varying vec2 vUv;
 float h3(vec3 p){ p=fract(p*.3183099+.1); p*=17.; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
 float n3(vec3 x){ vec3 i=floor(x), f=fract(x); f=f*f*(3.-2.*f);
@@ -98,6 +98,7 @@ void main(){
   for(int i=0;i<STEPS;i++){ if(float(i) >= hsteps) break;
     vec3 P = ro + rd*(float(i)+j)*st;
     float dust = .55 + .45*n3(P*1.7 + vec3(0., -time*.12, time*.07)*(1.-freeze)) * n3(P*5.3 - vec3(time*.05,0.,0.)*(1.-freeze));
+    dust = mix(dust, 1., streak*.7); /* storm: cleaner air, so the rod shadows read as slices through the beam */
     for(int k=0;k<3;k++){
       vec3 L = P - lp[k]; float dl = length(L); float c = dot(L/dl, ld[k]);
       if(c < cosOuter) continue;
@@ -107,7 +108,7 @@ void main(){
       acc += lc[k]*li[k]*cone*v*dust*ph/(1.+.02*dl*dl);
     }
   }
-  gl_FragColor = vec4(acc*st*density, 1.);
+  gl_FragColor = vec4(acc*st*density*(1.+1.4*streak), 1.);
 }`;
 
 export const COMP_FS = /* glsl */`

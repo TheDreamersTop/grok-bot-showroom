@@ -42,3 +42,5 @@ button:hover{opacity:1;border-color:#e9dfcf} button:disabled{opacity:.3;cursor:d
 @media (max-width:1100px){ #placard{max-width:40vw} #placard .pm{font-size:12px} #actions .zh{display:none} #hint{bottom:auto;top:78px} }
 
 #dbg{position:fixed;left:12px;top:10px;font:12px/1.3 ui-monospace,Menlo,monospace;color:#bfe3b0;background:rgba(0,0,0,.55);padding:4px 8px;border-radius:3px;pointer-events:none;z-index:9}
+#copyField{display:block;margin:2px 0 6px auto;width:min(340px,28vw);font:13px/1.4 'Cormorant',serif;letter-spacing:.02em;background:rgba(18,14,10,.88);color:#ecdcc8;border:1px solid rgba(236,226,208,.4);border-radius:2px;padding:5px 8px;pointer-events:auto;outline:none}
+#copyField:focus{border-color:rgba(236,210,160,.8)}
