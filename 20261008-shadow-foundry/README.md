@@ -13,6 +13,7 @@ Three track lamps light one tangle of about 1,500 aged-brass rods, hung from the
 - **Type three letters** (A–Z) to forge a word sculpture: one heavy block letter per lit surface. Press Enter, or simply wait a moment after the third letter. The current sculpture shatters into a storm while a Web Worker computes the new one, then the rods implode into your word. The worker also tries all six ways of assigning the letters to the walls and keeps the one that casts best. The placard reports the measured rod coverage (the worst wall). Backspace edits; Esc clears.
 - **Share a word**: *Copy share link* copies a URL such as `…/20261008-shadow-foundry/#w=GEB`. Opening it plays *The Forge* straight into that word. Only the clipboard is used; nothing is sent anywhere.
 - **Click the sculpture** (or *Next sculpture*) to shatter it: the rods burst into a storm and implode into the next curated work: No. 2 (hand · key · butterfly), then No. 3 (G · E · B, after Hofstadter's *Gödel, Escher, Bach* cover).
+- **Drag a lamp**: hover a lamp head (it glows faintly) and drag it along its ceiling track. It stays aimed at the sculpture, so its pool slides across the wall and the shadow reprojects live: the cat shears, the tree stretches, the swallow smears. Let go and it springs back home with a clunk. Only the light and its shadow camera move; nothing is re-forged.
 - After the opening (and whenever the shadows lock), the camera pushes in until the pools fill about 60 % of the frame, then eases back out as soon as you drag. Built-in sculptures are precomputed (`data/preset-*.json`) and load instantly.
 - Sound is procedural (WebAudio) and starts on your first click. Use the speaker glyph to mute.
 
@@ -38,7 +39,7 @@ Desktop browsers (1440×900 to 1920×1080), WebGL2.
 
 ## Versions
 - **V1** (2026-10-08): the opening lock sequence, constrained turntable with sharpening cues, draw-your-own, procedural sound and museum labels.
-- **Pass 2 / experience** (2026-10-08): *The Forge* implosion opening with skip; shatter → storm → re-forge; misalignment loosens the sculpture (no figure-revealing scramble); the wire casts no shadow; type-three-letters word sculptures with `#w=` share links; No. 3 GEB; a stronger hero push-in.
+- **Pass 2 / experience** (2026-10-08): *The Forge* implosion opening with skip; shatter → storm → re-forge; misalignment loosens the sculpture (no figure-revealing scramble); the wire casts no shadow; type-three-letters word sculptures with `#w=` share links; No. 3 GEB; a stronger hero push-in; draggable lamps; a compact layout below 1440×900.
 - **Pass 1 / visual escalation** (2026-10-08): ≥98 % rod coverage via edge rods and hole fill; precomputed sculptures; a front-facing cat; a butterfly replaces the fish; a real room (ceiling track, ceiling wire, polished floor, bounce-lit plaster); exposure lowered so the pools show lamp colour; dust; the forge moved to a Web Worker with progressive fly-in.
 
 Fonts: Cormorant Garamond (OFL), Noto Serif TC (OFL), self-hosted subsets. three.js (MIT), vendored.

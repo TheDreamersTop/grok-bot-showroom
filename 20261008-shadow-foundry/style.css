@@ -26,3 +26,14 @@ button:hover{opacity:1;border-color:#e9dfcf} button:disabled{opacity:.3;cursor:d
 #wslots canvas{width:44px;height:44px}
 #wprompt{font-size:15px;font-style:italic;letter-spacing:.04em;opacity:.8}
 #word.typing #wprompt::after{content:'  ·  Enter to forge'}
+
+/* compact layout below 1440×900: smaller type, tighter margins; the button column stays clear of the right lamp head */
+@media (max-width:1439px),(max-height:899px){
+  #placard{left:28px;bottom:22px;max-width:min(380px,36vw)}
+  #placard .pt{font-size:21px} #placard .pt .zh{font-size:19px} #placard .pw{font-size:15px;margin-top:2px} #placard .pm{font-size:13px}
+  #actions{right:28px;bottom:22px;gap:6px} button{font-size:15px} #actions .zh{font-size:13px}
+  #hint{bottom:26px;font-size:17px} #mute{right:24px;top:20px}
+  #word{top:18px;gap:5px} #wslots canvas{width:36px;height:36px} #wprompt{font-size:13px}
+  #drawbar{bottom:24px} #drawbar .dt{font-size:17px;margin-bottom:8px}
+}
+@media (max-width:1100px){ #placard{max-width:40vw} #placard .pm{font-size:12px} #actions .zh{display:none} #hint{bottom:auto;top:78px} }

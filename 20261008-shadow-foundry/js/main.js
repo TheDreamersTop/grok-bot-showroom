@@ -31,7 +31,8 @@ const HERO = +(Q.get('hp') || 0.33), HERO_LOOK = new THREE.Vector3(...(Q.get('hl
 function placeCamera(px = 0, py = 0, push = 0) { // push includes the post-reveal hero push-in (heroAmt 0..1): pools fill ~60 % of the width
   const dir = CAMDIR.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), px * 0.035).applyAxisAngle(new THREE.Vector3(1, 0, -1).normalize(), -py * 0.03);
   const look = LOOK.clone().addScaledVector(HERO_LOOK, heroAmt); const k = heroAmt * heroAmt * (3 - 2 * heroAmt);
-  camera.position.copy(look).addScaledVector(dir, CAMDIST * (1 - push - HERO * k)); camera.lookAt(look);
+  const hp = camera.aspect >= 16 / 9 ? HERO : Math.max(0, 1 - (1 - HERO) * (16 / 9) / camera.aspect); // narrower screens: same pool share of the width, labels stay in frame
+  camera.position.copy(look).addScaledVector(dir, CAMDIST * (1 - push - hp * k)); camera.lookAt(look);
 }
 placeCamera();
 
@@ -62,27 +63,33 @@ const rim = new THREE.DirectionalLight(0xbcd0ff, 0.0); rim.position.set(-3, 9, -
 
 // lamp housings (visible fixtures), hung from a ceiling track
 const CEIL = 9.2;
-const housingMat = new THREE.MeshStandardMaterial({ color: 0x141312, metalness: 0.6, roughness: 0.45, envMap: ENV });
-const lensMats = [];
+const housingBase = new THREE.MeshStandardMaterial({ color: 0x141312, metalness: 0.6, roughness: 0.45, envMap: ENV });
+const lensMats = [], fixtures = [];
 function lampFixture(i) {
+  const housingMat = housingBase.clone(); housingMat.emissive = new THREE.Color(0, 0, 0);
   const w = G.walls[i], g = new THREE.Group(); g.position.copy(V3(w.lamp)); g.lookAt(CEN);
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.34, 0.8, 32, 1, true), housingMat); body.rotation.x = Math.PI / 2; body.position.z = -0.15; g.add(body);
   const back = new THREE.Mesh(new THREE.CircleGeometry(0.34, 32), housingMat); back.position.z = -0.55; back.rotation.y = Math.PI; g.add(back);
   for (let k = 0; k < 5; k++) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.345, 0.018, 8, 40), housingMat); r.position.z = -0.45 + k * 0.08; g.add(r); }
   const lm = new THREE.MeshBasicMaterial({ color: LAMP_COL[i].clone().multiplyScalar(0) }); lensMats.push(lm);
   const lens = new THREE.Mesh(new THREE.CircleGeometry(0.27, 32), lm); lens.position.z = 0.26; g.add(lens);
-  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.30, 0.025, 8, 40), new THREE.MeshStandardMaterial({ color: 0x8a6a40, metalness: 1, roughness: 0.35, envMap: ENV })); lip.position.z = 0.25; g.add(lip);
+  const lipMat = new THREE.MeshStandardMaterial({ color: 0x8a6a40, metalness: 1, roughness: 0.35, envMap: ENV, emissive: new THREE.Color(0, 0, 0) });
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.30, 0.025, 8, 40), lipMat); lip.position.z = 0.25; g.add(lip);
   // yoke
   const yk = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.022, 8, 32, Math.PI), housingMat); yk.rotation.z = Math.PI; yk.rotation.y = Math.PI / 2; g.add(yk);
   scene.add(g);
   const steel = housingMat;
   const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, CEIL - w.lamp[1] - 0.4, 10), steel); drop.position.set(w.lamp[0], (CEIL + w.lamp[1] + 0.4) / 2, w.lamp[2]); scene.add(drop);
+  const carriage = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.22), steel); carriage.position.set(w.lamp[0], CEIL - 0.1, w.lamp[2]); scene.add(carriage);
+  fixtures[i] = { g, drop, carriage, mat: housingMat, lipMat };
 }
 [0, 1, 2].forEach(lampFixture);
 { // ceiling + two steel tracks crossing over the overhead lamp
   const trackMat = new THREE.MeshStandardMaterial({ color: 0x0d0c0b, metalness: 0.8, roughness: 0.35, envMap: ENV });
   const tA = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.07, 10.5), trackMat); tA.position.set(G.d, CEIL - 0.04, 5.25); scene.add(tA);
   const tB = new THREE.Mesh(new THREE.BoxGeometry(10.5, 0.07, 0.09), trackMat); tB.position.set(5.25, CEIL - 0.04, G.d); scene.add(tB);
+  const tC = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.07, 0.09), trackMat); tC.position.set(G.d, CEIL - 0.04, G.d + G.L); scene.add(tC); // cross tracks: lamps 0/1 slide sideways
+  const tD = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.07, 6.2), trackMat); tD.position.set(G.d + G.L, CEIL - 0.04, G.d); scene.add(tD);
   for (const z of [0.6, 4.5, 9.5]) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 0.05), trackMat); c.position.set(G.d, CEIL - 0.09, z); scene.add(c); }
 }
 
@@ -486,7 +493,8 @@ function update(dt) {
   for (let i = 0; i < 3; i++) { S.lamp[i] = lamp[i] * st.lampMul; S.radius[i] = radius[i]; S.dark[i] = dark[i]; }
   // hero push-in after a reveal; eases back out as soon as the visitor interacts
   if (st.mode === 'intro') heroAmt = sm(LOCK_T + 0.25, LOCK_T + 1.7, st.introT) * (1 - sm(UNLOCK_T - 0.2, UNLOCK_T + 0.9, st.introT));
-  else { const tgt = (st.locked && !st.drag && t - st.lockAt > 0.35) ? 1 : 0; heroAmt += (tgt - heroAmt) * (1 - Math.exp(-dt / (tgt ? 0.55 : 0.3))); if (SHOT && Q.get('pose') === 'solved') heroAmt = 1; }
+  else { const tgt = (st.locked && !st.drag && LD.drag < 0 && !LD.homing.some(Boolean) && t - st.lockAt > 0.35) ? 1 : 0; heroAmt += (tgt - heroAmt) * (1 - Math.exp(-dt / (tgt ? 0.55 : 0.3))); if (SHOT && Q.get('pose') === 'solved') heroAmt = 1; }
+  updateLamps(dt);
   S.push = push; S.freeze = freeze; S.time = t;
   const drawAmt = st.mode === 'draw' ? 1 : 0; for (const m of wallMats) m.uniforms.drawAmt.value += (drawAmt - m.uniforms.drawAmt.value) * (SHOT ? 1 : 0.15);
   for (const m of labelMeshes) m.material.opacity = labels;
@@ -525,21 +533,85 @@ function hitsSculpture(e) { ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY 
 canvas.addEventListener('pointerdown', (e) => {
   sound.start(); lastX = e.clientX; lastY = e.clientY; downX = e.clientX; downY = e.clientY; downT = performance.now(); st.lastMove = st.t;
   if (st.mode === 'draw') { const hit = wallHit(e); if (hit) { drawing = hit; strokeTo(hit, true); } return; }
+  const li = lampEnabled() ? lampUnderMouse(e) : -1;
   if (st.mode === 'intro' && st.introT < LOCK_T - 0.15) { skipIntro(); return; }
   if (st.mode === 'intro') { // skip ahead: keep lamps on, go free from current pose
     st.mode = 'free'; st.freeStart = st.t; st.locked = false; st.lockAt = -1; for (const m of labelMeshes) m.material.opacity = 0;
     st.blendQ = pivot.quaternion.clone(); st.blendT = st.t; if (qAngle(st.blendQ) < 0.05) { st.yaw = 0; st.tilt = 0; } else { st.yaw = SCR[1].yaw; st.tilt = SCR[1].tilt; } st.vy = st.vt = 0;
   }
+  if (li >= 0) { startLampDrag(li, e); return; }
   st.drag = true; canvas.style.cursor = 'grabbing'; hint('');
 });
 addEventListener('pointermove', (e) => {
   mouse.x = e.clientX / innerWidth * 2 - 1; mouse.y = e.clientY / innerHeight * 2 - 1;
   if (st.mode === 'draw') { if (drawing) { const hit = wallHit(e, drawing.w); if (hit) strokeTo(hit, false); } return; }
-  if (!st.drag) return; const dx = e.clientX - lastX, dy = e.clientY - lastY; lastX = e.clientX; lastY = e.clientY; st.lastMove = st.t;
+  if (LD.drag >= 0) { moveLampDrag(e); return; }
+  if (!st.drag) { setLampHover(lampEnabled() ? lampUnderMouse(e) : -1); return; } const dx = e.clientX - lastX, dy = e.clientY - lastY; lastX = e.clientX; lastY = e.clientY; st.lastMove = st.t;
   st.vy = dx * 0.0065; st.vt = dy * 0.0045; st.yaw += st.vy; st.tilt = clamp(st.tilt + st.vt, -0.7, 0.7);
 });
-addEventListener('pointerup', (e) => { if (st.drag && (st.mode === 'free' || st.mode === 'forged') && Math.hypot(e.clientX - downX, e.clientY - downY) < 5 && performance.now() - downT < 350 && hitsSculpture(e)) { st.drag = false; shatterTo((presetIdx + 1) % PRESET_LIST.length); return; }
+addEventListener('pointerup', (e) => { if (LD.drag >= 0) { endLampDrag(); return; } if (st.drag && (st.mode === 'free' || st.mode === 'forged') && Math.hypot(e.clientX - downX, e.clientY - downY) < 5 && performance.now() - downT < 350 && hitsSculpture(e)) { st.drag = false; shatterTo((presetIdx + 1) % PRESET_LIST.length); return; }
   st.drag = false; canvas.style.cursor = st.mode === 'draw' ? 'crosshair' : 'grab'; if (drawing) { finishStroke(drawing.w); drawing = null; } });
+
+
+// ---------------- draggable lamps: slide a lamp along its ceiling track (it stays aimed at the sculpture); the pool slides and the
+// shadow reprojects live (no re-forge, only the light / shadow-camera move). On release it springs home with a clunk.
+const LHOME = G.walls.map(w => V3(w.lamp));
+const LAX = [[new THREE.Vector3(1, 0, 0)], [new THREE.Vector3(0, 0, 1)], [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1)]]; // track directions
+const LMAX = 2.6;
+const LD = { off: LHOME.map(() => new THREE.Vector3()), vel: LHOME.map(() => new THREE.Vector3()), tgt: LHOME.map(() => new THREE.Vector3()), hover: -1, hl: [0, 0, 0], drag: -1, grab: new THREE.Vector3(), start: new THREE.Vector3(), homing: [false, false, false], dirty: [true, true, true] };
+const _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
+function lampEnabled() { return st.mode === 'free' || st.mode === 'forged' || (st.mode === 'intro' && st.forgeDone); }
+function lampUnderMouse(e) { // cheap: ray distance to each lamp head
+  ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera); let best = -1, bd = 0.62;
+  for (let i = 0; i < 3; i++) { const d = ray.ray.distanceToPoint(fixtures[i].g.position); if (d < bd) { bd = d; best = i; } } return best;
+}
+function trackPoint(i, e, out) { // where the mouse ray meets the lamp's track (closest point to the ray / the track plane for the overhead lamp)
+  ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera); const o = ray.ray.origin, d = ray.ray.direction;
+  const P0 = LHOME[i];
+  if (LAX[i].length === 2) { const tt = (P0.y - o.y) / (Math.abs(d.y) > 1e-4 ? d.y : 1e-4); return out.copy(o).addScaledVector(d, Math.max(0, tt)).sub(P0); }
+  const u = LAX[i][0], w0 = o.clone().sub(P0); const b = u.dot(d), dd = u.dot(w0), ee = d.dot(w0); const den = 1 - b * b; const sc = den > 1e-5 ? (dd - b * ee) / den : 0;
+  return out.copy(u).multiplyScalar(sc);
+}
+function constrainLamp(i, v) { // each pool already nearly touches its room corner, so travel is mostly toward open wall / floor
+  if (LAX[i].length === 2) { if (Math.abs(v.x) > Math.abs(v.z)) v.z = 0; else v.x = 0; }
+  const soft = (c) => { const lo = -LMAX, hi = 0.3, k = 0.35; if (c > hi - k) return hi - k + k * Math.tanh((c - hi + k) / k); if (c < lo + k) return lo + k - k * Math.tanh((lo + k - c) / k); return c; };
+  v.x = soft(v.x); v.z = soft(v.z); v.y = 0; return v;
+}
+function startLampDrag(i, e) { LD.drag = i; LD.homing[i] = false; trackPoint(i, e, LD.grab); LD.start.copy(LD.off[i]); LD.tgt[i].copy(LD.off[i]); st.drag = false; canvas.style.cursor = 'grabbing'; hint(''); st.lastMove = st.t; }
+function moveLampDrag(e) { const i = LD.drag; const p = trackPoint(i, e, new THREE.Vector3()); LD.tgt[i].copy(LD.start).add(p.sub(LD.grab)); constrainLamp(i, LD.tgt[i]); st.lastMove = st.t; }
+function endLampDrag() { const i = LD.drag; LD.drag = -1; LD.homing[i] = true; LD.vel[i].set(0, 0, 0); LD.tgt[i].set(0, 0, 0); canvas.style.cursor = 'grab'; }
+function setLampHover(i) { if (LD.hover === i) return; LD.hover = i; if (st.mode !== 'draw' && LD.drag < 0) canvas.style.cursor = 'grab'; if (i >= 0 && !st.lampHinted) { st.lampHinted = 1; hint('Drag a lamp along its track'); setTimeout(() => hint(''), 2600); } }
+window.__lamps = () => ({ screen: fixtures.map(f => { const v = f.g.position.clone().project(camera); return [Math.round((v.x + 1) / 2 * innerWidth), Math.round((1 - v.y) / 2 * innerHeight)]; }), off: LD.off.map(o => o.toArray().map(x => +x.toFixed(3))), hover: LD.hover, hl: LD.hl.map(x => +x.toFixed(2)), drag: LD.drag, homing: LD.homing.slice(), cursor: canvas.style.cursor, mode: st.mode, hero: +heroAmt.toFixed(2) });
+if (Q.get('lamp')) { const [i, x, y, z] = Q.get('lamp').split(',').map(Number); LD.off[i].set(x, y || 0, z || 0); } // shot mode: a displaced lamp
+if (Q.get('hover')) { const i = +Q.get('hover'); LD.hover = i; LD.hl[i] = 1; }
+function updateLamps(dt) {
+  dt = Math.min(dt, 1 / 20);
+  for (let i = 0; i < 3; i++) {
+    const off = LD.off[i], vel = LD.vel[i]; const before = off.clone();
+    if (LD.drag === i) { off.lerp(LD.tgt[i], 1 - Math.exp(-dt / 0.06)); vel.set(0, 0, 0); }
+    else if (LD.homing[i]) { // underdamped spring home (a little overshoot), clunk when it seats
+      const k = 70, c = 2 * 0.32 * Math.sqrt(k); const prevDot = off.dot(LD.tgt[i].set(0, 0, 0)); void prevDot;
+      const pre = off.clone(); vel.addScaledVector(off, -k * dt).multiplyScalar(Math.max(0, 1 - c * dt)); off.addScaledVector(vel, dt);
+      if (!LD.seated && pre.lengthSq() > 1e-4 && pre.dot(off) <= 0) { sound.clunk(i); LD.seated = true; LD.wob = 1; }
+      if (off.length() < 0.002 && vel.length() < 0.01) { off.set(0, 0, 0); vel.set(0, 0, 0); LD.homing[i] = false; if (!LD.seated) sound.clunk(i); LD.seated = false; }
+    }
+    // hover / drag highlight
+    const h = (LD.drag === i ? 1 : LD.hover === i && lampEnabled() ? 0.7 : 0); LD.hl[i] += (h - LD.hl[i]) * (1 - Math.exp(-dt / 0.12));
+    fixtures[i].mat.emissive.copy(LAMP_COL[i]).multiplyScalar(0.035 * LD.hl[i]); fixtures[i].lipMat.emissive.copy(LAMP_COL[i]).multiplyScalar(0.35 * LD.hl[i]);
+    if (before.distanceToSquared(off) > 1e-10 || LD.dirty[i]) { LD.dirty[i] = false; placeLamp(i); }
+  }
+}
+function placeLamp(i) {
+  _lp.copy(LHOME[i]).add(LD.off[i]); const f = fixtures[i];
+  lamps[i].position.copy(_lp); lamps[i].updateMatrixWorld();
+  f.g.position.copy(_lp); f.g.lookAt(CEN); f.drop.position.x = _lp.x; f.drop.position.z = _lp.z; f.carriage.position.x = _lp.x; f.carriage.position.z = _lp.z;
+  _ld.copy(CEN).sub(_lp); const dist = _ld.length(); _ld.normalize();
+  const sc = lamps[i].shadow.camera; sc.near = Math.max(0.5, dist - 2.0); sc.far = dist * (G.L + G.d) / G.L + 2.5; sc.updateProjectionMatrix();
+  const u = wallMats[i].uniforms; u.lampPos.value.copy(_lp); u.lampDir.value.copy(_ld);
+  hazeMat.uniforms.lp.value[i].copy(_lp); hazeMat.uniforms.ld.value[i].copy(_ld); moteMat.uniforms.lp.value[i].copy(_lp); moteMat.uniforms.ld.value[i].copy(_ld);
+  const a = G.walls[i].axis; const tt = _lp.getComponent(a) / (_lp.getComponent(a) - CEN.getComponent(a)); const pc = _lp.clone().lerp(CEN, tt); // the pool centre (feeds the fake bounce)
+  for (const m of [...wallMats, ceilMat]) m.uniforms.pc.value[i].copy(pc);
+}
 
 // ---------------- drawing your own shadows
 const drawCanvases = [0, 1, 2].map(() => { const c = document.createElement('canvas'); c.width = c.height = MR; return c; });
