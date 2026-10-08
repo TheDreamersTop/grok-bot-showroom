@@ -32,8 +32,8 @@ export function maskToWorld(w, px, py) {
 
 // ---------- masks
 export function maskFromDraw(draw) {
-  const c = (typeof OffscreenCanvas !== 'undefined') ? new OffscreenCanvas(MR, MR) : Object.assign(document.createElement('canvas'), { width: MR, height: MR });
-  const g = c.getContext('2d', { willReadFrequently: true }); g.fillStyle = '#fff'; g.strokeStyle = '#fff';
+  if (!_mc) { _mc = (typeof OffscreenCanvas !== 'undefined') ? new OffscreenCanvas(MR, MR) : Object.assign(document.createElement('canvas'), { width: MR, height: MR }); _mg = _mc.getContext('2d', { willReadFrequently: true }); }
+  const c = _mc, g = _mg; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, MR, MR); g.fillStyle = '#fff'; g.strokeStyle = '#fff'; g.lineWidth = 1; g.lineCap = 'butt'; g.lineJoin = 'miter';
   g.save(); g.scale(MR / 1000, MR / 1000); draw(g); g.restore();
   return maskFromCanvas(c);
 }
@@ -62,9 +62,20 @@ export function sdf(mask) { // signed distance in pixels: negative inside
   const out = edt2d(mask), inv = new Uint8Array(mask.length); for (let i = 0; i < mask.length; i++) inv[i] = 1 - mask[i];
   const inn = edt2d(inv); const s = new Float32Array(mask.length);
   for (let i = 0; i < mask.length; i++) s[i] = mask[i] ? -(Math.sqrt(inn[i]) - 0.5) : (Math.sqrt(out[i]) - 0.5);
+  return SDF_SMOOTH ? smooth121(s, SDF_SMOOTH) : s;
+}
+// separable [1,2,1] passes: turn the binary-mask staircase into smooth level sets (cleaner rod-traced edges)
+export let SDF_SMOOTH = 2; export function setSdfSmooth(n) { SDF_SMOOTH = n; }
+function smooth121(s, passes) {
+  const n = MR, t = new Float32Array(s.length);
+  for (let p = 0; p < passes; p++) {
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * n + x; t[i] = (s[x > 0 ? i - 1 : i] + 2 * s[i] + s[x < n - 1 ? i + 1 : i]) * 0.25; }
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * n + x; s[i] = (t[y > 0 ? i - n : i] + 2 * t[i] + t[y < n - 1 ? i + n : i]) * 0.25; }
+  }
   return s;
 }
-function sample(s, x, y) { // bilinear
+function sample(s, x, y) { // bilinear; pixel k's value sits at its centre (x+0.5, y+0.5)
+  x -= 0.5; y -= 0.5;
   if (x < 0 || y < 0 || x >= MR - 1 || y >= MR - 1) return 50;
   const x0 = x | 0, y0 = y | 0, fx = x - x0, fy = y - y0, i = y0 * MR + x0;
   return (s[i] * (1 - fx) + s[i + 1] * fx) * (1 - fy) + (s[i + MR] * (1 - fx) + s[i + MR + 1] * fx) * fy;
@@ -147,45 +158,93 @@ function rasterRods(rods, ctxs) {
 }
 function mkCtx() { const c = (typeof OffscreenCanvas !== 'undefined') ? new OffscreenCanvas(MR, MR) : Object.assign(document.createElement('canvas'), { width: MR, height: MR }); return c.getContext('2d', { willReadFrequently: true }); }
 
+// fast software rasterizer: rod capsules projected onto each wall (pixel centre within projected radius)
+export function rasterAdd(r, cov, tmp = [0, 0, 0], tmp2 = [0, 0, 0]) {
+  for (let w = 0; w < 3; w++) {
+    projectToMask(G.walls[w], r.a, tmp); projectToMask(G.walls[w], r.b, tmp2);
+    const x0 = tmp[0], y0 = tmp[1], x1 = tmp2[0], y1 = tmp2[1]; const hw = Math.max(0.5, r.r * 0.5 * (tmp[2] + tmp2[2]) / (G.M / MR));
+    const dx = x1 - x0, dy = y1 - y0, L2 = dx * dx + dy * dy || 1e-9, hw2 = hw * hw, c = cov[w];
+    const xa = Math.max(0, Math.floor(Math.min(x0, x1) - hw)), xb = Math.min(MR - 1, Math.ceil(Math.max(x0, x1) + hw)), ya = Math.max(0, Math.floor(Math.min(y0, y1) - hw)), yb = Math.min(MR - 1, Math.ceil(Math.max(y0, y1) + hw));
+    for (let y = ya; y <= yb; y++) { const py = y + 0.5 - y0; for (let x = xa; x <= xb; x++) { const px = x + 0.5 - x0; let t = (px * dx + py * dy) / L2; t = t < 0 ? 0 : t > 1 ? 1 : t; const ex = px - t * dx, ey = py - t * dy; if (ex * ex + ey * ey <= hw2) c[y * MR + x] = 1; } }
+  }
+}
+export function rasterRodsSW(rods) { const cov = [0, 1, 2].map(() => new Uint8Array(MR * MR)); const t1 = [0, 0, 0], t2 = [0, 0, 0]; for (const r of rods) rasterAdd(r, cov, t1, t2); return cov; }
+
+const EDGE_R = 0.0055;
+// best point on the lamp ray through mask point (px,py) of wall w: maximises clearance in the other two masks
+export function rayPoint(hull, w, px, py, need, ret) {
+  const q = maskToWorld(G.walls[w], px, py), l = G.walls[w].lamp, tmp = [0, 0, 0]; let best = -1e9, bp = null;
+  for (let s = 0; s <= 48; s++) { const t = 0.42 + 0.46 * s / 48; const p = [l[0] + (q[0] - l[0]) * t, l[1] + (q[1] - l[1]) * t, l[2] + (q[2] - l[2]) * t];
+    let m = 1e9; for (let j = 0; j < 3; j++) if (j !== w) { projectToMask(G.walls[j], p, tmp); const v = -sample(hull.sdfs[j], tmp[0], tmp[1]) * (G.M / MR) / tmp[2]; if (v < m) m = v; }
+    if (m > best) { best = m; bp = p; } }
+  if (ret) return best; return best >= need ? bp : null;
+}
+const mkRod = (p, d, a, b, r, g, kind) => ({ a: [p[0] - d[0] * a, p[1] - d[1] * a, p[2] - d[2] * a], b: [p[0] + d[0] * b, p[1] + d[1] * b, p[2] + d[2] * b], r, g, kind });
+
 export function forgeRods(masks, opts = {}) {
-  const t0 = performance.now();
+  const t0 = performance.now(); const target = opts.target || masks; const onBatch = opts.onBatch;
   const seed = opts.seed || 7, R = rng(seed), hull = new Hull(masks);
-  const nLong = opts.nLong || 760, maxRepair = opts.maxRepair || 800;
-  const rods = [];
-  // diameter estimate for min length
-  const minLong = opts.minLong || 0.62;
+  const nLong = opts.nLong || 640, maxRepair = opts.maxRepair || 900, maxEdge = opts.maxEdge || 900;
+  const rods = []; const minLong = opts.minLong || 0.78; const times = {};
   const randDir = () => { for (;;) { const u = R() * 2 - 1, ph = R() * 6.2832, s = Math.sqrt(1 - u * u); const d = [s * Math.cos(ph), u, s * Math.sin(ph)]; if (Math.max(Math.abs(d[0]), Math.abs(d[1]), Math.abs(d[2])) < 0.86) return d; } };
   const randInside = () => { for (let k = 0; k < 2000; k++) { const p = [G.C[0] + (R() - 0.5) * 3.0, G.C[1] + (R() - 0.5) * 3.0, G.C[2] + (R() - 0.5) * 3.0]; if (hull.depth(p) > 0.03) return p; } return null; };
   const pickGauge = () => { const x = R(); return x < 0.55 ? 0 : x < 0.88 ? 1 : 2; };
   let tries = 0;
-  while (rods.length < nLong && tries++ < nLong * 30) {
+  while (rods.length < nLong && tries++ < nLong * 25) {
     const p = randInside(); if (!p) break; const d = randDir(); const gi = pickGauge(); const r = GAUGE[gi];
     const [a, b] = extend(hull, p, d, r); if (a + b < minLong) continue;
-    rods.push({ a: [p[0] - d[0] * a, p[1] - d[1] * a, p[2] - d[2] * a], b: [p[0] + d[0] * b, p[1] + d[1] * b, p[2] + d[2] * b], r, g: gi, kind: 'long' });
+    rods.push(mkRod(p, d, a, b, r, gi, 'long'));
   }
-  // coverage repair with shorter rods seeded on uncovered pixels, laid perpendicular to that lamp ray
-  const ctxs = [mkCtx(), mkCtx(), mkCtx()];
-  let cov = rasterRods(rods, ctxs), fid = fidelity(masks, cov), rounds = 0;
-  while (rounds++ < 10 && Math.min(...fid) < 0.995 && rods.length < nLong + maxRepair) {
+  const R2 = rng(seed + 99); const finish = (r) => { if (r.mat !== undefined) return; const m = [(r.a[0] + r.b[0]) / 2, (r.a[1] + r.b[1]) / 2, (r.a[2] + r.b[2]) / 2]; r.depth = hull.depth(m); const x = R2(); r.mat = r.kind === 'edge' ? 0 : x < 0.05 ? 2 : x < 0.15 ? 1 : 0; r.tone = R2(); };
+  rods.forEach(finish); times.long = performance.now() - t0; if (onBatch) onBatch(rods.slice(), 'long');
+  const cov = rasterRodsSW(rods); const t1 = [0, 0, 0], t2 = [0, 0, 0];
+  const add = (r) => { rods.push(r); rasterAdd(r, cov, t1, t2); };
+  // 1) interior holes: thin rods laid perpendicular to the lamp ray through the hole
+  let nRep = 0;
+  for (let round = 0; round < 10 && nRep < maxRepair; round++) {
+    let placed = 0;
     for (let w = 0; w < 3; w++) {
-      const holes = []; for (let k = 0; k < MR * MR; k++) if (masks[w][k] && !cov[w][k]) holes.push(k);
-      const want = Math.min(Math.ceil(holes.length / 3), 110);
-      for (let n = 0; n < want && rods.length < nLong + maxRepair; n++) {
-        const k = holes[(R() * holes.length) | 0]; const q = maskToWorld(G.walls[w], (k % MR) + 0.5, ((k / MR) | 0) + 0.5); const l = G.walls[w].lamp;
-        const cands = []; for (let s = 0; s <= 40; s++) { const t = 0.45 + 0.4 * s / 40; const p = [l[0] + (q[0] - l[0]) * t, l[1] + (q[1] - l[1]) * t, l[2] + (q[2] - l[2]) * t]; if (hull.depth(p) > 0.004) cands.push(p); }
-        if (!cands.length) continue; const p = cands[(R() * cands.length) | 0];
+      const sd = hull.sdfs[w]; const holes = []; for (let k = 0; k < MR * MR; k++) if (target[w][k] && !cov[w][k] && sd[k] < -2.5) holes.push(k);
+      for (let i = holes.length - 1; i > 0; i--) { const j = (R() * (i + 1)) | 0; const t = holes[i]; holes[i] = holes[j]; holes[j] = t; }
+      for (const k of holes) { if (cov[w][k] || nRep >= maxRepair) continue;
+        const q = maskToWorld(G.walls[w], (k % MR) + 0.5, ((k / MR) | 0) + 0.5); const l = G.walls[w].lamp;
+        const p = rayPoint(hull, w, (k % MR) + 0.5, ((k / MR) | 0) + 0.5, 0.0105); if (!p) continue;
         const ray = [q[0] - l[0], q[1] - l[1], q[2] - l[2]]; const rl = Math.hypot(...ray); ray[0] /= rl; ray[1] /= rl; ray[2] /= rl;
         let best = null, bl = 0;
-        for (let k2 = 0; k2 < 6; k2++) { let d = randDir(); const dt = d[0] * ray[0] + d[1] * ray[1] + d[2] * ray[2]; d = [d[0] - ray[0] * dt, d[1] - ray[1] * dt, d[2] - ray[2] * dt]; const dl = Math.hypot(...d); d = [d[0] / dl, d[1] / dl, d[2] / dl]; const [a, b] = extend(hull, p, d, 0.008); if (a + b > bl) { bl = a + b; best = [d, a, b]; } }
-        if (!best || bl < 0.03) continue; const [d, a, b] = best; const gi = bl > 0.5 ? 1 : 0;
-        rods.push({ a: [p[0] - d[0] * a, p[1] - d[1] * a, p[2] - d[2] * a], b: [p[0] + d[0] * b, p[1] + d[1] * b, p[2] + d[2] * b], r: bl > 0.5 ? GAUGE[1] * 0.8 : 0.0095, g: gi, kind: 'repair' });
+        for (let k2 = 0; k2 < 5; k2++) { let d = randDir(); const dt = d[0] * ray[0] + d[1] * ray[1] + d[2] * ray[2]; d = [d[0] - ray[0] * dt, d[1] - ray[1] * dt, d[2] - ray[2] * dt]; const dl = Math.hypot(...d); d = [d[0] / dl, d[1] / dl, d[2] / dl]; const [a, b] = extend(hull, p, d, 0.0095); if (a + b > bl) { bl = a + b; best = [d, a, b]; } }
+        if (!best || bl < 0.02) continue; const [d, a, b] = best; add(mkRod(p, d, a, b, bl > 0.5 ? GAUGE[1] * 0.8 : 0.0095, bl > 0.5 ? 1 : 0, 'repair')); nRep++; placed++;
       }
     }
-    cov = rasterRods(rods, ctxs); fid = fidelity(masks, cov);
+    if (!placed) break;
   }
-  // per-rod depth inside hull (for AO) and material class
-  for (const r of rods) { const m = [(r.a[0] + r.b[0]) / 2, (r.a[1] + r.b[1]) / 2, (r.a[2] + r.b[2]) / 2]; r.depth = hull.depth(m); const x = R(); r.mat = x < 0.05 ? 2 : x < 0.15 ? 1 : 0; r.tone = R(); }
-  return { rods, fidelity: fid, ms: performance.now() - t0, cov };
+  times.repair = performance.now() - t0;
+  // 2) edge rods: thin rods that run along the silhouette boundary, hugging it from inside (clean edges)
+  let nEdge = 0, miss = 0; const missInfo = [];
+  for (let round = 0; round < 7 && nEdge < maxEdge; round++) {
+    let placed = 0;
+    for (let w = 0; w < 3; w++) {
+      const sd = hull.sdfs[w], W = G.walls[w]; const band = []; for (let k = 0; k < MR * MR; k++) if (target[w][k] && !cov[w][k]) band.push(k);
+      for (let i = band.length - 1; i > 0; i--) { const j = (R() * (i + 1)) | 0; const t = band[i]; band[i] = band[j]; band[j] = t; }
+      for (const k of band) { if (cov[w][k] || nEdge >= maxEdge) continue;
+        const x = (k % MR) + 0.5, y = ((k / MR) | 0) + 0.5; const s0 = sample(sd, x, y);
+        let gx = sample(sd, x + 1, y) - sample(sd, x - 1, y), gy = sample(sd, x, y + 1) - sample(sd, x, y - 1); const gl = Math.hypot(gx, gy) || 1; gx /= gl; gy /= gl;
+        const tsc = 1.5, hwpx = EDGE_R * tsc / (G.M / MR); const sStar = Math.min(s0, -hwpx * 1.0); const qx = x - gx * (s0 - sStar), qy = y - gy * (s0 - sStar);
+        const p = rayPoint(hull, w, qx, qy, EDGE_R * 0.28); if (!p) continue;
+        let best = null, bl = 0;
+        for (const ang of [0, 0.2, -0.2, 0.45, -0.45]) { const ca = Math.cos(ang), sa = Math.sin(ang); const tx = -gy * ca - gx * sa, ty = gx * ca - gy * sa;
+          let d = [W.u[0] * tx - W.v[0] * ty, W.u[1] * tx - W.v[1] * ty, W.u[2] * tx - W.v[2] * ty]; const dl = Math.hypot(...d); d = [d[0] / dl, d[1] / dl, d[2] / dl];
+          const [a, b] = extend(hull, p, d, EDGE_R * 0.42); if (a + b > bl) { bl = a + b; best = [d, a, b]; } if (bl > 0.15) break; }
+        if (!best) continue; const [d, a, b] = best; const L = Math.max(bl, 0.004);
+        const aa = bl < 0.004 ? 0.002 : a, bb = bl < 0.004 ? 0.002 : b;
+        add(mkRod(p, d, aa, bb, EDGE_R, 0, 'edge')); nEdge++; placed++; if (!cov[w][k]) { miss++; if (missInfo.length < 5) { projectToMask(W, p, t1); missInfo.push([x, y, +qx.toFixed(2), +qy.toFixed(2), +t1[0].toFixed(2), +t1[1].toFixed(2), +s0.toFixed(2), +bl.toFixed(4)]); } }
+      }
+    }
+    if (!placed) break;
+  }
+  times.edge = performance.now() - t0;
+  const fid = fidelity(target, cov);
+  rods.forEach(finish);
+  return { rods, fidelity: fid, ms: performance.now() - t0, cov, times, counts: { long: rods.filter(r => r.kind === 'long').length, repair: nRep, edge: nEdge, miss, missInfo } };
 }
 
 // shadow projection of the posed hull for scramble entropy (IoU) — uses rods for speed
@@ -208,9 +267,10 @@ export function maxIoU(a, targets, res = 96) { // vs every target, incl. 4 rotat
 
 // ---------- automatic figure fitting (cheap stand-in for Mitra & Pauly's warp):
 // search per-figure similarity transforms (scale x/y, offset, rotation) maximizing hull fidelity.
+let _mc = null, _mg = null;
 export function maskFromDrawT(draw, T) {
-  const c = (typeof OffscreenCanvas !== 'undefined') ? new OffscreenCanvas(MR, MR) : Object.assign(document.createElement('canvas'), { width: MR, height: MR });
-  const g = c.getContext('2d', { willReadFrequently: true }); g.fillStyle = '#fff'; g.strokeStyle = '#fff';
+  if (!_mc) { _mc = (typeof OffscreenCanvas !== 'undefined') ? new OffscreenCanvas(MR, MR) : Object.assign(document.createElement('canvas'), { width: MR, height: MR }); _mg = _mc.getContext('2d', { willReadFrequently: true }); }
+  const c = _mc, g = _mg; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, MR, MR); g.fillStyle = '#fff'; g.strokeStyle = '#fff'; g.lineWidth = 1; g.lineCap = 'butt'; g.lineJoin = 'miter';
   g.save(); g.translate(MR * (0.5 + T.tx), MR * (0.5 + T.ty)); g.rotate(T.r); g.scale(T.sx * MR / 1000, T.sy * MR / 1000); g.translate(-500, -500); draw(g); g.restore();
   return maskFromCanvas(c);
 }
@@ -237,37 +297,45 @@ export function fitFigures(draws, opts = {}) {
   const score = (f) => Math.min(...f) + 0.25 * (f[0] + f[1] + f[2]) / 3;
   let T = (opts.init || [0, 1, 2].map(() => ({ sx: 0.9, sy: 0.9, tx: 0, ty: 0, r: 0 }))).map(t => ({ ...t }));
   const mk = (T) => draws.map((d, i) => maskFromDrawT(d, T[i]));
-  let best = score(quickFidelity(mk(T))), n = 1;
-  const lim = { sx: [0.5, 1.08], sy: [0.5, 1.08], tx: [-0.12, 0.12], ty: [-0.12, 0.12], r: [-0.35, 0.35] };
+  const st = opts.step || 4; let best = score(quickFidelity(mk(T), st)), n = 1;
+  const lim = opts.lim || { sx: [0.5, 1.08], sy: [0.5, 1.08], tx: [-0.12, 0.12], ty: [-0.12, 0.12], r: [-0.35, 0.35] };
   while (n < evals) {
     const T2 = T.map(t => ({ ...t })); const i = (R() * 3) | 0; const keys = Object.keys(lim); const k = keys[(R() * keys.length) | 0];
-    const span = lim[k][1] - lim[k][0]; T2[i][k] = Math.min(lim[k][1], Math.max(lim[k][0], T2[i][k] + (R() - 0.5) * span * (n < evals / 2 ? 0.35 : 0.12)));
+    const span = lim[k][1] - lim[k][0]; T2[i][k] = Math.min(lim[k][1], Math.max(lim[k][0], T2[i][k] + (R() - 0.5) * span * (opts.fine ? 0.06 : (n < evals / 2 ? 0.35 : 0.12))));
     if (R() < 0.3) { const j = (R() * 3) | 0; const k2 = keys[(R() * keys.length) | 0]; const sp2 = lim[k2][1] - lim[k2][0]; T2[j][k2] = Math.min(lim[k2][1], Math.max(lim[k2][0], T2[j][k2] + (R() - 0.5) * sp2 * 0.2)); }
-    const s = score(quickFidelity(mk(T2))); n++;
+    const s = score(quickFidelity(mk(T2), st)); n++;
     if (s > best) { best = s; T = T2; }
   }
   const masks = mk(T);
-  return { T, masks, fid: quickFidelity(masks, 2) };
+  return { T, masks, fid: opts.noFid ? null : quickFidelity(masks, 2) };
 }
-// tight repair: only accept additions that hug the existing mask boundary (no islands)
-export function repairTight(masks, maxIter = 3, maxCost = 2.2) {
-  masks = masks.map(m => m.slice()); const tmp = [0, 0, 0];
+// exact coverage: target pixel is reachable iff some point on its lamp ray has clearance >= tau in the other two masks
+export function rayCoverage(hull, target, tau = 0.003) {
+  const cov = [0, 1, 2].map(() => new Uint8Array(MR * MR));
+  for (let w = 0; w < 3; w++) for (let k = 0; k < MR * MR; k++) { if (!target[w][k]) continue; if (rayPoint(hull, w, (k % MR) + 0.5, ((k / MR) | 0) + 0.5, tau, true) >= tau) cov[w][k] = 1; }
+  return cov;
+}
+// tight repair driven by the exact ray test: for each unreachable pixel find the cheapest point on its ray
+// and stamp a small disc into the other masks there (additions hug the existing boundary; no islands)
+export function repairTight(masks, maxIter = 3, maxCost = 3.2, tau = 0.0035) {
+  const target = masks; masks = masks.map(m => m.slice()); const tmp = [0, 0, 0];
+  const tauPx = (t) => tau * t / (G.M / MR);
   for (let it = 0; it < maxIter; it++) {
-    const hull = new Hull(masks); const cov = coverageFromHull(hull); let fixed = 0;
-    const add = [new Set(), new Set(), new Set()];
+    const hull = new Hull(masks); const cov = rayCoverage(hull, target, tau); let fixed = 0;
+    const add = [[], [], []];
     for (let i = 0; i < 3; i++) {
       const w = G.walls[i];
       for (let k = 0; k < MR * MR; k++) {
-        if (!masks[i][k] || cov[i][k]) continue; const px = k % MR, py = (k / MR) | 0;
+        if (!target[i][k] || cov[i][k]) continue; const px = k % MR, py = (k / MR) | 0;
         const q = maskToWorld(w, px + 0.5, py + 0.5); let best = 1e9, bp = null;
         for (let s = 0; s <= 60; s++) { const t = 0.42 + 0.46 * s / 60; const p = [w.lamp[0] + (q[0] - w.lamp[0]) * t, w.lamp[1] + (q[1] - w.lamp[1]) * t, w.lamp[2] + (q[2] - w.lamp[2]) * t];
-          let c = 0; for (let j = 0; j < 3; j++) if (j !== i) { projectToMask(G.walls[j], p, tmp); const x = Math.min(MR - 1, Math.max(0, tmp[0] | 0)), y = Math.min(MR - 1, Math.max(0, tmp[1] | 0)); c += Math.max(0, hull.sdfs[j][y * MR + x] + 0.5); }
+          let c = 0; for (let j = 0; j < 3; j++) if (j !== i) { projectToMask(G.walls[j], p, tmp); c += Math.max(0, sample(hull.sdfs[j], tmp[0], tmp[1]) + tauPx(tmp[2]) + 0.3); }
           if (c < best) { best = c; bp = p; } }
-        if (bp && best <= maxCost) { for (let j = 0; j < 3; j++) if (j !== i) { projectToMask(G.walls[j], bp, tmp); const x = tmp[0] | 0, y = tmp[1] | 0; if (x >= 0 && y >= 0 && x < MR && y < MR) add[j].add(y * MR + x); } fixed++; }
+        if (bp && best <= maxCost) { for (let j = 0; j < 3; j++) if (j !== i) { projectToMask(G.walls[j], bp, tmp); if (sample(hull.sdfs[j], tmp[0], tmp[1]) + tauPx(tmp[2]) + 0.3 > 0) add[j].push(tmp[0], tmp[1], tauPx(tmp[2]) + 0.9); } fixed++; }
       }
     }
-    // fill straight segments from each added pixel to the nearest mask pixel (keeps additions connected)
-    for (let j = 0; j < 3; j++) for (const k of add[j]) masks[j][k] = 1;
+    for (let j = 0; j < 3; j++) { const A = add[j]; for (let n = 0; n < A.length; n += 3) { const cx = A[n], cy = A[n + 1], rr = A[n + 2]; const r2 = rr * rr;
+      for (let y = Math.max(0, Math.floor(cy - rr)); y <= Math.min(MR - 1, Math.ceil(cy + rr)); y++) for (let x = Math.max(0, Math.floor(cx - rr)); x <= Math.min(MR - 1, Math.ceil(cx + rr)); x++) { const dx = x + 0.5 - cx, dy = y + 0.5 - cy; if (dx * dx + dy * dy <= r2) masks[j][y * MR + x] = 1; } } }
     if (!fixed) break;
   }
   return masks;

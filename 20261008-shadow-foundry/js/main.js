@@ -2,9 +2,11 @@ import * as THREE from 'three';
 import { FIGURES, PRESETS } from './figures.js';
 import { G, MR, maskFromDraw, maskFromDrawT, maskFromCanvas, repairTight, fitFigures, forgeRods, Hull, coverageFromHull, fidelity, maskToWorld, sdf as sdfOf, projectRodsPosed, downMask, maxIoU } from './forge.js';
 import { Sound } from './audio.js';
-import { WALL_VS, WALL_FS, HAZE_FS, COMP_FS, QUAD_VS } from './shaders.js';
+import { rayPoint, rasterRodsSW, rayCoverage, quickFidelity } from './forge.js';
+import { WALL_VS, WALL_FS, HAZE_FS, COMP_FS, QUAD_VS, MOTE_VS, MOTE_FS } from './shaders.js';
 
 const Q = new URLSearchParams(location.search);
+const SMAP = +(Q.get('sm') || 2048), RMIN = +(Q.get('rmin') || 1.6);
 const SHOT = Q.has('shot');
 const V3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
 const CEN = V3(G.C);
@@ -21,10 +23,10 @@ const depthRT = new THREE.WebGLRenderTarget(W >> 1, H >> 1, { depthTexture: new 
 const hazeRT = new THREE.WebGLRenderTarget(W >> 1, H >> 1, { type: THREE.HalfFloatType });
 
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x000000);
-const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 80);
+const camera = new THREE.PerspectiveCamera(+(Q.get('fov') || 31), innerWidth / innerHeight, 0.1, 80);
 const CAMDIR = new THREE.Vector3(1, 0.8, 1).normalize();
-const CAMDIST = +(Q.get('cd') || 16.8);
-const LOOK = new THREE.Vector3(2.2, 2.3, 2.2);
+const CAMDIST = +(Q.get('cd') || 20.5);
+const LOOK = new THREE.Vector3(+(Q.get('lx') || 2.3), +(Q.get('ly') || 3.55), +(Q.get('lx') || 2.3));
 function placeCamera(px = 0, py = 0, push = 0) {
   const dir = CAMDIR.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), px * 0.035).applyAxisAngle(new THREE.Vector3(1, 0, -1).normalize(), -py * 0.03);
   camera.position.copy(LOOK).addScaledVector(dir, CAMDIST * (1 - push)); camera.lookAt(LOOK);
@@ -32,12 +34,13 @@ function placeCamera(px = 0, py = 0, push = 0) {
 placeCamera();
 
 // ---------------- environment for brass reflections (dark room + 3 lamp-coloured softboxes)
-const LAMP_COL = [new THREE.Color(1.0, 0.80, 0.58), new THREE.Color(0.80, 0.88, 1.0), new THREE.Color(1.0, 0.92, 0.80)];
+const LAMP_COL = [new THREE.Color(1.0, 0.62, 0.34), new THREE.Color(0.48, 0.72, 1.0), new THREE.Color(1.0, 0.84, 0.64)];
 {
   const es = new THREE.Scene(); es.background = new THREE.Color(0x0a0908);
   const box = new THREE.Mesh(new THREE.BoxGeometry(30, 30, 30), new THREE.MeshBasicMaterial({ color: 0x15120f, side: THREE.BackSide })); es.add(box);
   G.walls.forEach((w, i) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(3, 3), new THREE.MeshBasicMaterial({ color: LAMP_COL[i].clone().multiplyScalar(6), side: THREE.DoubleSide })); const d = V3(w.lamp).sub(CEN).normalize(); p.position.copy(d.clone().multiplyScalar(9)); p.lookAt(0, 0, 0); es.add(p); });
-  const fl = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshBasicMaterial({ color: 0x3a2f24 })); fl.rotation.x = -Math.PI / 2; fl.position.y = -6; es.add(fl);
+  [[0, 0, -1], [-1, 0, 0], [0, -1, 0]].forEach((d, i) => { const p = new THREE.Mesh(new THREE.CircleGeometry(4.5, 32), new THREE.MeshBasicMaterial({ color: LAMP_COL[i].clone().multiplyScalar(1.1), side: THREE.DoubleSide })); p.position.set(d[0] * 8, d[1] * 8, d[2] * 8); p.lookAt(0, 0, 0); es.add(p); });
+  const fl = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshBasicMaterial({ color: 0x1a1510 })); fl.rotation.x = -Math.PI / 2; fl.position.y = -6; es.add(fl);
   const pm = new THREE.PMREMGenerator(renderer); var ENV = pm.fromScene(es, 0.02).texture;
 }
 
@@ -49,13 +52,14 @@ const ANG = Math.atan(2.45 / (G.L + G.d));
 const lamps = G.walls.map((w, i) => {
   const l = new THREE.SpotLight(LAMP_COL[i], 0, 0, ANG, 0.18, 0);
   l.position.copy(V3(w.lamp)); l.target.position.copy(CEN); scene.add(l.target);
-  l.castShadow = true; l.shadow.mapSize.set(2048, 2048); l.shadow.bias = -0.0004; l.shadow.normalBias = 0.012;
+  l.castShadow = true; l.shadow.mapSize.set(SMAP, SMAP); l.shadow.bias = -0.0004; l.shadow.normalBias = 0.012;
   l.shadow.camera.near = G.L - 2.0; l.shadow.camera.far = G.L + G.d + 1; l.map = cookieTex;
   scene.add(l); return l;
 });
 const rim = new THREE.DirectionalLight(0xbcd0ff, 0.0); rim.position.set(-3, 9, -3).add(CEN); rim.target.position.copy(CEN); scene.add(rim, rim.target);
 
-// lamp housings (visible fixtures)
+// lamp housings (visible fixtures), hung from a ceiling track
+const CEIL = 9.2;
 const housingMat = new THREE.MeshStandardMaterial({ color: 0x141312, metalness: 0.6, roughness: 0.45, envMap: ENV });
 const lensMats = [];
 function lampFixture(i) {
@@ -70,32 +74,38 @@ function lampFixture(i) {
   const yk = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.022, 8, 32, Math.PI), housingMat); yk.rotation.z = Math.PI; yk.rotation.y = Math.PI / 2; g.add(yk);
   scene.add(g);
   const steel = housingMat;
-  if (i < 2) { // floor stand
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, w.lamp[1] - 0.44, 12), steel); pole.position.set(w.lamp[0], (w.lamp[1] - 0.44) / 2, w.lamp[2]); scene.add(pole);
-    for (let k = 0; k < 3; k++) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.9, 8), steel); const a = k * 2.094 + 0.4; leg.position.set(w.lamp[0] + Math.cos(a) * 0.32, 0.22, w.lamp[2] + Math.sin(a) * 0.32); leg.lookAt(w.lamp[0] + Math.cos(a) * 0.7, 0, w.lamp[2] + Math.sin(a) * 0.7); leg.rotateX(Math.PI / 2); scene.add(leg); }
-  } else { const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 8, 12), steel); rod.position.set(w.lamp[0], w.lamp[1] + 4.4, w.lamp[2]); scene.add(rod); }
+  const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, CEIL - w.lamp[1] - 0.4, 10), steel); drop.position.set(w.lamp[0], (CEIL + w.lamp[1] + 0.4) / 2, w.lamp[2]); scene.add(drop);
 }
 [0, 1, 2].forEach(lampFixture);
+{ // ceiling + two steel tracks crossing over the overhead lamp
+  const trackMat = new THREE.MeshStandardMaterial({ color: 0x0d0c0b, metalness: 0.8, roughness: 0.35, envMap: ENV });
+  const tA = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.07, 10.5), trackMat); tA.position.set(G.d, CEIL - 0.04, 5.25); scene.add(tA);
+  const tB = new THREE.Mesh(new THREE.BoxGeometry(10.5, 0.07, 0.09), trackMat); tB.position.set(5.25, CEIL - 0.04, G.d); scene.add(tB);
+  for (const z of [0.6, 4.5, 9.5]) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 0.05), trackMat); c.position.set(G.d, CEIL - 0.09, z); scene.add(c); }
+}
 
 // ---------------- walls (custom isolated lighting)
 const wallMats = [];
+const LENS = [[0.10, 0.06, 0.005, 0.14], [0.05, 0.08, 0.006, 0.05], [0.15, 0.035, 0.004, 0.2]]; // focus softness, ring, chromatic fringe, hotspot
 function wall(i, geo, pos, rot, N, axis) {
   const m = new THREE.ShaderMaterial({ vertexShader: WALL_VS, fragmentShader: WALL_FS, uniforms: {
     lampPos: { value: V3(G.walls[i].lamp) }, lampDir: { value: CEN.clone().sub(V3(G.walls[i].lamp)).normalize() }, lampColor: { value: LAMP_COL[i] }, lampInt: { value: 0 },
     cosOuter: { value: Math.cos(ANG) }, cosInner: { value: Math.cos(ANG * 0.82) }, shadowMap: { value: null }, cookie: { value: cookieTex }, drawTex: { value: null },
-    shadowMatrix: { value: new THREE.Matrix4() }, radius: { value: 2 }, darkness: { value: 0.95 }, drawAmt: { value: 0 }, workLight: { value: 0 }, time: { value: 0 },
-    N: { value: N }, axis: { value: axis }, bounce: { value: new THREE.Vector3() }, mo: { value: V3(G.walls[i].o) }, mu: { value: V3(G.walls[i].u) }, mv: { value: V3(G.walls[i].v) }, M: { value: G.M } } });
+    shadowMatrix: { value: new THREE.Matrix4() }, radius: { value: 2 }, smap: { value: SMAP }, darkness: { value: 0.95 }, drawAmt: { value: 0 }, workLight: { value: 0 }, time: { value: 0 },
+    N: { value: N }, axis: { value: axis }, bounce: { value: new THREE.Vector3() }, reflTex: { value: null }, reflMat: { value: new THREE.Matrix4() }, reflAmt: { value: axis === 1 ? 1 : 0 }, pc: { value: [V3([G.d, G.h, 0]), V3([0, G.h, G.d]), V3([G.d, 0, G.d])] }, pcol: { value: [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()] }, lens: { value: new THREE.Vector4(...LENS[i]) }, res: { value: new THREE.Vector2(1, 1) }, mo: { value: V3(G.walls[i].o) }, mu: { value: V3(G.walls[i].u) }, mv: { value: V3(G.walls[i].v) }, M: { value: G.M } } });
   const mesh = new THREE.Mesh(geo, m); mesh.position.copy(pos); mesh.rotation.copy(rot); scene.add(mesh); wallMats[i] = m; return mesh;
 }
-const wallBack = wall(0, new THREE.PlaneGeometry(14, 10), new THREE.Vector3(7, 5, 0), new THREE.Euler(0, 0, 0), new THREE.Vector3(0, 0, 1), 2);
-const wallLeft = wall(1, new THREE.PlaneGeometry(14, 10), new THREE.Vector3(0, 5, 7), new THREE.Euler(0, Math.PI / 2, 0), new THREE.Vector3(1, 0, 0), 0);
+const wallBack = wall(0, new THREE.PlaneGeometry(14, CEIL), new THREE.Vector3(7, CEIL / 2, 0), new THREE.Euler(0, 0, 0), new THREE.Vector3(0, 0, 1), 2);
+const wallLeft = wall(1, new THREE.PlaneGeometry(14, CEIL), new THREE.Vector3(0, CEIL / 2, 7), new THREE.Euler(0, Math.PI / 2, 0), new THREE.Vector3(1, 0, 0), 0);
 const wallFloor = wall(2, new THREE.PlaneGeometry(14, 14), new THREE.Vector3(7, 0, 7), new THREE.Euler(-Math.PI / 2, 0, 0), new THREE.Vector3(0, 1, 0), 1);
 const WALLS = [wallBack, wallLeft, wallFloor];
+const ceilMat = new THREE.ShaderMaterial({ vertexShader: WALL_VS, fragmentShader: WALL_FS, uniforms: THREE.UniformsUtils.clone(wallMats[0].uniforms) });
+ceilMat.uniforms.lampInt.value = 0; ceilMat.uniforms.N.value = new THREE.Vector3(0, -1, 0); ceilMat.uniforms.axis.value = 1; ceilMat.uniforms.reflAmt.value = 0;
+const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), ceilMat); ceiling.rotation.x = Math.PI / 2; ceiling.position.set(7, CEIL, 7); scene.add(ceiling);
 
 // ---------------- pin + plinth
 const blackSteel = new THREE.MeshStandardMaterial({ color: 0x0e0d0c, metalness: 0.7, roughness: 0.38, envMap: ENV });
-const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, G.C[1], 12), blackSteel); pin.position.set(G.C[0], G.C[1] / 2, G.C[2]); pin.castShadow = true; scene.add(pin);
-const plinth = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.34, 0.07, 48), blackSteel); plinth.position.set(G.C[0], 0.035, G.C[2]); plinth.castShadow = true; scene.add(plinth);
+const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, G.walls[2].lamp[1] - 0.3 - G.C[1], 6), blackSteel); wire.position.set(G.C[0], (G.walls[2].lamp[1] - 0.3 + G.C[1]) / 2, G.C[2]); wire.castShadow = true; scene.add(wire);
 
 // ---------------- the nest (rods)
 const pivot = new THREE.Group(); pivot.position.copy(CEN); scene.add(pivot);
@@ -121,9 +131,9 @@ function buildNest(res) {
     list.forEach((r, i) => {
       a.set(...r.a).sub(CEN); b.set(...r.b).sub(CEN); const d = b.clone().sub(a); const L = d.length();
       q.setFromUnitVectors(up, d.normalize()); m4.compose(a, q, s.set(r.r, L, r.r)); im.setMatrixAt(i, m4);
-      const ao = Math.min(1, 0.32 + r.depth * 3.2);
-      if (mi === 0) col.setRGB(0.55 + 0.12 * r.tone, 0.40 + 0.08 * r.tone, 0.22 + 0.05 * r.tone); // aged brass
-      else if (mi === 1) col.setRGB(0.95, 0.78, 0.50);
+      const ao = Math.min(1, 0.45 + r.depth * 2.5);
+      if (mi === 0) col.setRGB(0.15 + 0.07 * r.tone, 0.088 + 0.04 * r.tone, 0.03 + 0.015 * r.tone); // dark aged patina (#6e5530 base)
+      else if (mi === 1) col.setRGB(0.80, 0.58, 0.28);
       else col.setRGB(0.07, 0.065, 0.06);
       col.multiplyScalar(ao); im.setColorAt(i, col);
       rough[i] = mi === 0 ? 0.32 + 0.3 * ((r.tone * 7.13) % 1) : mi === 1 ? 0.2 + 0.08 * r.tone : 0.38 + 0.15 * r.tone;
@@ -144,41 +154,71 @@ const depthOnly = new THREE.MeshBasicMaterial({ colorWrite: false });
 const hazeMat = new THREE.ShaderMaterial({ vertexShader: QUAD_VS, fragmentShader: HAZE_FS, depthTest: false, depthWrite: false, uniforms: {
   depthTex: { value: depthRT.depthTexture }, sm0: { value: null }, sm1: { value: null }, sm2: { value: null }, smat0: { value: new THREE.Matrix4() }, smat1: { value: new THREE.Matrix4() }, smat2: { value: new THREE.Matrix4() },
   invVP: { value: new THREE.Matrix4() }, camPos: { value: new THREE.Vector3() }, lp: { value: G.walls.map(w => V3(w.lamp)) }, ld: { value: G.walls.map(w => CEN.clone().sub(V3(w.lamp)).normalize()) },
-  lc: { value: LAMP_COL.map(c => new THREE.Vector3(c.r, c.g, c.b)) }, li: { value: [0, 0, 0] }, cosOuter: { value: Math.cos(ANG) }, time: { value: 0 }, density: { value: +(Q.get('hz') || 0.016) }, freeze: { value: 0 } } });
+  lc: { value: LAMP_COL.map(c => new THREE.Vector3(c.r, c.g, c.b)) }, li: { value: [0, 0, 0] }, cosOuter: { value: Math.cos(ANG) }, time: { value: 0 }, density: { value: +(Q.get('hz') || 0.045) }, freeze: { value: 0 } } });
 const compMat = new THREE.ShaderMaterial({ vertexShader: QUAD_VS, fragmentShader: COMP_FS, depthTest: false, depthWrite: false, uniforms: {
   sceneTex: { value: sceneRT.texture }, hazeTex: { value: hazeRT.texture }, res: { value: new THREE.Vector2(W, H) }, time: { value: 0 }, exposure: { value: 1.0 }, grain: { value: 0.028 }, fade: { value: 1 } } });
+// planar floor reflection (half res, mirrored camera)
+const reflRT = new THREE.WebGLRenderTarget(W >> 1, H >> 1, { type: THREE.HalfFloatType });
+const reflCam = new THREE.PerspectiveCamera(); const reflMatrix = new THREE.Matrix4(); const BIAS = new THREE.Matrix4().set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1);
+function renderReflection() {
+  reflCam.copy(camera); reflCam.position.set(camera.position.x, -camera.position.y, camera.position.z); reflCam.up.set(0, -1, 0);
+  const tgt = LOOK.clone(); tgt.y = -tgt.y; reflCam.lookAt(tgt); reflCam.updateMatrixWorld(); reflCam.projectionMatrix.copy(camera.projectionMatrix);
+  reflMatrix.copy(BIAS).multiply(reflCam.projectionMatrix).multiply(reflCam.matrixWorldInverse);
+  wallFloor.visible = false; motes.visible = false; const sm = renderer.shadowMap.autoUpdate; renderer.shadowMap.autoUpdate = false;
+  const RM = [...wallMats, ceilMat]; for (const m of RM) m.uniforms.reflTex.value = null;
+  renderer.setRenderTarget(reflRT); renderer.render(scene, reflCam); renderer.shadowMap.autoUpdate = sm; wallFloor.visible = true; motes.visible = true;
+  for (const m of RM) m.uniforms.reflTex.value = reflRT.texture;
+}
+// dust motes lit only inside the cones
+const MOTES = 900, mg = new THREE.BufferGeometry(), mpos = new Float32Array(MOTES * 3), mseed = new Float32Array(MOTES);
+{ const R = (() => { let a = 99; return () => { a = (a * 16807) % 2147483647; return a / 2147483647; }; })();
+  for (let i = 0; i < MOTES; i++) { const k = i % 3, w = G.walls[k]; const t = 0.15 + 0.8 * R(); const ax = CEN.clone().sub(V3(w.lamp)); const len = ax.length() + G.d; ax.normalize();
+    const base = V3(w.lamp).addScaledVector(ax, len * t); const rr = Math.tan(ANG) * len * t * Math.sqrt(R()); const tmp = new THREE.Vector3(R() - 0.5, R() - 0.5, R() - 0.5).cross(ax).normalize().multiplyScalar(rr);
+    base.add(tmp); mpos.set([base.x, base.y, base.z], i * 3); mseed[i] = R(); } }
+mg.setAttribute('position', new THREE.BufferAttribute(mpos, 3)); mg.setAttribute('seed', new THREE.BufferAttribute(mseed, 1));
+const moteMat = new THREE.ShaderMaterial({ vertexShader: MOTE_VS, fragmentShader: MOTE_FS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: {
+  lp: { value: G.walls.map(w => V3(w.lamp)) }, ld: { value: G.walls.map(w => CEN.clone().sub(V3(w.lamp)).normalize()) }, lc: { value: LAMP_COL.map(c => new THREE.Vector3(c.r, c.g, c.b)) }, li: { value: [0, 0, 0] },
+  cosOuter: { value: Math.cos(ANG) }, time: { value: 0 }, freeze: { value: 0 }, px: { value: DPR }, amt: { value: +(Q.get('ma') || 0.5) } } });
+const motes = new THREE.Points(mg, moteMat); motes.frustumCulled = false; scene.add(motes);
 const hazeScene = new THREE.Scene(); hazeScene.add(new THREE.Mesh(quadGeo, hazeMat));
 const compScene = new THREE.Scene(); compScene.add(new THREE.Mesh(quadGeo, compMat));
 
 // ---------------- state → scene
+const LAMP_GAIN = (Q.get('lg') || '1.12,1.12,2.05').split(',').map(Number);
+const WALL_INT = +(Q.get('wi') || 0.72), BOUNCE = +(Q.get('bo') || 1.0);
 const S = { lamp: [1, 1, 1], radius: [1.2, 1.2, 1.2], dark: [0.97, 0.97, 0.97], push: 0, freeze: 0, fade: 1, time: 0 };
 const mouse = { x: 0, y: 0 }, cam = { x: 0, y: 0 };
 function applyState() {
   for (let i = 0; i < 3; i++) {
     const on = S.lamp[i]; lamps[i].intensity = 3.2 * on; const u = wallMats[i].uniforms;
-    u.lampInt.value = 3.4 * on; u.radius.value = S.radius[i]; u.darkness.value = S.dark[i]; u.time.value = S.time;
+    u.lampInt.value = WALL_INT * LAMP_GAIN[i] * on; u.radius.value = S.radius[i]; u.darkness.value = S.dark[i]; u.time.value = S.time;
     lensMats[i].color.copy(LAMP_COL[i]).multiplyScalar(14 * on);
-    const b = new THREE.Vector3(0.004, 0.004, 0.004); for (let k = 0; k < 3; k++) if (k !== i) b.add(new THREE.Vector3(LAMP_COL[k].r, LAMP_COL[k].g, LAMP_COL[k].b).multiplyScalar(0.014 * S.lamp[k]));
-    u.bounce.value.copy(b); hazeMat.uniforms.li.value[i] = on;
+    u.bounce.value.set(0.016, 0.0152, 0.0145);
+    hazeMat.uniforms.li.value[i] = on; moteMat.uniforms.li.value[i] = on;
   }
-  hazeMat.uniforms.freeze.value = S.freeze; hazeMat.uniforms.time.value = S.time; compMat.uniforms.time.value = S.time; compMat.uniforms.fade.value = S.fade;
+  for (let j = 0; j < 3; j++) { const c = LAMP_COL[j], k = S.lamp[j] * WALL_INT * 0.78 * BOUNCE; wallMats[0].uniforms.pcol.value[j].set(c.r * k, c.g * k, c.b * k); }
+  for (const m of [...wallMats, ceilMat]) { m.uniforms.pcol.value = wallMats[0].uniforms.pcol.value; m.uniforms.reflTex.value = reflRT.texture; m.uniforms.reflMat.value = reflMatrix; }
+  {
+  }
+  hazeMat.uniforms.freeze.value = S.freeze; moteMat.uniforms.freeze.value = S.freeze; moteMat.uniforms.time.value = S.time; hazeMat.uniforms.time.value = S.time; compMat.uniforms.time.value = S.time; compMat.uniforms.fade.value = S.fade;
   if (!SHOT) { cam.x += (mouse.x - cam.x) * 0.04; cam.y += (mouse.y - cam.y) * 0.04; }
   placeCamera(cam.x, cam.y, S.push);
 }
 function render() {
   applyState();
+  renderReflection();
   renderer.setRenderTarget(sceneRT); renderer.render(scene, camera);
   lamps.forEach((l, i) => { if (l.shadow.map) { const tex = l.shadow.map.texture; wallMats[i].uniforms.shadowMap.value = tex; wallMats[i].uniforms.shadowMatrix.value.copy(l.shadow.matrix); hazeMat.uniforms['sm' + i].value = tex; hazeMat.uniforms['smat' + i].value.copy(l.shadow.matrix); } });
   // depth pre-pass (half res) for the haze march
-  scene.overrideMaterial = depthOnly; const bg = scene.background; scene.background = null; const sm = renderer.shadowMap.autoUpdate; renderer.shadowMap.autoUpdate = false;
-  renderer.setRenderTarget(depthRT); renderer.render(scene, camera); scene.overrideMaterial = null; scene.background = bg; renderer.shadowMap.autoUpdate = sm;
+  scene.overrideMaterial = depthOnly; motes.visible = false; const bg = scene.background; scene.background = null; const sm = renderer.shadowMap.autoUpdate; renderer.shadowMap.autoUpdate = false;
+  renderer.setRenderTarget(depthRT); renderer.render(scene, camera); scene.overrideMaterial = null; motes.visible = true; scene.background = bg; renderer.shadowMap.autoUpdate = sm;
   hazeMat.uniforms.invVP.value.multiplyMatrices(camera.matrixWorld, camera.projectionMatrixInverse); hazeMat.uniforms.camPos.value.copy(camera.position);
   renderer.setRenderTarget(hazeRT); renderer.render(hazeScene, postCam);
   renderer.setRenderTarget(null); renderer.render(compScene, postCam);
 }
 addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight); W = Math.floor(innerWidth * DPR); H = Math.floor(innerHeight * DPR);
-  sceneRT.setSize(W, H); depthRT.setSize(W >> 1, H >> 1); hazeRT.setSize(W >> 1, H >> 1); compMat.uniforms.res.value.set(W, H);
+  sceneRT.setSize(W, H); reflRT.setSize(W >> 1, H >> 1); depthRT.setSize(W >> 1, H >> 1); hazeRT.setSize(W >> 1, H >> 1); compMat.uniforms.res.value.set(W, H);
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
 });
 
@@ -198,12 +238,15 @@ function forgeFrom(draws, opts) {
   const t0 = performance.now();
   let T = opts.T, fid0 = null;
   if (!T) { const fit = fitFigures(draws, { evals: opts.evals || 70, init: [0, 1, 2].map(() => ({ sx: 0.95, sy: 0.95, tx: 0, ty: 0, r: 0 })) }); T = fit.T; }
+  const tFit = performance.now() - t0;
   const orig = draws.map((d, i) => maskFromDrawT(d, T[i]));
-  const fixed = repairTight(orig, opts.repairIter || 3);
-  const fidHull = fidelity(orig, coverageFromHull(new Hull(fixed)));
-  const res = forgeRods(fixed, { seed: opts.seed || 11 });
-  const fidRods = fidelity(orig, res.cov);
-  return { T, orig, masks: fixed, rods: res.rods, fidHull, fidRods, ms: performance.now() - t0 };
+  const fixed = repairTight(orig, opts.repairIter || 3, opts.maxCost || 3.2);
+  const tRep = performance.now() - t0;
+  const fidHull = fidelity(orig, rayCoverage(new Hull(fixed), orig, 0));
+  const tHull = performance.now() - t0;
+  const res = forgeRods(fixed, { seed: opts.seed || 11, target: orig, maxEdge: opts.maxEdge || 2200, maxRepair: opts.maxRepair || 1200 });
+  const fidRods = res.fidelity;
+  return { T, orig, masks: fixed, rods: res.rods, fidHull, fidRods, ms: performance.now() - t0, times: { fit: tFit, repairTight: tRep, hullCheck: tHull, forge: res.times }, counts: res.counts };
 }
 function scrambleSearch(rods, targetsMasks, exclude = 0.42) {
   const targets = targetsMasks.map(m => downMask(m)); const res = [];
@@ -215,14 +258,18 @@ function scrambleSearch(rods, targetsMasks, exclude = 0.42) {
 // ---------------- nest with fly-in animation
 let nest = null; // { meshes:[{im, list}], t0, mode:'in'|'out'|'idle' }
 const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
-function prepNest(res) {
-  buildNest(res); // creates rodMeshes with final matrices
-  const R = mulberry(5); const meshes = [];
-  rodMeshes.forEach((im) => { const n = im.count; const data = []; for (let i = 0; i < n; i++) { im.getMatrixAt(i, _m4); const pos = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3(); _m4.decompose(pos, q, sc);
-    const dir = pos.clone().add(new THREE.Vector3(R() - 0.5, R() - 0.5, R() - 0.5).multiplyScalar(0.8)).normalize(); const far = pos.clone().addScaledVector(dir, 3.5 + R() * 4).add(new THREE.Vector3(0, 1.5 + R() * 2, 0));
-    const q0 = new THREE.Quaternion().setFromEuler(new THREE.Euler(R() * 6, R() * 6, R() * 6)); data.push({ pos, q, sc, far, q0, delay: pos.length() * 0.28 + R() * 0.35, landed: false }); }
+function prepNest(res, prev, t0 = 0) {
+  buildNest(res); // creates rodMeshes with final matrices (grouped by material, order preserved)
+  const R = mulberry(5 + res.rods.length); const meshes = []; const byRod = [];
+  res.rods.forEach((r, i) => r.__i = i);
+  const groups = [[], [], []]; res.rods.forEach(r => groups[r.mat].push(r)); const lists = groups.filter(g => g.length);
+  rodMeshes.forEach((im, mi) => { const n = im.count; const data = []; for (let i = 0; i < n; i++) { im.getMatrixAt(i, _m4); const pos = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3(); _m4.decompose(pos, q, sc);
+    const ri = lists[mi][i].__i; const old = prev && prev[ri];
+    let d; if (old) d = { ...old, pos, q, sc }; else { const dir = pos.clone().add(new THREE.Vector3(R() - 0.5, R() - 0.5, R() - 0.5).multiplyScalar(0.8)).normalize(); const far = pos.clone().addScaledVector(dir, 3.5 + R() * 4).add(new THREE.Vector3(0, 1.5 + R() * 2, 0));
+      const q0 = new THREE.Quaternion().setFromEuler(new THREE.Euler(R() * 6, R() * 6, R() * 6)); d = { pos, q, sc, far, q0, delay: t0 + pos.length() * 0.28 + R() * 0.35, landed: false }; }
+    data.push(d); byRod[ri] = d; }
     meshes.push({ im, data }); });
-  return { meshes, t0: 0, mode: 'idle' };
+  return { meshes, byRod, t0: 0, mode: prev ? 'in' : 'idle' };
 }
 function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function animateNest(t) { // t: seconds since animation start
@@ -277,14 +324,15 @@ $('mute').onclick = (e) => { e.stopPropagation(); sound.start(); sound.setMuted(
 // ---------------- state machine
 const PRESET_LIST = PRESETS;
 let presetIdx = +(Q.get('preset') || 0);
+if (Q.get('T')) PRESETS[presetIdx].T = JSON.parse(Q.get('T'));
 let work = null;          // current forged work {orig, masks, rods, fidHull, fidRods, titles, no}
-let SCR = [{ yaw: 2.27, tilt: 0.62 }, { yaw: +(Q.get('sy') || -0.9), tilt: +(Q.get('st') || 0.45) }];
+let SCR = [{ yaw: 2.27, tilt: 0.62 }, { yaw: +(Q.get('sy') || -0.698), tilt: +(Q.get('st') || 0.62) }];
 const st = { mode: 'intro', t: 0, introT: 0, yaw: 0, tilt: 0, vy: 0, vt: 0, drag: false, lockAt: -1, locked: false, lastMove: 0, freeStart: 0, labelA: 0, anim: 0, lastLockIntro: false, lampMul: 1 };
 
 function loadWork(w) {
-  work = w; current = w; masks = w.masks;
+  work = w; current = w;
   nest = prepNest({ rods: w.rods }); setLabels(w.titles, w.no); setPlacard(w.no, w.titles, w.rods.length, w.fidHull);
-  window.__forge = { masks: w.masks, origMasks: w.orig, current: w, fidRaw: w.fidHull, fidRep: w.fidRods };
+  window.__forge = { current: w, fidRaw: w.fidHull, fidRep: w.fidRods };
 }
 function presetWork(i) {
   const P = PRESET_LIST[i]; const w = forgeFrom(P.figs.map(f => FIGURES[f]), { T: P.T, seed: 11 });
@@ -292,11 +340,23 @@ function presetWork(i) {
   if (!P.T) {} return w;
 }
 let masks = null;
-loadWork(presetWork(presetIdx));
+const KIND = ['long', 'repair', 'edge'];
+function packWork(w) { const f = (x) => +x.toFixed(4); return { no: w.no, T: w.T, fidHull: w.fidHull.map(f), fidRods: w.fidRods.map(f), counts: w.counts,
+  rods: w.rods.map(r => [...r.a.map(f), ...r.b.map(f), f(r.r), r.g, KIND.indexOf(r.kind), f(r.depth), r.mat, f(r.tone)]) }; }
+function unpackWork(j, P) { const rods = j.rods.map(a => ({ a: [a[0], a[1], a[2]], b: [a[3], a[4], a[5]], r: a[6], g: a[7], kind: KIND[a[8]], depth: a[9], mat: a[10], tone: a[11] }));
+  const w = { rods, T: j.T, fidHull: j.fidHull, fidRods: j.fidRods, counts: j.counts, titles: P.title, no: P.no, ms: 0 };
+  Object.defineProperty(w, 'orig', { get() { return this._o || (this._o = P.figs.map((n, i) => maskFromDrawT(FIGURES[n], j.T[i]))); } });
+  Object.defineProperty(w, 'masks', { get() { return this._m || (this._m = repairTight(this.orig, 3, 3.2)); } }); return w; }
+async function loadPreset(i) {
+  const P = PRESET_LIST[i];
+  if (!Q.has('nobake')) { try { const r = await fetch(`data/preset-${P.no}.json`); if (r.ok) { const w = unpackWork(await r.json(), P); console.log(`preset ${P.no} (baked): rods ${w.rods.length}, rod coverage ${w.fidRods.map(x => (100 * x).toFixed(1)).join('/')}`); return w; } } catch (e) { console.warn('bake load failed', e.message); } }
+  return presetWork(i);
+}
+window.__bake = (i) => { const P = PRESET_LIST[i]; const w = forgeFrom(P.figs.map(n => FIGURES[n]), { T: P.T, seed: 11 }); w.no = P.no; return packWork(w); };
 
 // pose → guidance (penumbra radius, darkness): the signal the visitor sees (and hears)
 function poseAngle(yaw, tilt) { return poseQuat(yaw, tilt).angleTo(new THREE.Quaternion()); }
-function guidance(ang) { const a = 1 - Math.exp(-ang / 0.16); return { radius: 1.3 + 30 * a, dark: 0.80 - 0.30 * (1 - Math.exp(-ang / 0.35)) }; }
+function guidance(ang) { const a = 1 - Math.exp(-ang / 0.16); return { radius: RMIN + 30 * a, dark: 0.975 }; }
 
 // lock choreography relative to lock time
 function lockFX(dt) { // dt seconds since lock (<0: not locked)
@@ -418,27 +478,43 @@ $('bDraw').onclick = (e) => { e.stopPropagation(); sound.start(); enterDraw(); }
 $('bClear').onclick = () => { for (let i = 0; i < 3; i++) { drawCanvases[i].getContext('2d').clearRect(0, 0, MR, MR); refreshFill(i, true); } };
 $('bCancel').onclick = () => { exitDraw(); st.mode = 'free'; nest.mode = 'in'; nest.meshes.forEach(m => m.data.forEach(d => d.landed = false)); st.anim = st.t; st.yaw = 0; st.tilt = 0; st.lastLock = st.t; };
 $('bForge').onclick = () => forgeDrawings();
-let userNo = 0;
+let userNo = 0, forgeWorker = null;
+function getWorker() { if (forgeWorker !== null) return forgeWorker; try { forgeWorker = Q.has('noworker') ? false : new Worker(new URL('./forge-worker.js', import.meta.url), { type: 'module' }); } catch (e) { forgeWorker = false; } return forgeWorker; }
 function forgeDrawings(draws, titles) {
-  $('forging').classList.remove('hidden');
-  setTimeout(() => {
-    const D = draws || fillCanvases.map(c => (g) => g.drawImage(c, 0, 0, 1000, 1000));
-    const w = forgeFrom(D, { evals: SHOT ? 50 : 70, seed: 21 + userNo });
-    userNo++; w.no = `${PRESET_LIST.length + userNo}`; w.titles = titles || ['影 Yours', '影 Yours', '影 Yours'];
-    console.log(`forged drawing: rods ${w.rods.length}, hull fidelity ${w.fidHull.map(x => (100 * x).toFixed(1)).join('/')}, rod coverage ${w.fidRods.map(x => (100 * x).toFixed(1)).join('/')}, ${w.ms.toFixed(0)} ms`);
-    window.__lastForge = { ms: w.ms, rods: w.rods.length, fidHull: w.fidHull, fidRods: w.fidRods };
-    loadWork(w); nest.mode = 'in'; st.anim = st.t; st.mode = 'forged'; st.yaw = 0; st.tilt = 0; st.locked = false; st.lastLock = st.t;
-    $('forging').classList.add('hidden'); exitDraw(); sound.whoosh();
-    if (!SHOT) setTimeout(() => { st.locked = true; st.lockAt = st.t; sound.chord(); }, 1500);
-  }, 30);
+  $('forging').textContent = 'forging…'; $('forging').classList.remove('hidden'); const t0 = performance.now();
+  const srcs = draws ? draws.map(d => { const c = document.createElement('canvas'); c.width = c.height = 1000; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.strokeStyle = '#fff'; d(g); return c; }) : fillCanvases;
+  const scale = draws ? 1 : 1000 / MR; userNo++; const no = `${PRESET_LIST.length + userNo}`; const tl = titles || ['影 Yours', '影 Yours', '影 Yours'];
+  let resLong, resDone; const longP = new Promise(r => resLong = r), doneP = new Promise(r => resDone = r);
+  const startFly = (rods) => { exitDraw(); nest = prepNest({ rods }); nest.mode = 'in'; st.anim = st.t; st.mode = 'forged'; st.yaw = 0; st.tilt = 0; st.locked = false; st.lastLock = st.t; for (const m of labelMeshes) m.material.opacity = 0; sound.whoosh(); $('forging').textContent = 'placing rods…'; };
+  const finish = (m) => {
+    const w = { rods: m.rods, T: m.T, fidHull: m.fidHull, fidRods: m.fidRods, counts: m.counts, titles: tl, no, ms: performance.now() - t0 };
+    const drawsW = srcs.map(c => (g) => g.drawImage(c, 0, 0, 1000 / scale * scale, 1000));
+    Object.defineProperty(w, 'orig', { get() { return this._o || (this._o = drawsW.map((d, i) => maskFromDrawT(d, m.T[i]))); } });
+    const prev = nest && nest.byRod; work = w; current = w; nest = prepNest({ rods: w.rods }, prev, st.t - st.anim + 0.05); if (!prev) { nest.mode = 'in'; st.anim = st.t; st.mode = 'forged'; exitDraw(); }
+    setLabels(tl, no); setPlacard(no, tl, w.rods.length, w.fidRods);
+    window.__forge = { current: w, fidRaw: w.fidHull, fidRep: w.fidRods };
+    window.__lastForge = { msFirstRods: Math.round(m.msLong || 0), msDone: Math.round(w.ms), workerMs: Math.round(m.ms), stages: m.stages, rods: w.rods.length, counts: w.counts, fidHull: w.fidHull.map(x => +(100 * x).toFixed(2)), fidRods: w.fidRods.map(x => +(100 * x).toFixed(2)) };
+    console.log(`forged drawing: rods ${w.rods.length}, rod coverage ${w.fidRods.map(x => (100 * x).toFixed(1)).join('/')}, first rods ${Math.round(m.msLong || 0)} ms, done ${Math.round(w.ms)} ms`);
+    $('forging').classList.add('hidden');
+    if (!SHOT) setTimeout(() => { st.locked = true; st.lockAt = st.t; sound.chord(); }, 1600);
+    resDone(w);
+  };
+  Promise.all(srcs.map(c => createImageBitmap(c))).then(bitmaps => {
+    const Wk = getWorker();
+    if (!Wk) { setTimeout(() => { const D = bitmaps.map(b => (g) => g.drawImage(b, 0, 0, 1000, 1000)); const w = forgeFrom(D, { evals: 60, seed: 21 + userNo }); finish({ rods: w.rods, T: w.T, fidHull: w.fidHull, fidRods: w.fidRods, counts: w.counts, ms: w.ms }); resLong(); }, 30); return; }
+    let msLong = 0;
+    Wk.onmessage = (e) => { const m = e.data; if (m.type === 'long') { msLong = performance.now() - t0; startFly(m.rods); resLong(); } else if (m.type === 'done') { m.msLong = msLong; finish(m); } };
+    Wk.postMessage({ bitmaps, evals: 60, seed: 21 + userNo }, bitmaps);
+  });
+  return { longP, doneP };
 }
-$('bNext').onclick = (e) => { e.stopPropagation(); sound.start(); presetIdx = (presetIdx + 1) % PRESET_LIST.length; loadWork(presetWork(presetIdx)); nest.mode = 'in'; st.anim = st.t; st.mode = 'free'; st.yaw = SCR[1].yaw; st.tilt = SCR[1].tilt; st.locked = false; st.lastLock = st.t; sound.whoosh(); hint('Drag to turn the sculpture until its shadows become pictures'); };
+$('bNext').onclick = (e) => { e.stopPropagation(); sound.start(); presetIdx = (presetIdx + 1) % PRESET_LIST.length; loadPreset(presetIdx).then(w => { loadWork(w); nest.mode = 'in'; st.anim = st.t; }); nest.mode = 'in'; st.anim = st.t; st.mode = 'free'; st.yaw = SCR[1].yaw; st.tilt = SCR[1].tilt; st.locked = false; st.lastLock = st.t; sound.whoosh(); hint('Drag to turn the sculpture until its shadows become pictures'); };
 
 // ---------------- main loop (deterministic in ?shot mode)
 let frame = 0, last = performance.now();
 const SHOT_T = +(Q.get('t') || 6.0);
 async function boot() {
-  await fontsReady; setLabels(work.titles, work.no);
+  const [, w0] = await Promise.all([fontsReady, loadPreset(presetIdx)]); loadWork(w0); setLabels(work.titles, work.no);
   if (SHOT) {
     const pose = Q.get('pose');
     if (pose) { // free-mode still: pose=scramble|solved|<k 0..1 toward scramble>
@@ -446,8 +522,9 @@ async function boot() {
       if (k === 0) { st.locked = true; st.lockAt = -10; }
       update(0); st.t = 10; if (k === 0) st.lockAt = 0;
     } else if (Q.get('forgeTest')) {
-      const names = Q.get('forgeTest').split(','); forgeDrawings(names.map(n => FIGURES[n]), names.map(n => `· ${n}`));
-      await new Promise(r => setTimeout(r, 200)); st.mode = 'forged'; const ft = +(Q.get('ft') || 3); st.anim = st.t - ft; st.locked = ft > 1.6; st.lockAt = st.t - (ft - 1.6);
+      const names = Q.get('forgeTest').split(','); const F = forgeDrawings(names.map(n => FIGURES[n]), names.map(n => `· ${n}`));
+      const ft = +(Q.get('ft') || 3);
+      if (Q.get('phase') === 'long') { await F.longP; st.anim = st.t - ft; } else { await F.doneP; st.mode = 'forged'; st.anim = st.t - ft; st.locked = ft > 1.6; st.lockAt = st.t - (ft - 1.6); }
     } else if (Q.get('drawDemo')) {
       enterDraw(); st.anim = st.t - 5; ['heart', 'star', 'letterA'].forEach((n, w) => { const g = drawCanvases[w].getContext('2d'); g.save(); g.scale(MR / 1000, MR / 1000); g.fillStyle = '#fff'; g.strokeStyle = '#fff';
         if (w === 2) { g.lineWidth = 26; g.lineJoin = 'round'; const c2 = document.createElement('canvas'); c2.width = c2.height = 1000; const gg = c2.getContext('2d'); gg.fillStyle = '#fff'; FIGURES[n](gg); g.restore(); g.save(); g.scale(MR / 1000, MR / 1000); g.drawImage(c2, 0, 0); g.globalCompositeOperation = 'destination-out'; g.drawImage(c2, 0, 0); g.globalCompositeOperation = 'source-over'; FIGURES[n](g); }
@@ -499,3 +576,20 @@ window.__scrSheet = (cands) => { // contact sheet of projected rod shadows for c
   cands.forEach(([y, t], j) => { const q = poseQuat(y, t); const pm = projectRodsPosed(work.rods, [q.x, q.y, q.z, q.w]); pm.forEach((m, w) => { const id = g.createImageData(R, R); for (let k = 0; k < R * R; k++) { const v = m[k] ? 20 : 235; id.data[k * 4] = id.data[k * 4 + 1] = id.data[k * 4 + 2] = v; id.data[k * 4 + 3] = 255; } g.putImageData(id, w * (R + 10), j * (R + 6)); }); });
   return c.toDataURL();
 };
+
+window.__bench = (names, o = {}) => { const w = names ? forgeFrom(names.map(n => FIGURES[n]), { evals: 60, seed: 21, ...o }) : forgeFrom(PRESET_LIST[presetIdx].figs.map(f => FIGURES[f]), { T: PRESET_LIST[presetIdx].T, seed: 11, ...o });
+  const r = (a) => a.map(x => +(100 * x).toFixed(2)); return { ms: Math.round(w.ms), times: JSON.parse(JSON.stringify(w.times, (k, v) => typeof v === 'number' ? Math.round(v) : v)), counts: w.counts, rods: w.rods.length, hull: r(w.fidHull), cov: r(w.fidRods) }; };
+
+window.__diag = () => { const w0 = work; const hull = new Hull(w0.masks); const cov = rasterRodsSW(w0.rods); const out = [];
+  for (let w = 0; w < 3; w++) { const c = { target: 0, unc: 0, noHull: 0, thin: 0, ok: 0, ownOut: 0, edge2: 0 }; const sd = hull.sdfs[w];
+    for (let k = 0; k < MR * MR; k++) { if (!w0.orig[w][k]) continue; c.target++; if (cov[w][k]) continue; c.unc++; const x = (k % MR) + 0.5, y = ((k / MR) | 0) + 0.5;
+      if (sd[k] > -0.2) c.ownOut++; if (sd[k] > -2.5) c.edge2++;
+      const b = rayPoint(hull, w, x, y, 0, true); if (b < 0) c.noHull++; else if (b < 0.0033) c.thin++; else c.ok++; }
+    out.push(c); } return out; };
+window.__diagImg = () => { const w0 = work; const hull = new Hull(w0.masks); const cov = rasterRodsSW(w0.rods); const c = document.createElement('canvas'); c.width = MR * 3; c.height = MR; const g = c.getContext('2d'); const id = g.createImageData(MR * 3, MR);
+  for (let w = 0; w < 3; w++) for (let k = 0; k < MR * MR; k++) { const x = k % MR, y = (k / MR) | 0, o = (y * MR * 3 + w * MR + x) * 4; let col = [255, 255, 255];
+    if (w0.masks[w][k] && !w0.orig[w][k]) col = [160, 200, 255]; if (w0.orig[w][k]) col = cov[w][k] ? [70, 70, 70] : (rayPoint(hull, w, x + .5, y + .5, 0, true) < 0 ? [255, 0, 0] : [255, 170, 0]);
+    if (!w0.orig[w][k] && cov[w][k]) col = [0, 160, 0]; id.data[o] = col[0]; id.data[o + 1] = col[1]; id.data[o + 2] = col[2]; id.data[o + 3] = 255; }
+  g.putImageData(id, 0, 0); return c.toDataURL(); };
+window.__refit = (evals = 160, pi = presetIdx, fine = true, step = 2, init) => { const P = PRESET_LIST[pi]; const t0 = performance.now(); const before = quickFidelity(P.figs.map((n, i) => maskFromDrawT(FIGURES[n], P.T[i])), 2); const f = fitFigures(P.figs.map(n => FIGURES[n]), { evals, init: init || P.T, seed: 5, step, fine, lim: window.__LIM || { sx: [0.5, 1.12], sy: [0.5, 1.12], tx: [-0.14, 0.14], ty: [-0.14, 0.14], r: [-0.4, 0.4] } });
+  return { before, ms: performance.now() - t0, T: f.T.map(t => Object.fromEntries(Object.entries(t).map(([k, v]) => [k, +v.toFixed(4)]))), fid: f.fid }; };
