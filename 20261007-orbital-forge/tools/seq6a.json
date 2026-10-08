@@ -1,0 +1,1 @@
+[{"at": 30, "shot": "/tmp/v_open1.png"}, {"at": 56, "shot": "/tmp/v_open2.png"}, {"at": 230, "shot": "/tmp/v_hero.png"}, {"eval": "__OF.shockAtScreen(1180,520,1.0)"}, {"at": 238, "shot": "/tmp/v_shock.png"}, {"at": 300}, {"eval": "__OF.nova()"}, {"at": 322, "shot": "/tmp/v_implode.png"}, {"at": 328, "shot": "/tmp/v_peak.png"}, {"at": 345, "shot": "/tmp/v_ring.png"}]

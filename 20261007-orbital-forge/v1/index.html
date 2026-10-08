@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="description" content="星鍛 Orbital Forge — 桌面專用 WebGL 星雲鍛造體驗"/>
+<title>星鍛 Orbital Forge</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%2302020a'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%237ef9ff'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%23ff6ec7' stroke-width='2' opacity='.7'/%3E%3C/svg%3E"/>
+
+<style>
+  :root {
+    --accent: #7ef9ff;
+    --accent2: #ff6ec7;
+    --accent3: #c9a0ff;
+    --ash: #e8d5a3;
+    --bg: #02020a;
+    --panel: rgba(8,10,24,0.72);
+    --line: rgba(126,249,255,0.35);
+    --text: #e8f4ff;
+    --muted: #8aa0b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    cursor: none;
+  }
+  #c { display: block; width: 100%; height: 100%; }
+  .cursor {
+    position: fixed; width: 18px; height: 18px; border-radius: 50%;
+    border: 1.5px solid var(--accent); pointer-events: none; z-index: 100;
+    transform: translate(-50%,-50%); mix-blend-mode: screen;
+    box-shadow: 0 0 12px rgba(126,249,255,0.6), inset 0 0 6px rgba(126,249,255,0.4);
+    transition: width .12s, height .12s, border-color .2s;
+  }
+  .cursor.hot { width: 28px; height: 28px; border-color: var(--accent2); }
+  .cursor.grav { width: 42px; height: 42px; border-color: var(--accent3); border-style: dashed; }
+  .cursor-dot {
+    position: fixed; width: 4px; height: 4px; border-radius: 50%;
+    background: #fff; pointer-events: none; z-index: 101;
+    transform: translate(-50%,-50%);
+  }
+  #grain {
+    position: fixed; inset: 0; pointer-events: none; z-index: 5;
+    opacity: 0.06; mix-blend-mode: overlay;
+    width: 100%; height: 100%; image-rendering: pixelated;
+  }
+  #vignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 4;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.55) 100%);
+  }
+  #intro {
+    position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+    background: radial-gradient(ellipse at 50% 45%, #0a1028 0%, #02020a 70%);
+    transition: opacity 1.4s ease, visibility 1.4s;
+  }
+  #intro.hide { opacity: 0; visibility: hidden; pointer-events: none; }
+  .intro-card { text-align: center; animation: rise 1.2s ease both; }
+  .intro-mark {
+    font-size: 13px; letter-spacing: 0.45em; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 18px; opacity: 0.85;
+  }
+  .intro-title {
+    font-size: clamp(42px, 6vw, 72px); font-weight: 700;
+    letter-spacing: 0.12em; line-height: 1.15;
+    background: linear-gradient(135deg, #fff 10%, var(--accent) 45%, var(--accent2) 80%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 40px rgba(126,249,255,0.25);
+    filter: drop-shadow(0 0 24px rgba(126,249,255,0.35));
+  }
+  .intro-sub {
+    margin-top: 16px; font-size: 15px; color: var(--muted); letter-spacing: 0.28em;
+  }
+  .intro-bar {
+    margin: 36px auto 0; width: 180px; height: 2px; background: rgba(255,255,255,0.08);
+    border-radius: 2px; overflow: hidden;
+  }
+  .intro-bar > i {
+    display: block; height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    animation: loadbar 1.8s ease-in-out forwards;
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(22px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes loadbar { to { width: 100%; } }
+  #hud {
+    position: fixed; inset: 0; pointer-events: none; z-index: 20;
+    transition: opacity .35s ease;
+  }
+  #hud.hidden { opacity: 0; }
+  .panel {
+    pointer-events: auto;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    backdrop-filter: blur(14px) saturate(1.2);
+    border-radius: 14px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .top-left {
+    position: absolute; top: 22px; left: 24px;
+    padding: 14px 18px 16px; min-width: 220px;
+  }
+  .brand {
+    font-size: 18px; font-weight: 700; letter-spacing: 0.18em;
+  }
+  .brand span { color: var(--accent); font-weight: 500; font-size: 12px; letter-spacing: 0.3em; margin-left: 8px; }
+  .brand-sub { margin-top: 4px; font-size: 11px; color: var(--muted); letter-spacing: 0.12em; }
+  .mat-row { display: flex; gap: 8px; margin-top: 14px; }
+  .mat {
+    flex: 1; text-align: center; padding: 8px 6px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1); font-size: 11px; letter-spacing: 0.08em;
+    cursor: pointer; transition: all .2s; color: var(--muted); background: transparent;
+    font-family: inherit;
+  }
+  .mat:hover { border-color: rgba(255,255,255,0.3); color: #fff; }
+  .mat.active { color: #02020a; font-weight: 700; }
+  .mat[data-m="0"].active { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 16px rgba(126,249,255,0.45); }
+  .mat[data-m="1"].active { background: var(--accent3); border-color: var(--accent3); box-shadow: 0 0 16px rgba(201,160,255,0.45); }
+  .mat[data-m="2"].active { background: var(--ash); border-color: var(--ash); box-shadow: 0 0 16px rgba(232,213,163,0.4); }
+  .top-right {
+    position: absolute; top: 22px; right: 24px;
+    padding: 14px 16px; width: 260px;
+  }
+  .panel-h {
+    font-size: 11px; letter-spacing: 0.28em; color: var(--accent);
+    margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .seed-code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px; letter-spacing: 0.06em; word-break: break-all;
+    color: #fff; background: rgba(0,0,0,0.35); padding: 10px 12px; border-radius: 8px;
+    border: 1px solid rgba(126,249,255,0.15);
+  }
+  .params { margin-top: 10px; font-size: 11px; color: var(--muted); line-height: 1.7; }
+  .params b { color: var(--text); font-weight: 600; }
+  .btn-row { display: flex; gap: 8px; margin-top: 12px; }
+  .btn {
+    flex: 1; pointer-events: auto; cursor: pointer;
+    border: 1px solid var(--line); background: rgba(126,249,255,0.08);
+    color: var(--accent); border-radius: 8px; padding: 8px 10px;
+    font-size: 11px; letter-spacing: 0.1em; font-family: inherit;
+    transition: background .2s, transform .15s;
+  }
+  .btn:hover { background: rgba(126,249,255,0.18); }
+  .btn:active { transform: scale(0.97); }
+  .bottom-bar {
+    position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+    padding: 10px 20px; display: flex; gap: 18px; align-items: center;
+    font-size: 11px; color: var(--muted); letter-spacing: 0.06em; white-space: nowrap;
+  }
+  .bottom-bar kbd {
+    display: inline-block; min-width: 18px; padding: 2px 6px; margin: 0 2px;
+    border: 1px solid rgba(255,255,255,0.18); border-radius: 4px;
+    background: rgba(255,255,255,0.06); color: var(--text); font-size: 10px;
+    font-family: inherit; text-align: center;
+  }
+  .fps {
+    position: absolute; bottom: 22px; right: 24px;
+    padding: 8px 12px; font-size: 11px; color: var(--muted);
+    letter-spacing: 0.1em; font-variant-numeric: tabular-nums;
+  }
+  .hint {
+    position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: rgba(232,244,255,0.55); letter-spacing: 0.2em;
+    opacity: 0; transition: opacity .6s; pointer-events: none;
+  }
+  .hint.show { opacity: 1; }
+  .toast {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0.9);
+    padding: 14px 28px; border-radius: 12px; z-index: 60;
+    background: rgba(8,12,28,0.85); border: 1px solid var(--accent);
+    color: var(--accent); letter-spacing: 0.25em; font-size: 13px;
+    opacity: 0; pointer-events: none; transition: opacity .35s, transform .35s;
+    backdrop-filter: blur(10px);
+  }
+  .toast.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  .shock-flash {
+    position: fixed; inset: 0; pointer-events: none; z-index: 8;
+    background: radial-gradient(circle at var(--mx,50%) var(--my,50%), rgba(126,249,255,0.25), transparent 55%);
+    opacity: 0; transition: opacity .15s;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<canvas id="grain"></canvas>
+<div id="vignette"></div>
+<div class="shock-flash" id="flash"></div>
+<div class="cursor" id="cur"></div>
+<div class="cursor-dot" id="cdot"></div>
+
+<div id="intro">
+  <div class="intro-card">
+    <div class="intro-mark">DESKTOP FORGE · WEBGL</div>
+    <div class="intro-title">星鍛<br/>Orbital Forge</div>
+    <div class="intro-sub">在軌道星雲中鍛造粒子</div>
+    <div class="intro-bar"><i></i></div>
+  </div>
+</div>
+
+<div id="hud">
+  <div class="panel top-left">
+    <div class="brand">星鍛<span>ORBITAL FORGE</span></div>
+    <div class="brand-sub">活體星雲鍛造場</div>
+    <div class="mat-row">
+      <button class="mat active" data-m="0" type="button">① 電漿</button>
+      <button class="mat" data-m="1" type="button">② 晶核</button>
+      <button class="mat" data-m="2" type="button">③ 灰燼</button>
+    </div>
+  </div>
+  <div class="panel top-right">
+    <div class="panel-h"><span>配方 RECIPE</span><span id="matName">電漿 Plasma</span></div>
+    <div class="seed-code" id="seedCode">OF-00000000</div>
+    <div class="params" id="params">
+      粒子 <b id="pCount">—</b> · 模式 <b id="pMode">電漿</b><br/>
+      縮放 <b id="pZoom">1.00</b> · 重力井 <b id="pGrav">關</b><br/>
+      噴灑 <b id="pSpray">0</b> · 震波 <b id="pShock">0</b>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="btnCopy" type="button">複製種子</button>
+      <button class="btn" id="btnReset" type="button">重置 R</button>
+    </div>
+  </div>
+  <div class="panel bottom-bar">
+    <span><kbd>拖曳</kbd> 軌道</span>
+    <span><kbd>移動</kbd> 噴灑</span>
+    <span><kbd>點擊</kbd> 震波</span>
+    <span><kbd>Shift</kbd> 重力井</span>
+    <span><kbd>滾輪</kbd> 縮放</span>
+    <span><kbd>Space</kbd> 爆發</span>
+    <span><kbd>F</kbd> 全螢幕</span>
+    <span><kbd>H</kbd> HUD</span>
+  </div>
+  <div class="panel fps"><span id="fps">60</span> FPS · <span id="pLive">0</span> pts</div>
+  <div class="hint" id="hint">移動滑鼠雕塑星雲 · 按 1 / 2 / 3 切換材料</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+/* ============================================================
+   星鍛 Orbital Forge — desktop WebGL nebula forge
+   ============================================================ */
+
+const MATS = [
+  { id: 0, name: '電漿', en: 'Plasma', color: new THREE.Color(0x7ef9ff), color2: new THREE.Color(0x4aa8ff), emissive: 1.4 },
+  { id: 1, name: '晶核', en: 'Crystal', color: new THREE.Color(0xc9a0ff), color2: new THREE.Color(0xff6ec7), emissive: 1.2 },
+  { id: 2, name: '灰燼', en: 'Ash', color: new THREE.Color(0xe8d5a3), color2: new THREE.Color(0xff8c5a), emissive: 0.9 },
+];
+
+const canvas = document.getElementById('c');
+const grainCanvas = document.getElementById('grain');
+const grainCtx = grainCanvas.getContext('2d');
+const cur = document.getElementById('cur');
+const cdot = document.getElementById('cdot');
+const flash = document.getElementById('flash');
+const intro = document.getElementById('intro');
+const hud = document.getElementById('hud');
+const toastEl = document.getElementById('toast');
+const hintEl = document.getElementById('hint');
+
+let W = window.innerWidth, H = window.innerHeight;
+const seed = (Math.random() * 0xffffffff) >>> 0;
+let rngState = seed;
+function rand() {
+  rngState ^= rngState << 13; rngState >>>= 0;
+  rngState ^= rngState >> 17; rngState >>>= 0;
+  rngState ^= rngState << 5;  rngState >>>= 0;
+  return (rngState >>> 0) / 4294967296;
+}
+function seeded(s) {
+  let x = s >>> 0;
+  return () => {
+    x ^= x << 13; x >>>= 0; x ^= x >> 17; x >>>= 0; x ^= x << 5; x >>>= 0;
+    return (x >>> 0) / 4294967296;
+  };
+}
+
+const seedHex = 'OF-' + seed.toString(16).toUpperCase().padStart(8, '0');
+document.getElementById('seedCode').textContent = seedHex;
+
+/* ---------- renderer / scene ---------- */
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.setSize(W, H, false);
+renderer.setClearColor(0x02020a, 1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x02020a, 0.018);
+
+const camera = new THREE.PerspectiveCamera(55, W / H, 0.1, 200);
+camera.position.set(0, 2.8, 14);
+
+/* soft ambient + point light at core */
+scene.add(new THREE.AmbientLight(0x1a2240, 0.6));
+const coreLight = new THREE.PointLight(0x7ef9ff, 2.5, 40, 2);
+coreLight.position.set(0, 0, 0);
+scene.add(coreLight);
+const rimLight = new THREE.PointLight(0xff6ec7, 1.2, 30, 2);
+rimLight.position.set(4, -2, -3);
+scene.add(rimLight);
+
+/* ---------- soft glow sprite texture ---------- */
+function makeGlowTex(size = 128) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+  grd.addColorStop(0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.2, 'rgba(255,255,255,0.85)');
+  grd.addColorStop(0.45, 'rgba(255,255,255,0.35)');
+  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, size, size);
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
+  return tex;
+}
+const glowTex = makeGlowTex(128);
+const sparkTex = makeGlowTex(64);
+
+/* ---------- starfield ---------- */
+function buildStars(count) {
+  const pos = new Float32Array(count * 3);
+  const col = new Float32Array(count * 3);
+  const r = seeded(seed ^ 0xA5A5);
+  for (let i = 0; i < count; i++) {
+    const rad = 40 + r() * 80;
+    const theta = r() * Math.PI * 2;
+    const phi = Math.acos(2 * r() - 1);
+    pos[i*3]   = rad * Math.sin(phi) * Math.cos(theta);
+    pos[i*3+1] = rad * Math.sin(phi) * Math.sin(theta);
+    pos[i*3+2] = rad * Math.cos(phi);
+    const t = r();
+    col[i*3]   = 0.7 + t * 0.3;
+    col[i*3+1] = 0.75 + t * 0.25;
+    col[i*3+2] = 0.9 + t * 0.1;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const mat = new THREE.PointsMaterial({
+    size: 0.15, vertexColors: true, transparent: true, opacity: 0.85,
+    depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true, map: sparkTex,
+  });
+  return new THREE.Points(geo, mat);
+}
+const stars = buildStars(2800);
+scene.add(stars);
+
+/* ---------- glowing core ---------- */
+const coreGroup = new THREE.Group();
+scene.add(coreGroup);
+
+const coreGeo = new THREE.IcosahedronGeometry(0.85, 3);
+const coreMat = new THREE.MeshBasicMaterial({ color: 0x7ef9ff, transparent: true, opacity: 0.9 });
+const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+coreGroup.add(coreMesh);
+
+const coreWire = new THREE.Mesh(
+  new THREE.IcosahedronGeometry(0.92, 1),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.15 })
+);
+coreGroup.add(coreWire);
+
+const bloomSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: glowTex, color: 0x7ef9ff, transparent: true, opacity: 0.85,
+  blending: THREE.AdditiveBlending, depthWrite: false,
+}));
+bloomSprite.scale.set(6, 6, 1);
+coreGroup.add(bloomSprite);
+
+const bloomSprite2 = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: glowTex, color: 0xff6ec7, transparent: true, opacity: 0.35,
+  blending: THREE.AdditiveBlending, depthWrite: false,
+}));
+bloomSprite2.scale.set(10, 10, 1);
+coreGroup.add(bloomSprite2);
+
+/* orbital rings */
+const ringMats = [];
+for (let i = 0; i < 3; i++) {
+  const rg = new THREE.TorusGeometry(1.6 + i * 0.55, 0.012, 8, 128);
+  const rm = new THREE.MeshBasicMaterial({
+    color: i === 1 ? 0xff6ec7 : 0x7ef9ff,
+    transparent: true, opacity: 0.35 - i * 0.08,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const ring = new THREE.Mesh(rg, rm);
+  ring.rotation.x = Math.PI / 2 + (i - 1) * 0.35;
+  ring.rotation.y = i * 0.4;
+  coreGroup.add(ring);
+  ringMats.push(ring);
+}
+
+/* ---------- particle systems ---------- */
+const BASE_FORGE = 4200;
+const BASE_SPRAY = 1800;
+let forgeCount = BASE_FORGE;
+let sprayCount = BASE_SPRAY;
+
+function createParticleSystem(count, sizeBase) {
+  const positions = new Float32Array(count * 3);
+  const velocities = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  const life = new Float32Array(count);
+  const maxLife = new Float32Array(count);
+  const r = seeded(seed ^ (count * 7919));
+  for (let i = 0; i < count; i++) {
+    const rad = 0.5 + r() * 4.5;
+    const theta = r() * Math.PI * 2;
+    const phi = Math.acos(2 * r() - 1);
+    positions[i*3]   = rad * Math.sin(phi) * Math.cos(theta);
+    positions[i*3+1] = rad * Math.sin(phi) * Math.sin(theta);
+    positions[i*3+2] = rad * Math.cos(phi);
+    velocities[i*3]   = (r() - 0.5) * 0.02;
+    velocities[i*3+1] = (r() - 0.5) * 0.02;
+    velocities[i*3+2] = (r() - 0.5) * 0.02;
+    colors[i*3] = 0.5; colors[i*3+1] = 0.9; colors[i*3+2] = 1;
+    sizes[i] = sizeBase * (0.5 + r());
+    maxLife[i] = 2 + r() * 4;
+    life[i] = r() * maxLife[i];
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+  const mat = new THREE.PointsMaterial({
+    size: sizeBase, map: glowTex, vertexColors: true, transparent: true,
+    opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
+  });
+  const pts = new THREE.Points(geo, mat);
+  pts.userData = { velocities, life, maxLife, count, positions, colors, sizes };
+  return pts;
+}
+
+const forge = createParticleSystem(forgeCount, 0.28);
+scene.add(forge);
+const spray = createParticleSystem(sprayCount, 0.18);
+scene.add(spray);
+
+/* ---------- constellation lines ---------- */
+const MAX_CONST = 48;
+const constPositions = new Float32Array(MAX_CONST * 3);
+const constGeo = new THREE.BufferGeometry();
+constConstAttr();
+function constConstAttr() {
+  constGeo.setAttribute('position', new THREE.BufferAttribute(constPositions, 3));
+  constGeo.setDrawRange(0, 0);
+}
+const constMat = new THREE.LineBasicMaterial({
+  color: 0x7ef9ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+});
+const constLines = new THREE.Line(constGeo, constMat);
+scene.add(constLines);
+const mouseTrail = []; // world-ish points
+let constFade = 0;
+
+/* ---------- trails (ribbon of recent spray) ---------- */
+const TRAIL_N = 64;
+const trailPos = new Float32Array(TRAIL_N * 3);
+const trailGeo = new THREE.BufferGeometry();
+trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
+trailGeo.setDrawRange(0, 0);
+const trailMat = new THREE.LineBasicMaterial({
+  color: 0xff6ec7, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false,
+});
+const trailLine = new THREE.Line(trailGeo, trailMat);
+scene.add(trailLine);
+let trailLen = 0;
+
+/* ---------- state ---------- */
+let material = 0;
+let gravityOn = false;
+let hudVisible = true;
+let sprayCountAccum = 0;
+let shockCount = 0;
+let zoom = 1.0;
+let targetZoom = 1.0;
+
+/* orbit camera */
+const orbit = {
+  theta: 0.35, phi: 0.25,
+  targetTheta: 0.35, targetPhi: 0.25,
+  radius: 14, targetRadius: 14,
+  dragging: false, lastX: 0, lastY: 0,
+  auto: true,
+};
+const lookAt = new THREE.Vector3(0, 0, 0);
+const mouse = { x: 0, y: 0, ndcX: 0, ndcY: 0, world: new THREE.Vector3() };
+const raycaster = new THREE.Raycaster();
+const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+const hit = new THREE.Vector3();
+
+/* shockwaves */
+const shocks = []; // {origin, age, strength}
+
+/* intro camera pull */
+let introT = 0;
+let introDone = false;
+const introDuration = 2.2;
+orbit.radius = 22;
+orbit.targetRadius = 14;
+camera.position.set(0, 4, 22);
+
+/* FPS adaptive */
+let frames = 0, fpsTime = performance.now(), fps = 60;
+let adaptiveTimer = 0;
+
+/* ---------- helpers ---------- */
+function setMaterial(m) {
+  material = m;
+  const M = MATS[m];
+  document.querySelectorAll('.mat').forEach(el => el.classList.toggle('active', +el.dataset.m === m));
+  document.getElementById('matName').textContent = M.name + ' ' + M.en;
+  document.getElementById('pMode').textContent = M.name;
+  coreMat.color.copy(M.color);
+  bloomSprite.material.color.copy(M.color);
+  bloomSprite2.material.color.copy(M.color2);
+  coreLight.color.copy(M.color);
+  rimLight.color.copy(M.color2);
+  constMat.color.copy(M.color);
+  trailMat.color.copy(M.color2);
+  toast(M.name + ' · ' + M.en);
+}
+
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toastEl.classList.remove('show'), 900);
+}
+
+function updateMouseWorld() {
+  raycaster.setFromCamera(new THREE.Vector2(mouse.ndcX, mouse.ndcY), camera);
+  // plane facing camera through origin
+  plane.normal.copy(camera.position).normalize();
+  plane.constant = 0;
+  if (raycaster.ray.intersectPlane(plane, hit)) {
+    mouse.world.copy(hit);
+    // clamp near core region
+    if (mouse.world.length() > 8) mouse.world.setLength(8);
+  }
+}
+
+function spawnSprayBurst(n, origin, speed) {
+  const ud = spray.userData;
+  const M = MATS[material];
+  const count = ud.count;
+  // recycle oldest-ish by random pick
+  for (let k = 0; k < n; k++) {
+    const i = (Math.random() * count) | 0;
+    const spread = 0.15;
+    ud.positions[i*3]   = origin.x + (Math.random()-0.5)*spread;
+    ud.positions[i*3+1] = origin.y + (Math.random()-0.5)*spread;
+    ud.positions[i*3+2] = origin.z + (Math.random()-0.5)*spread;
+    const dir = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize();
+    ud.velocities[i*3]   = dir.x * speed * (0.5 + Math.random());
+    ud.velocities[i*3+1] = dir.y * speed * (0.5 + Math.random());
+    ud.velocities[i*3+2] = dir.z * speed * (0.5 + Math.random());
+    const mix = Math.random();
+    const c = M.color.clone().lerp(M.color2, mix);
+    ud.colors[i*3] = c.r; ud.colors[i*3+1] = c.g; ud.colors[i*3+2] = c.b;
+    ud.life[i] = 0;
+    ud.maxLife[i] = 1.2 + Math.random() * 1.8;
+    ud.sizes[i] = 0.12 + Math.random() * 0.25;
+  }
+  spray.geometry.attributes.position.needsUpdate = true;
+  spray.geometry.attributes.color.needsUpdate = true;
+  sprayCountAccum += n;
+}
+
+function pulseShockwave(origin, strength = 1) {
+  shocks.push({ origin: origin.clone(), age: 0, strength });
+  shockCount++;
+  document.getElementById('pShock').textContent = String(shockCount);
+  flash.style.setProperty('--mx', ((mouse.x / W) * 100) + '%');
+  flash.style.setProperty('--my', ((mouse.y / H) * 100) + '%');
+  flash.style.opacity = '1';
+  setTimeout(() => { flash.style.opacity = '0'; }, 120);
+  // kick forge particles
+  const ud = forge.userData;
+  for (let i = 0; i < ud.count; i++) {
+    const dx = ud.positions[i*3]   - origin.x;
+    const dy = ud.positions[i*3+1] - origin.y;
+    const dz = ud.positions[i*3+2] - origin.z;
+    const d2 = dx*dx + dy*dy + dz*dz + 0.01;
+    const f = strength * 0.35 / d2;
+    ud.velocities[i*3]   += dx * f;
+    ud.velocities[i*3+1] += dy * f;
+    ud.velocities[i*3+2] += dz * f;
+  }
+  spawnSprayBurst(80, origin, 0.18);
+}
+
+function resetForge() {
+  rngState = seed;
+  const r = seeded(seed);
+  const ud = forge.userData;
+  for (let i = 0; i < ud.count; i++) {
+    const rad = 0.5 + r() * 4.5;
+    const theta = r() * Math.PI * 2;
+    const phi = Math.acos(2 * r() - 1);
+    ud.positions[i*3]   = rad * Math.sin(phi) * Math.cos(theta);
+    ud.positions[i*3+1] = rad * Math.sin(phi) * Math.sin(theta);
+    ud.positions[i*3+2] = rad * Math.cos(phi);
+    ud.velocities[i*3] = (r()-0.5)*0.02;
+    ud.velocities[i*3+1] = (r()-0.5)*0.02;
+    ud.velocities[i*3+2] = (r()-0.5)*0.02;
+    ud.life[i] = r() * ud.maxLife[i];
+  }
+  forge.geometry.attributes.position.needsUpdate = true;
+  sprayCountAccum = 0; shockCount = 0;
+  document.getElementById('pSpray').textContent = '0';
+  document.getElementById('pShock').textContent = '0';
+  mouseTrail.length = 0;
+  constMat.opacity = 0;
+  toast('重置 · Reset');
+}
+
+/* ---------- particle update ---------- */
+function updateParticles(sys, dt, mode) {
+  const ud = sys.userData;
+  const M = MATS[material];
+  const pos = ud.positions, vel = ud.velocities, col = ud.colors;
+  const gravTarget = gravityOn ? mouse.world : null;
+
+  for (let i = 0; i < ud.count; i++) {
+    const ix = i*3, iy = i*3+1, iz = i*3+2;
+    let px = pos[ix], py = pos[iy], pz = pos[iz];
+    let vx = vel[ix], vy = vel[iy], vz = vel[iz];
+
+    // material behaviour
+    if (material === 0) { // plasma — swirling
+      const swirl = 0.55;
+      const ax = -pz * swirl * dt, az = px * swirl * dt;
+      vx += ax; vz += az;
+      vy += Math.sin(px * 2 + performance.now() * 0.001) * 0.008 * dt * 60;
+    } else if (material === 1) { // crystal — lattice pull + sparkle
+      const lattice = 0.8;
+      vx += (Math.round(px * lattice) / lattice - px) * 0.04;
+      vy += (Math.round(py * lattice) / lattice - py) * 0.04;
+      vz += (Math.round(pz * lattice) / lattice - pz) * 0.04;
+    } else { // ash — drift outward slow + fall
+      const len = Math.sqrt(px*px+py*py+pz*pz) + 0.01;
+      vx += (px / len) * 0.004;
+      vy -= 0.01 * dt * 60;
+      vz += (pz / len) * 0.004;
+    }
+
+    // core attraction (forge) / mouse sculpt
+    if (mode === 'forge') {
+      const len = Math.sqrt(px*px+py*py+pz*pz) + 0.01;
+      const pull = (len > 3.5 ? -0.015 : 0.004);
+      vx += (px / len) * pull;
+      vy += (py / len) * pull;
+      vz += (pz / len) * pull;
+      // mouse sculpt — soft push
+      const mdx = px - mouse.world.x, mdy = py - mouse.world.y, mdz = pz - mouse.world.z;
+      const md2 = mdx*mdx + mdy*mdy + mdz*mdz;
+      if (md2 < 4) {
+        const mf = (1 - md2 / 4) * 0.025;
+        vx += mdx * mf; vy += mdy * mf; vz += mdz * mf;
+      }
+    }
+
+    if (gravTarget) {
+      const gdx = gravTarget.x - px, gdy = gravTarget.y - py, gdz = gravTarget.z - pz;
+      const gd2 = gdx*gdx + gdy*gdy + gdz*gdz + 0.2;
+      const gf = 0.08 / gd2;
+      vx += gdx * gf; vy += gdy * gf; vz += gdz * gf;
+    }
+
+    // shockwaves
+    for (let s = 0; s < shocks.length; s++) {
+      const sh = shocks[s];
+      if (sh.age > 1.2) continue;
+      const sdx = px - sh.origin.x, sdy = py - sh.origin.y, sdz = pz - sh.origin.z;
+      const sd = Math.sqrt(sdx*sdx+sdy*sdy+sdz*sdz) + 0.01;
+      const wave = Math.abs(sd - sh.age * 6);
+      if (wave < 0.8) {
+        const f = (1 - wave / 0.8) * sh.strength * 0.08;
+        vx += (sdx / sd) * f; vy += (sdy / sd) * f; vz += (sdz / sd) * f;
+      }
+    }
+
+    // damping
+    vx *= 0.985; vy *= 0.985; vz *= 0.985;
+
+    px += vx * dt * 60;
+    py += vy * dt * 60;
+    pz += vz * dt * 60;
+
+    // soft bounds
+    const bound = 9;
+    if (px > bound || px < -bound) vx *= -0.5;
+    if (py > bound || py < -bound) vy *= -0.5;
+    if (pz > bound || pz < -bound) vz *= -0.5;
+    px = Math.max(-bound, Math.min(bound, px));
+    py = Math.max(-bound, Math.min(bound, py));
+    pz = Math.max(-bound, Math.min(bound, pz));
+
+    pos[ix] = px; pos[iy] = py; pos[iz] = pz;
+    vel[ix] = vx; vel[iy] = vy; vel[iz] = vz;
+
+    // color by material + velocity heat
+    const speed = Math.sqrt(vx*vx+vy*vy+vz*vz);
+    const heat = Math.min(1, speed * 8);
+    const c = M.color.clone().lerp(M.color2, heat * 0.7 + (mode === 'spray' ? 0.3 : 0));
+    col[ix] = c.r; col[iy] = c.g; col[iz] = c.b;
+
+    // life recycle for spray
+    if (mode === 'spray') {
+      ud.life[i] += dt;
+      if (ud.life[i] > ud.maxLife[i]) {
+        // respawn near core gently
+        const rad = 0.3 + Math.random() * 1.2;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        pos[ix] = rad * Math.sin(phi) * Math.cos(theta);
+        pos[iy] = rad * Math.sin(phi) * Math.sin(theta);
+        pos[iz] = rad * Math.cos(phi);
+        vel[ix] = (Math.random()-0.5)*0.01;
+        vel[iy] = (Math.random()-0.5)*0.01;
+        vel[iz] = (Math.random()-0.5)*0.01;
+        ud.life[i] = 0;
+        ud.maxLife[i] = 1.5 + Math.random() * 3;
+      }
+    }
+  }
+  sys.geometry.attributes.position.needsUpdate = true;
+  sys.geometry.attributes.color.needsUpdate = true;
+}
+
+/* ---------- grain (cheap 256² tile, rare refresh) ---------- */
+function resizeGrain() {
+  grainCanvas.width = 256;
+  grainCanvas.height = 256;
+  grainCanvas.style.width = '100%';
+  grainCanvas.style.height = '100%';
+  drawGrain();
+}
+function drawGrain() {
+  const w = 256, h = 256;
+  const img = grainCtx.createImageData(w, h);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const v = (Math.random() * 255) | 0;
+    d[i] = d[i+1] = d[i+2] = v;
+    d[i+3] = 255;
+  }
+  grainCtx.putImageData(img, 0, 0);
+}
+let grainTick = 0;
+
+/* ---------- events ---------- */
+window.addEventListener('resize', () => {
+  W = window.innerWidth; H = window.innerHeight;
+  camera.aspect = W / H;
+  camera.updateProjectionMatrix();
+  renderer.setSize(W, H, false);
+  resizeGrain();
+});
+
+window.addEventListener('pointermove', (e) => {
+  mouse.x = e.clientX; mouse.y = e.clientY;
+  mouse.ndcX = (e.clientX / W) * 2 - 1;
+  mouse.ndcY = -(e.clientY / H) * 2 + 1;
+  cur.style.left = cdot.style.left = e.clientX + 'px';
+  cur.style.top = cdot.style.top = e.clientY + 'px';
+  updateMouseWorld();
+
+  if (orbit.dragging) {
+    const dx = e.clientX - orbit.lastX;
+    const dy = e.clientY - orbit.lastY;
+    orbit.targetTheta -= dx * 0.005;
+    orbit.targetPhi += dy * 0.005;
+    orbit.targetPhi = Math.max(-1.2, Math.min(1.2, orbit.targetPhi));
+    orbit.lastX = e.clientX; orbit.lastY = e.clientY;
+    orbit.auto = false;
+  } else if (introDone) {
+    // spray while moving
+    spawnSprayBurst(3, mouse.world, 0.06);
+    // constellation trail
+    mouseTrail.push(mouse.world.clone());
+    if (mouseTrail.length > MAX_CONST) mouseTrail.shift();
+    for (let i = 0; i < mouseTrail.length; i++) {
+      constPositions[i*3] = mouseTrail[i].x;
+      constPositions[i*3+1] = mouseTrail[i].y;
+      constPositions[i*3+2] = mouseTrail[i].z;
+    }
+    constGeo.attributes.position.needsUpdate = true;
+    constGeo.setDrawRange(0, mouseTrail.length);
+    constFade = 1;
+    constMat.opacity = 0.55;
+
+    // trail line
+    for (let i = TRAIL_N - 1; i > 0; i--) {
+      trailPos[i*3] = trailPos[(i-1)*3];
+      trailPos[i*3+1] = trailPos[(i-1)*3+1];
+      trailPos[i*3+2] = trailPos[(i-1)*3+2];
+    }
+    trailPos[0] = mouse.world.x;
+    trailPos[1] = mouse.world.y;
+    trailPos[2] = mouse.world.z;
+    trailLen = Math.min(TRAIL_N, trailLen + 1);
+    trailGeo.attributes.position.needsUpdate = true;
+    trailGeo.setDrawRange(0, trailLen);
+  }
+});
+
+window.addEventListener('pointerdown', (e) => {
+  if (e.button === 0) {
+    orbit.dragging = true;
+    orbit.lastX = e.clientX; orbit.lastY = e.clientY;
+    cur.classList.add('hot');
+    if (introDone) {
+      updateMouseWorld();
+      pulseShockwave(mouse.world.clone(), 1.2);
+    }
+  }
+});
+window.addEventListener('pointerup', () => {
+  orbit.dragging = false;
+  cur.classList.remove('hot');
+});
+
+window.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  targetZoom = Math.max(0.45, Math.min(2.2, targetZoom + e.deltaY * 0.0015));
+  orbit.targetRadius = 14 / targetZoom;
+}, { passive: false });
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Digit1') setMaterial(0);
+  else if (e.code === 'Digit2') setMaterial(1);
+  else if (e.code === 'Digit3') setMaterial(2);
+  else if (e.code === 'Space') {
+    e.preventDefault();
+    pulseShockwave(new THREE.Vector3(0, 0, 0), 2.2);
+    spawnSprayBurst(200, new THREE.Vector3(0,0,0), 0.25);
+    toast('爆發 · Burst');
+  }
+  else if (e.code === 'KeyF') {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  }
+  else if (e.code === 'KeyH') {
+    hudVisible = !hudVisible;
+    hud.classList.toggle('hidden', !hudVisible);
+  }
+  else if (e.code === 'KeyR') resetForge();
+  else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+    gravityOn = true;
+    cur.classList.add('grav');
+    document.getElementById('pGrav').textContent = '開';
+  }
+});
+window.addEventListener('keyup', (e) => {
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+    gravityOn = false;
+    cur.classList.remove('grav');
+    document.getElementById('pGrav').textContent = '關';
+  }
+});
+
+document.querySelectorAll('.mat').forEach(btn => {
+  btn.addEventListener('click', () => setMaterial(+btn.dataset.m));
+});
+document.getElementById('btnReset').addEventListener('click', resetForge);
+document.getElementById('btnCopy').addEventListener('click', async () => {
+  const text = seedHex + ' | mat=' + material + ' | zoom=' + zoom.toFixed(2);
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('已複製種子 · Copied');
+  } catch {
+    toast(text);
+  }
+});
+
+/* ---------- animate ---------- */
+const clock = new THREE.Clock();
+resizeGrain();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+
+  // intro camera pull
+  if (!introDone) {
+    introT += dt;
+    const k = Math.min(1, introT / introDuration);
+    const ease = 1 - Math.pow(1 - k, 3);
+    orbit.radius = 22 + (14 - 22) * ease;
+    orbit.theta = 0.35 + ease * 0.4;
+    orbit.phi = 0.25 - ease * 0.05;
+    bloomSprite.scale.setScalar(4 + ease * 4);
+    bloomSprite.material.opacity = 0.4 + ease * 0.5;
+    if (k >= 1) {
+      introDone = true;
+      intro.classList.add('hide');
+      setTimeout(() => hintEl.classList.add('show'), 400);
+      setTimeout(() => hintEl.classList.remove('show'), 5000);
+      // hero bloom burst
+      pulseShockwave(new THREE.Vector3(0,0,0), 1.5);
+      spawnSprayBurst(150, new THREE.Vector3(0,0,0), 0.15);
+    }
+  }
+
+  // orbit easing
+  if (orbit.auto && introDone) {
+    orbit.targetTheta += dt * 0.12;
+  }
+  orbit.theta += (orbit.targetTheta - orbit.theta) * 0.08;
+  orbit.phi += (orbit.targetPhi - orbit.phi) * 0.08;
+  orbit.radius += (orbit.targetRadius - orbit.radius) * 0.08;
+  zoom += (targetZoom - zoom) * 0.08;
+
+  const r = orbit.radius;
+  camera.position.x = r * Math.sin(orbit.theta) * Math.cos(orbit.phi);
+  camera.position.y = r * Math.sin(orbit.phi) + 0.5;
+  camera.position.z = r * Math.cos(orbit.theta) * Math.cos(orbit.phi);
+  camera.lookAt(lookAt);
+
+  // core animation
+  coreMesh.rotation.y += dt * 0.35;
+  coreMesh.rotation.x += dt * 0.12;
+  coreWire.rotation.y -= dt * 0.2;
+  const pulse = 1 + Math.sin(t * 2.2) * 0.04;
+  coreMesh.scale.setScalar(pulse);
+  bloomSprite.scale.setScalar((5.5 + Math.sin(t * 1.5) * 0.6) * (0.9 + material * 0.05));
+  bloomSprite2.scale.setScalar(9 + Math.sin(t * 0.8) * 1.2);
+  coreLight.intensity = 2.2 + Math.sin(t * 3) * 0.5;
+
+  ringMats.forEach((ring, i) => {
+    ring.rotation.z += dt * (0.15 + i * 0.05) * (i % 2 ? -1 : 1);
+    ring.rotation.x += dt * 0.02 * (i + 1);
+  });
+
+  stars.rotation.y += dt * 0.008;
+
+  updateParticles(forge, dt, 'forge');
+  updateParticles(spray, dt, 'spray');
+
+  // constellation fade
+  if (constFade > 0) {
+    constFade -= dt * 0.35;
+    constMat.opacity = Math.max(0, constFade * 0.55);
+    if (constFade <= 0) {
+      mouseTrail.length = 0;
+      constGeo.setDrawRange(0, 0);
+    }
+  }
+  trailMat.opacity = 0.15 + Math.min(0.4, trailLen / TRAIL_N);
+
+  // shocks age
+  for (let i = shocks.length - 1; i >= 0; i--) {
+    shocks[i].age += dt;
+    if (shocks[i].age > 1.5) shocks.splice(i, 1);
+  }
+
+  // grain every few frames
+  grainTick++;
+  if (grainTick % 8 === 0) drawGrain();
+
+  // fps + adaptive
+  frames++;
+  const now = performance.now();
+  if (now - fpsTime >= 1000) {
+    fps = frames;
+    frames = 0;
+    fpsTime = now;
+    document.getElementById('fps').textContent = String(fps);
+    document.getElementById('pLive').textContent = String(forge.userData.count + spray.userData.count);
+    document.getElementById('pCount').textContent = String(forge.userData.count);
+    document.getElementById('pZoom').textContent = zoom.toFixed(2);
+    document.getElementById('pSpray').textContent = String(sprayCountAccum);
+    adaptiveTimer++;
+    // adaptive particle visibility via draw range approximation — scale material size/opacity
+    if (fps < 45 && forge.material.size > 0.18) {
+      forge.material.size *= 0.92;
+      spray.material.size *= 0.92;
+      forge.material.opacity = Math.max(0.55, forge.material.opacity * 0.95);
+    } else if (fps > 55 && forge.material.size < 0.28) {
+      forge.material.size = Math.min(0.28, forge.material.size * 1.02);
+      spray.material.size = Math.min(0.18, spray.material.size * 1.02);
+      forge.material.opacity = Math.min(0.9, forge.material.opacity * 1.01);
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+setMaterial(0);
+animate();
+
+// expose for debug
+window.__OF = { seed: seedHex, setMaterial, pulseShockwave, resetForge };
+</script>
+</body>
+</html>

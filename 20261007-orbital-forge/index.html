@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>星鍛 Orbital Forge</title>
+<meta name="description" content="星鍛 Orbital Forge — 桌面 WebGL 星核鍛造場：HDR 泛光、GPU 粒子、超新星。"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='g'%3E%3Cstop offset='0' stop-color='%23fff6e0'/%3E%3Cstop offset='.35' stop-color='%23ffb050'/%3E%3Cstop offset='1' stop-color='%23ff2a6a' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' fill='%23030208'/%3E%3Ccircle cx='32' cy='32' r='22' fill='url(%23g)'/%3E%3Cellipse cx='32' cy='32' rx='29' ry='8' fill='none' stroke='%23ff7ab0' stroke-width='1.5' opacity='.8'/%3E%3C/svg%3E"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@300;400;500&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet"/>
+<link rel="modulepreload" href="./vendor/three.module.js"/>
+<link rel="modulepreload" href="./js/main.js"/>
+<style>
+  :root{
+    --mode:#ffb070;
+    --ink:rgba(236,240,255,.92);
+    --mute:rgba(222,228,246,.82);
+    --faint:rgba(214,222,244,.60);
+    --hair:rgba(255,255,255,.22);
+    --sans:"Inter","Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    --serif:"Noto Serif TC","Songti TC","PMingLiU",serif;
+    --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000;color:var(--ink);font-family:var(--sans);cursor:none;-webkit-font-smoothing:antialiased;user-select:none}
+  #c{position:fixed;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .25s}
+  body.ready #c{opacity:1}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:none}
+
+  /* ---------- cursor ---------- */
+  #cur{position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:100;transform:translate(-100px,-100px)}
+  #cur i{position:absolute;left:-14px;top:-14px;width:28px;height:28px;border-radius:50%;border:1px solid rgba(255,255,255,.55);box-shadow:0 0 14px color-mix(in srgb,var(--mode) 60%,transparent);transition:all .25s cubic-bezier(.2,.8,.2,1)}
+  #cur b{position:absolute;left:-2px;top:-2px;width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 8px var(--mode)}
+  #cur u{position:absolute;left:-24px;top:-24px;width:48px;height:48px;border-radius:50%;border:1px dashed color-mix(in srgb,var(--mode) 80%,#fff);opacity:0;transform:scale(.6);transition:all .3s}
+  body.grav #cur u{opacity:.9;transform:scale(1);animation:spin 2.4s linear infinite}
+  body.grav #cur i{transform:scale(.5);border-color:var(--mode)}
+  body.dragging #cur i{transform:scale(1.35);border-color:rgba(255,255,255,.25)}
+  #cur.pulse i{animation:pulse .5s ease-out}
+  @keyframes pulse{0%{transform:scale(.6);border-color:#fff}100%{transform:scale(2.6);opacity:0}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ---------- title card ---------- */
+  #title{position:fixed;left:0;right:0;bottom:10vh;text-align:center;pointer-events:none;z-index:30;opacity:0;filter:drop-shadow(0 2px 16px rgba(0,0,0,.8)) drop-shadow(0 0 3px rgba(0,0,0,.5))}
+  #title .zh{font-family:var(--serif);font-weight:700;font-size:clamp(64px,7.4vw,132px);letter-spacing:.42em;padding-left:.42em;line-height:1;
+    background:linear-gradient(180deg,#fff 20%,color-mix(in srgb,var(--mode) 55%,#fff) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 28px color-mix(in srgb,var(--mode) 55%,transparent));transform:scale(1.08);filter:blur(12px);transition:all 1.6s cubic-bezier(.16,1,.3,1)}
+  #title .en{margin-top:22px;font-size:13px;font-weight:500;letter-spacing:1.4em;padding-left:1.4em;color:rgba(255,255,255,.78);transition:letter-spacing 2.4s cubic-bezier(.16,1,.3,1)}
+  #title .line{margin:22px auto 0;width:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);transition:width 1.8s cubic-bezier(.16,1,.3,1) .3s}
+  #title .sub{margin-top:16px;font-size:13px;letter-spacing:.5em;color:var(--mute);font-weight:300}
+  #title .sub small{display:block;margin-top:6px;font-size:10px;letter-spacing:.42em;color:var(--faint)}
+  body.t-in #title{opacity:1;transition:opacity 1.2s}
+  body.t-in #title .zh{transform:none;filter:blur(0) drop-shadow(0 0 30px color-mix(in srgb,var(--mode) 50%,transparent))}
+  body.t-in #title .en{letter-spacing:.9em}
+  body.t-in #title .line{width:300px}
+  body.t-out #title{opacity:0;transform:translateY(-10px);transition:opacity 1.1s,transform 1.4s}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:20;opacity:0;transition:opacity 1.2s;text-shadow:0 1px 10px rgba(0,0,0,.75),0 0 2px rgba(0,0,0,.5)}
+  body.hud-in #hud{opacity:1}
+  body.hud-in #hud.hidden{opacity:0}
+  .ui{pointer-events:auto}
+  .brand{position:absolute;top:30px;left:36px}
+  .brand .zh{font-family:var(--serif);font-weight:700;font-size:22px;letter-spacing:.3em}
+  .brand .en{display:inline-block;margin-left:10px;font-size:11px;letter-spacing:.42em;color:var(--mute);vertical-align:4px}
+  .brand .tag{margin-top:10px;font-size:12px;letter-spacing:.24em;color:var(--faint);font-weight:300}
+  .brand .tag::before{content:"";display:inline-block;width:22px;height:1px;background:var(--mode);vertical-align:3px;margin-right:10px;box-shadow:0 0 8px var(--mode);transition:background .8s}
+
+  .modes{position:absolute;left:36px;bottom:34px;display:flex;gap:6px}
+  .mode{position:relative;text-align:left;padding:10px 18px 10px 14px;opacity:.74;transition:opacity .4s}
+  .mode:hover{opacity:.85}
+  .mode.active{opacity:1}
+  .mode .n{font-family:var(--mono);font-size:10px;color:var(--mute);letter-spacing:.1em}
+  .mode .z{font-family:var(--serif);font-size:19px;font-weight:500;letter-spacing:.2em;margin-top:2px}
+  .mode .e{font-size:10px;letter-spacing:.32em;color:var(--mute);margin-top:3px}
+  .mode::after{content:"";position:absolute;left:14px;right:18px;bottom:0;height:1px;background:var(--hair)}
+  .mode.active::after{background:var(--mode);box-shadow:0 0 10px var(--mode)}
+  .mode[data-m="0"] .z{color:#ffd2a8}.mode[data-m="1"] .z{color:#bfe6ff}.mode[data-m="2"] .z{color:#ffab8a}
+
+  .recipe{position:absolute;top:28px;right:34px;width:236px;text-align:right}
+  .recipe .h{font-size:10px;letter-spacing:.42em;color:var(--faint)}
+  .recipe .seed{font-family:var(--mono);font-size:13px;letter-spacing:.12em;margin-top:6px;color:var(--ink)}
+  .stats{margin-top:12px;font-size:11.5px;line-height:1.95;color:var(--mute);letter-spacing:.06em}
+  .stats b{font-weight:400;color:var(--ink);font-family:var(--mono);font-size:11.5px}
+  .stats em{font-style:normal;color:var(--faint);font-size:9.5px;letter-spacing:.18em}
+  .btns{margin-top:12px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+  .btn{font-size:11px;letter-spacing:.14em;padding:6px 10px;border:1px solid var(--hair);border-radius:999px;color:var(--mute);transition:all .25s;background:rgba(10,10,20,.25);backdrop-filter:blur(6px)}
+  .btn:hover{color:#fff;border-color:color-mix(in srgb,var(--mode) 70%,#fff)}
+  .btn kbd{font-family:var(--mono);font-size:9px;opacity:.6;margin-left:4px}
+  #snd .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--mode);margin-right:6px;box-shadow:0 0 6px var(--mode);vertical-align:1px}
+  #snd.off .dot{background:transparent;box-shadow:none;border:1px solid var(--mute)}
+
+  .keys{position:absolute;right:34px;bottom:70px;display:grid;grid-template-columns:auto auto;gap:6px 16px;font-size:11px;letter-spacing:.08em;color:var(--mute);text-align:right;transition:opacity .6s}
+  .keys span{white-space:nowrap}
+  .keys kbd{font-family:var(--mono);font-size:10.5px;color:var(--ink);padding:1px 5px;border:1px solid var(--hair);border-radius:3px;margin-right:6px}
+  .keys small{color:var(--faint);font-size:9.5px;letter-spacing:.14em;margin-left:5px}
+
+  #hint{position:fixed;left:50%;bottom:44px;transform:translateX(-50%);text-align:center;font-size:12px;letter-spacing:.32em;color:rgba(255,255,255,.62);opacity:0;transition:opacity 1.2s;pointer-events:none;z-index:21;white-space:nowrap}
+  #hint small{display:block;margin-top:6px;font-size:9px;letter-spacing:.38em;color:var(--faint)}
+  body.hud-in #hint{animation:hint 9s ease 1s forwards}
+  @keyframes hint{0%{opacity:0}12%{opacity:1}80%{opacity:1}100%{opacity:0}}
+
+  #toast{position:fixed;left:50%;top:15vh;transform:translate(-50%,8px);text-align:center;pointer-events:none;z-index:40;opacity:0}
+  #toast .tz{font-family:var(--serif);font-weight:700;font-size:44px;letter-spacing:.5em;padding-left:.5em;color:#fff;text-shadow:0 0 24px var(--mode),0 0 60px color-mix(in srgb,var(--mode) 50%,transparent)}
+  #toast .te{margin-top:10px;font-size:10px;letter-spacing:.5em;color:var(--mute)}
+  #toast.show{animation:toast 1.7s cubic-bezier(.16,1,.3,1) forwards}
+  @keyframes toast{0%{opacity:0;transform:translate(-50%,10px);filter:blur(8px)}15%{opacity:1;transform:translate(-50%,0);filter:blur(0)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-6px)}}
+
+  body.shot #cur{display:none}
+  #nogl{position:fixed;inset:0;display:none;place-items:center;text-align:center;font-size:14px;letter-spacing:.2em;color:var(--mute);z-index:200}
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/examples/jsm/" } }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="cur"><u></u><i></i><b></b></div>
+
+<div id="title">
+  <div class="zh">星鍛</div>
+  <div class="en">ORBITAL FORGE</div>
+  <div class="line"></div>
+  <div class="sub">以星為砧 · 以光為錘<small>THE STAR IS THE ANVIL · LIGHT IS THE HAMMER</small></div>
+</div>
+
+<div id="hud">
+  <div class="brand">
+    <span class="zh">星鍛</span><span class="en">ORBITAL FORGE</span>
+    <div class="tag">活體星核鍛造場 · LIVING STELLAR FORGE</div>
+  </div>
+  <div class="modes ui">
+    <button class="mode ui active" data-m="0" type="button"><div class="n">01</div><div class="z">電漿</div><div class="e">PLASMA</div></button>
+    <button class="mode ui" data-m="1" type="button"><div class="n">02</div><div class="z">晶核</div><div class="e">CRYSTAL</div></button>
+    <button class="mode ui" data-m="2" type="button"><div class="n">03</div><div class="z">灰燼</div><div class="e">EMBER</div></button>
+  </div>
+  <div class="recipe ui">
+    <div class="h">配方 · RECIPE</div>
+    <div class="seed" id="seedCode">OF2-00000000</div>
+    <div class="stats">
+      模式 <em>MODE</em> <b id="pMode">電漿 PLASMA</b><br/>
+      粒子 <em>PARTICLES</em> <b id="pCount">—</b><br/>
+      噴灑 <em>SPRAYED</em> <b id="pSpray">0</b> · 震波 <em>SHOCKS</em> <b id="pShock">0</b><br/>
+      重力井 <em>GRAVITY</em> <b id="pGrav">關 OFF</b><br/>
+      畫質 <em>QUALITY</em> <b id="pQual">—</b> · <b id="fps">60</b> <em>FPS</em>
+    </div>
+    <div class="btns">
+      <button class="btn ui" id="btnCopy" type="button">複製種子 COPY<kbd>C</kbd></button>
+      <button class="btn ui" id="btnReset" type="button">重置 RESET<kbd>R</kbd></button>
+      <button class="btn ui" id="btnQual" type="button">畫質 QUALITY<kbd>Q</kbd></button>
+      <button class="btn ui off" id="snd" type="button"><span class="dot"></span><span id="sndLabel">聲音 · 點擊啟用</span><kbd>M</kbd></button>
+    </div>
+  </div>
+  <div class="keys">
+    <span><kbd>拖曳</kbd>軌道<small>ORBIT</small></span><span><kbd>移動</kbd>噴灑<small>SPRAY</small></span>
+    <span><kbd>點擊</kbd>震波<small>SHOCK</small></span><span><kbd>Shift</kbd>重力井<small>WELL</small></span>
+    <span><kbd>滾輪</kbd>縮放<small>ZOOM</small></span><span><kbd>Space</kbd>超新星<small>NOVA</small></span>
+    <span><kbd>1 2 3</kbd>材料<small>MATTER</small></span><span><kbd>F</kbd>全螢幕<small>FULL</small></span>
+    <span><kbd>H</kbd>隱藏介面<small>HUD</small></span><span><kbd>Q</kbd>畫質<small>QUALITY</small></span>
+  </div>
+</div>
+<div id="hint">移動滑鼠噴灑星塵 · 點擊釋放震波 · 空白鍵引爆超新星<small>MOVE TO SPRAY · CLICK FOR A SHOCKWAVE · SPACE FOR SUPERNOVA</small></div>
+<div id="toast"><div class="tz"></div><div class="te"></div></div>
+<div id="nogl">此體驗需要支援 WebGL2 的桌面瀏覽器<br/><br/>THIS EXPERIENCE NEEDS A DESKTOP BROWSER WITH WEBGL2</div>
+<script>
+  (function(){ try { var c=document.createElement('canvas'); if(!c.getContext('webgl2')) throw 0; } catch(e){ document.getElementById('nogl').style.display='grid'; } })();
+  window.addEventListener('error', function(e){ console.error('[OF]', e.message); });
+</script>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>

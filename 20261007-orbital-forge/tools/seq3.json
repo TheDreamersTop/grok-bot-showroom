@@ -1,0 +1,10 @@
+[
+{"at":30,"shot":"/tmp/s_open1.png"},
+{"at":236},{"eval":"__OF.shockAtScreen(1180,520,1.0)"},
+{"at":244,"shot":"/tmp/s_shock.png"},
+{"at":300},{"eval":"__OF.nova()"},
+{"at":322,"shot":"/tmp/s_implode.png"},
+{"at":328,"shot":"/tmp/s_peak.png"},
+{"at":345,"shot":"/tmp/s_ring.png"},
+{"at":370,"shot":"/tmp/s_ring2.png"}
+]
