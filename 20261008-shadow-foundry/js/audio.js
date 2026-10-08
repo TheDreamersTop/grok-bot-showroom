@@ -37,6 +37,11 @@ export class Sound {
     const p = this.pan(pn); p.connect(this.master); p.connect(this.verbIn); const tt = t + k * 0.06;
     for (const [mul, a] of [[1, 1], [2, 0.25], [3, 0.08]]) { const o = C.createOscillator(); o.frequency.value = f * mul; const g = C.createGain(); g.gain.setValueAtTime(0.0001, tt); g.gain.exponentialRampToValueAtTime(0.09 * a, tt + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, tt + 3.6); o.connect(g).connect(p); o.start(tt); o.stop(tt + 3.7); }
   }); }
+  hit() { if (!this.ctx) return; const C = this.ctx, t = C.currentTime; // the forge lands: sub thump + struck-brass partials + noise burst
+    const o = C.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.35); const g = C.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9); o.connect(g).connect(this.master); o.start(t); o.stop(t + 1);
+    for (const [f, a, d] of [[311, 0.07, 2.4], [523, 0.05, 1.8], [847, 0.035, 1.3], [1371, 0.02, 0.9]]) { const q = C.createOscillator(); q.frequency.value = f; const gg = C.createGain(); gg.gain.setValueAtTime(0.0001, t); gg.gain.exponentialRampToValueAtTime(a, t + 0.004); gg.gain.exponentialRampToValueAtTime(0.0001, t + d); q.connect(gg); gg.connect(this.master); gg.connect(this.verbIn); q.start(t); q.stop(t + d + 0.05); }
+    const n = C.createBufferSource(); n.buffer = this.noise; const f2 = C.createBiquadFilter(); f2.type = 'highpass'; f2.frequency.value = 1800; const g2 = C.createGain(); g2.gain.setValueAtTime(0.12, t); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.25); n.connect(f2).connect(g2).connect(this.master); n.start(t, Math.random()); n.stop(t + 0.3);
+  }
   tick(pan = 0) { if (!this.ctx) return; const C = this.ctx, t = C.currentTime; if (t - this.lastTick < 0.018) return; this.lastTick = t;
     const p = this.pan(pan); p.connect(this.master); p.connect(this.verbIn); const f = 2400 + Math.random() * 2600;
     for (const m of [1, 2.76]) { const o = C.createOscillator(); o.frequency.value = f * m; const g = C.createGain(); g.gain.setValueAtTime(0.03 / m, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12 + Math.random() * 0.1); o.connect(g).connect(p); o.start(t); o.stop(t + 0.25); }

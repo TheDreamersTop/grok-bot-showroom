@@ -105,7 +105,7 @@ const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), ceilMat); ceilin
 
 // ---------------- pin + plinth
 const blackSteel = new THREE.MeshStandardMaterial({ color: 0x0e0d0c, metalness: 0.7, roughness: 0.38, envMap: ENV });
-const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, G.walls[2].lamp[1] - 0.3 - G.C[1], 6), blackSteel); wire.position.set(G.C[0], (G.walls[2].lamp[1] - 0.3 + G.C[1]) / 2, G.C[2]); wire.castShadow = true; scene.add(wire);
+const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, G.walls[2].lamp[1] - 0.3 - G.C[1], 6), blackSteel); wire.position.set(G.C[0], (G.walls[2].lamp[1] - 0.3 + G.C[1]) / 2, G.C[2]); wire.castShadow = false; scene.add(wire);
 
 // ---------------- the nest (rods)
 const pivot = new THREE.Group(); pivot.position.copy(CEN); scene.add(pivot);
@@ -269,7 +269,55 @@ function prepNest(res, prev, t0 = 0) {
       const q0 = new THREE.Quaternion().setFromEuler(new THREE.Euler(R() * 6, R() * 6, R() * 6)); d = { pos, q, sc, far, q0, delay: t0 + pos.length() * 0.28 + R() * 0.35, landed: false }; }
     data.push(d); byRod[ri] = d; }
     meshes.push({ im, data }); });
+  addForgeData(meshes); rodMeshes.forEach(m => { m.frustumCulled = false; });
   return { meshes, byRod, t0: 0, mode: prev ? 'in' : 'idle' };
+}
+// ---------------- "The Forge" opening: rods fly in from the dark into a churning swarm (hatch storm on all three walls),
+// then every rod snaps home inside ~0.3 s so all three shadows resolve at once. Pure function of intro time (shot-mode safe).
+const FG = { A0: 1.2, A1: 2.9, FLY: 0.8, S0: +(Q.get('fs0') || 4.2), JIT: 0.08, D: 0.62, CR: +(Q.get('fcr') || 1.9), STORM_R: 4.0 };
+FG.END = FG.S0 + FG.JIT + FG.D; // last rod lands
+function addForgeData(meshes) {
+  const R = mulberry(77); const all = meshes.flatMap(m => m.data); const L = all.map(d => d.pos.length()).sort((a, b) => a - b); const med = L[(L.length / 2) | 0] || 1, r90 = L[(L.length * 0.9) | 0] || 1;
+  for (const d of all) {
+    const dir = new THREE.Vector3(R() - 0.5, (R() - 0.5) * 0.8, R() - 0.5).normalize();
+    d.off = dir.clone().multiplyScalar(med); // used by shatter for burst direction jitter
+    d.cloud = dir.multiplyScalar(r90 * FG.CR * (0.25 + 0.75 * Math.cbrt(R()))); // storm cloud: independent of the final layout (no figure density)
+    d.qs = new THREE.Quaternion().setFromEuler(new THREE.Euler(R() * 6.28, R() * 6.28, R() * 6.28));
+    d.ax = new THREE.Vector3(R() - 0.5, R() - 0.5, R() - 0.5).normalize(); d.spin = (R() < 0.5 ? -1 : 1) * (0.5 + 1.3 * R());
+    d.orb = (0.25 + 0.35 * R()) * (R() < 0.8 ? 1 : -1); d.ph = R() * 6.28;
+    const wave = (R() * 3) | 0; d.arrive = FG.A0 + wave * (FG.A1 - FG.A0) / 3 + R() * (FG.A1 - FG.A0) / 3;
+    d.snap = FG.S0 + (R() * 2 - 1) * FG.JIT; d.ticked = false;
+  }
+}
+function cloudAt(d, t, out) { const a = d.orb * t, c = Math.cos(a), s = Math.sin(a); // slow orbit about the wire axis
+  return out.set(d.cloud.x * c - d.cloud.z * s, d.cloud.y + 0.08 * Math.sin(t * 1.3 + d.ph), d.cloud.x * s + d.cloud.z * c); }
+const _sp = new THREE.Vector3(), _sq = new THREE.Quaternion(), _qa = new THREE.Quaternion(), ZERO = new THREE.Vector3(1e-4, 1e-4, 1e-4);
+function forgeIntroPose(it, sounds) {
+  if (!nest) return; let ticks = 0;
+  for (const { im, data } of nest.meshes) { for (let i = 0; i < data.length; i++) { const d = data[i];
+    if (it < d.arrive) { _m4.compose(d.far, d.q0, ZERO); im.setMatrixAt(i, _m4); continue; }
+    if (it >= d.snap + FG.D) { _m4.compose(d.pos, d.q, d.sc); im.setMatrixAt(i, _m4); continue; }
+    cloudAt(d, it, _sp);
+    _qa.setFromAxisAngle(d.ax, d.spin * it); _sq.copy(_qa).multiply(d.qs);
+    let sc = 1;
+    if (it < d.arrive + FG.FLY) { const u = easeOut((it - d.arrive) / FG.FLY); _p.lerpVectors(d.far, _sp, u); _q.copy(d.q0).slerp(_sq, u); sc = 0.3 + 0.7 * u; if (u > 0.85 && !d.ticked) { d.ticked = true; ticks++; } }
+    else if (it < d.snap) { _p.copy(_sp); _q.copy(_sq); }
+    else { const u = clamp((it - d.snap) / FG.D, 0, 1), e = u * u * u; _p.lerpVectors(_sp, d.pos, e); _q.copy(_sq).slerp(d.q, sm(0.6, 1, u)); } // implosion: ease-in, rotate in the last 40 %
+    _s.copy(d.sc).multiplyScalar(sc); _m4.compose(_p, _q, _s); im.setMatrixAt(i, _m4); }
+    im.instanceMatrix.needsUpdate = true; }
+  if (sounds && ticks) for (let k = 0; k < Math.min(2, ticks); k++) sound.tick((Math.random() - 0.5) * 1.2);
+}
+// misalignment loosens the sculpture: rods drift part-way into the storm cloud (the puzzle starts half-rebuilt;
+// no pose of the assembled object can spoil the figures, and closing in visibly pulls the rods together)
+const SCAT = +(Q.get('scat') || 0.55); let scatLast = -1;
+function scatterAmount(ang) { const a0 = poseAngle(SCR[1].yaw, SCR[1].tilt); const u = clamp((ang - 0.04) / Math.max(0.1, a0 - 0.04), 0, 1.3); return SCAT * Math.pow(u, 1.25); }
+function scatterPose(k, t) {
+  if (!nest || (k < 1e-3 && scatLast < 1e-3)) return; scatLast = k;
+  for (const { im, data } of nest.meshes) { for (let i = 0; i < data.length; i++) { const d = data[i];
+    if (k < 1e-3) { _m4.compose(d.pos, d.q, d.sc); im.setMatrixAt(i, _m4); continue; }
+    cloudAt(d, t, _sp); _p.lerpVectors(d.pos, _sp, k); _qa.setFromAxisAngle(d.ax, d.spin * t); _sq.copy(_qa).multiply(d.qs); _q.copy(d.q).slerp(_sq, Math.min(1, k * 1.4));
+    _m4.compose(_p, _q, d.sc); im.setMatrixAt(i, _m4); }
+    im.instanceMatrix.needsUpdate = true; }
 }
 function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function animateNest(t) { // t: seconds since animation start
@@ -330,7 +378,7 @@ let SCR = [{ yaw: 2.27, tilt: 0.62 }, { yaw: +(Q.get('sy') || -0.698), tilt: +(Q
 const st = { mode: 'intro', t: 0, introT: 0, yaw: 0, tilt: 0, vy: 0, vt: 0, drag: false, lockAt: -1, locked: false, lastMove: 0, freeStart: 0, labelA: 0, anim: 0, lastLockIntro: false, lampMul: 1 };
 
 function loadWork(w) {
-  work = w; current = w;
+  work = w; current = w; scatLast = -1;
   nest = prepNest({ rods: w.rods }); setLabels(w.titles, w.no); setPlacard(w.no, w.titles, w.rods.length, w.fidHull);
   window.__forge = { current: w, fidRaw: w.fidHull, fidRep: w.fidRods };
 }
@@ -368,13 +416,11 @@ function lockFX(dt) { // dt seconds since lock (<0: not locked)
 }
 
 // intro timeline (pure function of t) → pose & lamps
-const LAMP_T = [0.35, 0.75, 1.15], LOCK_T = 4.0, UNLOCK_T = 7.2, FREE_T = 9.4;
+const LAMP_T = [0.3, 0.62, 0.94], LOCK_T = 4.95, UNLOCK_T = 8.6, FREE_T = 10.8;
 function lampOn(t, i) { const d = t - LAMP_T[i]; if (d < 0) return 0; const ramp = clamp(d / 0.09, 0, 1); const fl = d < 0.22 ? (Math.sin(d * 140 + i) > 0.2 ? 1 : 0.35) : 1; return ramp * fl; }
 const AXS = new THREE.Vector3(+(Q.get('ax') || 0.42), +(Q.get('ay') || 0.78), +(Q.get('az') || 0.46)).normalize(), A0 = +(Q.get('a0') || 2.05);
 const qIdent = new THREE.Quaternion();
-function introQuat(t) { // oblique-axis tumble, then a single eased geodesic into alignment (never passes axis permutations)
-  if (t < 1.3) return new THREE.Quaternion().setFromAxisAngle(AXS, A0 + 0.9 * (1.3 - t));
-  if (t < LOCK_T) { const u = (t - 1.3) / (LOCK_T - 1.3); return new THREE.Quaternion().setFromAxisAngle(AXS, A0 * Math.pow(1 - u, 1.35)); }
+function introQuat(t) { // The Forge: the sculpture assembles in its true pose; the swarm (not a tumble) hides the figures
   if (t < UNLOCK_T) return qIdent.clone();
   const u = easeOut((t - UNLOCK_T) / (FREE_T - UNLOCK_T)); const s2 = SCR[1]; const k = u * u * (3 - 2 * u); return poseQuat(s2.yaw * k, s2.tilt * k);
 }
@@ -389,10 +435,14 @@ function update(dt) {
     if (SHOT) lamp = lamp.map((v, i) => it > LAMP_T[i] + 0.25 ? 1 : v);
     [0, 1, 2].forEach(i => { const was = st['lamp' + i]; const now = lamp[i] > 0.5; if (now && !was) sound.clunk(i); st['lamp' + i] = now; });
     st.q = introQuat(it); if (it >= UNLOCK_T) { const k = easeOut((it - UNLOCK_T) / (FREE_T - UNLOCK_T)); const kk = k * k * (3 - 2 * k); st.yaw = SCR[1].yaw * kk; st.tilt = SCR[1].tilt * kk; }
-    const L = lockFX(it < UNLOCK_T ? it - LOCK_T : -1); if (it >= LOCK_T && !st.lastLockIntro) { st.lastLockIntro = true; sound.chord(); }
+    const L = lockFX(it < UNLOCK_T ? it - LOCK_T : -1); if (it >= LOCK_T && !st.lastLockIntro) { st.lastLockIntro = true; sound.hit(); sound.chord(); }
+    if (it < FG.END + 0.1 || !st.forgeDone) { forgeIntroPose(it, !SHOT); if (it >= FG.END + 0.1) st.forgeDone = true; }
+    else if (it >= UNLOCK_T) scatterPose(scatterAmount(qAngle(st.q)), t);
     labels = it < UNLOCK_T ? L.labels : Math.max(0, 1 - (it - UNLOCK_T) / 0.5); push = it < UNLOCK_T ? L.push : 0.03 * Math.max(0, 1 - (it - UNLOCK_T) / 1.2);
+    if (it < LOCK_T) push = -0.07 * Math.pow(1 - it / LOCK_T, 1.6); // wider start (track + lamps), drifting in
     ang = qAngle(st.q); const g = guidance(ang);
-    for (let i = 0; i < 3; i++) { radius[i] = g.radius + (1.0 - g.radius) * L.k[i]; dark[i] = g.dark + (0.975 - g.dark) * L.k[i]; }
+    const r0 = it < UNLOCK_T ? FG.STORM_R : g.radius;
+    for (let i = 0; i < 3; i++) { radius[i] = r0 + (1.0 - r0) * L.k[i]; dark[i] = 0.975; }
     freeze = L.freeze; if (it < UNLOCK_T) lamp = lamp.map(v => v * (1 + L.flash));
     if (it > FREE_T) { st.mode = 'free'; st.freeStart = t; hint('Drag to turn the sculpture until its shadows become pictures'); }
   } else if (st.mode === 'free' || st.mode === 'forged') {
@@ -406,16 +456,25 @@ function update(dt) {
     }
     if (!st.locked && ang < 0.012 && !st.drag) { st.locked = true; st.lockAt = t; st.lastLock = t; sound.chord(); hint(''); st.yaw = Math.round(st.yaw / (2 * Math.PI)) * 2 * Math.PI; st.tilt = 0; }
     if (st.locked && ang > 0.05) { st.locked = false; st.lockAt = -1; }
+    if (!nest || nest.mode === 'idle') scatterPose(st.locked ? 0 : scatterAmount(ang), t);
     const L = lockFX(st.locked ? t - st.lockAt : -1); const g = guidance(ang);
     for (let i = 0; i < 3; i++) { radius[i] = g.radius + (1.0 - g.radius) * L.k[i]; dark[i] = g.dark + (0.975 - g.dark) * L.k[i]; }
     push = L.push; freeze = L.freeze; labels = L.labels; lamp = lamp.map(v => v * (1 + L.flash));
     sound.update(Math.abs(st.vy) * 60 * 0.05 + Math.abs(st.vt) * 60 * 0.05, ang, st.drag || (t - st.lastMove) < 1.5);
+  } else if (st.mode === 'shatter') {
+    const e = t - st.shT; shatterPose(e); ang = 0.6; for (let i = 0; i < 3; i++) { radius[i] = FG.STORM_R; dark[i] = 0.975; }
+    if (e >= SH.DUR && st.next) { loadWork(st.next); st.next = null; st.mode = 'reforge'; st.rfT = t; st.yaw = 0; st.tilt = 0; st.vy = st.vt = 0; for (const m of nest.meshes) m.data.forEach(d => d.ticked = false); }
+  } else if (st.mode === 'reforge') {
+    const it = SH.IT0 + (t - st.rfT) * SH.RF; forgeIntroPose(it, !SHOT); ang = 0; for (let i = 0; i < 3; i++) { radius[i] = FG.STORM_R; dark[i] = 0.975; }
+    if (it >= FG.END + 0.03) { forgeIntroPose(99, false); st.mode = 'forged'; st.lastLock = t; st.freeStart = t; sound.hit(); }
   } else if (st.mode === 'draw') {
     lamp = [0.62, 0.62, 0.62]; ang = 0; for (let i = 0; i < 3; i++) { radius[i] = 1.5; dark[i] = 0.9; }
   }
   // nest animation
   if (nest && nest.mode !== 'idle') animateNest(t - st.anim);
   if (st.mode === 'intro') pivot.quaternion.copy(st.q);
+  else if (st.mode === 'shatter') pivot.quaternion.copy(st.shQ);
+  else if (st.mode === 'reforge') pivot.quaternion.identity();
   else { const q = poseQuat(st.yaw, st.tilt); if (st.blendQ) { const k = easeOut((t - st.blendT) / 0.7); q.copy(st.blendQ.clone().slerp(q, k)); if (k >= 1) st.blendQ = null; } pivot.quaternion.copy(q); }
   for (let i = 0; i < 3; i++) { S.lamp[i] = lamp[i] * st.lampMul; S.radius[i] = radius[i]; S.dark[i] = dark[i]; }
   S.push = push; S.freeze = freeze; S.time = t;
@@ -424,12 +483,37 @@ function update(dt) {
   st.ang = ang;
 }
 
+// ---------------- shatter → re-forge (the repeatable verb): rods burst out under gravity, the next curated work forges in
+const SH = { DUR: 1.05, RF: 1.0, IT0: 3.3 };
+function shatterPose(e) {
+  if (!nest) return; const R = mulberry(901);
+  for (const { im, data } of nest.meshes) { for (let i = 0; i < data.length; i++) { const d = data[i];
+    const tt = Math.max(0, e - R() * 0.06), u = clamp(tt / 0.55, 0, 1), k = 1 - Math.pow(1 - u, 3);
+    cloudAt(d, FG.A1 + e, _sp); _p.lerpVectors(d.pos, _sp, k); _p.y -= 0.9 * Math.sin(Math.PI * u) * 0.5; // burst out with a gravity sag
+    _qa.setFromAxisAngle(d.ax, d.spin * 5 * tt); _q.copy(_qa).multiply(d.q);
+    const sc = 1 - clamp((e - 0.75) / 0.3, 0, 1); _s.copy(d.sc).multiplyScalar(Math.max(1e-4, sc)); _m4.compose(_p, _q, _s); im.setMatrixAt(i, _m4); }
+    im.instanceMatrix.needsUpdate = true; }
+}
+function shatterTo(idx) {
+  if (st.mode === 'shatter' || st.mode === 'reforge' || st.mode === 'draw') return;
+  sound.start(); sound.hit(); sound.whoosh(); hint('');
+  presetIdx = idx; st.mode = 'shatter'; st.shT = st.t; st.locked = false; st.lockAt = -1; st.next = null; st.blendQ = null;
+  st.shQ = poseQuat(st.yaw, st.tilt); loadPreset(idx).then(w => { st.next = w; });
+}
+window.__shatter = (idx = (presetIdx + 1) % PRESET_LIST.length) => shatterTo(idx);
 // ---------------- input
+function skipIntro() { // jump to the last moment of the forge: rods snap home, lock hit + labels follow immediately
+  if (st.mode !== 'intro' || st.introT >= LOCK_T - 0.15) return;
+  st.introT = LOCK_T - 0.15; [0, 1, 2].forEach(i => st['lamp' + i] = true); hint('');
+}
+addEventListener('keydown', (e) => { if (e.key === 'Escape') { sound.start(); skipIntro(); } });
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
-let lastX = 0, lastY = 0, drawing = null;
+let lastX = 0, lastY = 0, drawing = null, downX = 0, downY = 0, downT = 0;
+function hitsSculpture(e) { ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera); rodMeshes.forEach(m => { m.boundingSphere = null; }); return ray.intersectObjects(rodMeshes, false).length > 0; }
 canvas.addEventListener('pointerdown', (e) => {
-  sound.start(); lastX = e.clientX; lastY = e.clientY; st.lastMove = st.t;
+  sound.start(); lastX = e.clientX; lastY = e.clientY; downX = e.clientX; downY = e.clientY; downT = performance.now(); st.lastMove = st.t;
   if (st.mode === 'draw') { const hit = wallHit(e); if (hit) { drawing = hit; strokeTo(hit, true); } return; }
+  if (st.mode === 'intro' && st.introT < LOCK_T - 0.15) { skipIntro(); return; }
   if (st.mode === 'intro') { // skip ahead: keep lamps on, go free from current pose
     st.mode = 'free'; st.freeStart = st.t; st.locked = false; st.lockAt = -1; for (const m of labelMeshes) m.material.opacity = 0;
     st.blendQ = pivot.quaternion.clone(); st.blendT = st.t; if (qAngle(st.blendQ) < 0.05) { st.yaw = 0; st.tilt = 0; } else { st.yaw = SCR[1].yaw; st.tilt = SCR[1].tilt; } st.vy = st.vt = 0;
@@ -442,7 +526,8 @@ addEventListener('pointermove', (e) => {
   if (!st.drag) return; const dx = e.clientX - lastX, dy = e.clientY - lastY; lastX = e.clientX; lastY = e.clientY; st.lastMove = st.t;
   st.vy = dx * 0.0065; st.vt = dy * 0.0045; st.yaw += st.vy; st.tilt = clamp(st.tilt + st.vt, -0.7, 0.7);
 });
-addEventListener('pointerup', () => { st.drag = false; canvas.style.cursor = st.mode === 'draw' ? 'crosshair' : 'grab'; if (drawing) { finishStroke(drawing.w); drawing = null; } });
+addEventListener('pointerup', (e) => { if (st.drag && (st.mode === 'free' || st.mode === 'forged') && Math.hypot(e.clientX - downX, e.clientY - downY) < 5 && performance.now() - downT < 350 && hitsSculpture(e)) { st.drag = false; shatterTo((presetIdx + 1) % PRESET_LIST.length); return; }
+  st.drag = false; canvas.style.cursor = st.mode === 'draw' ? 'crosshair' : 'grab'; if (drawing) { finishStroke(drawing.w); drawing = null; } });
 
 // ---------------- drawing your own shadows
 const drawCanvases = [0, 1, 2].map(() => { const c = document.createElement('canvas'); c.width = c.height = MR; return c; });
@@ -508,11 +593,12 @@ function forgeDrawings(draws, titles) {
   });
   return { longP, doneP };
 }
-$('bNext').onclick = (e) => { e.stopPropagation(); sound.start(); presetIdx = (presetIdx + 1) % PRESET_LIST.length; loadPreset(presetIdx).then(w => { loadWork(w); nest.mode = 'in'; st.anim = st.t; }); nest.mode = 'in'; st.anim = st.t; st.mode = 'free'; st.yaw = SCR[1].yaw; st.tilt = SCR[1].tilt; st.locked = false; st.lastLock = st.t; sound.whoosh(); hint('Drag to turn the sculpture until its shadows become pictures'); };
+$('bNext').onclick = (e) => { e.stopPropagation(); shatterTo((presetIdx + 1) % PRESET_LIST.length); };
 
 // ---------------- main loop (deterministic in ?shot mode)
 let frame = 0, last = performance.now();
 const SHOT_T = +(Q.get('t') || 6.0);
+const TEST_TITLES = { heart: '心 Heart', star: '星 Star', letterA: '字 A', tree: '樹 Tree', swallow: '燕 Swallow', catFront: '貓 Cat', key: '鑰 Key', hand: '手 Hand', butterfly: '蝶 Butterfly' };
 async function boot() {
   const [, w0] = await Promise.all([fontsReady, loadPreset(presetIdx)]); loadWork(w0); setLabels(work.titles, work.no);
   if (SHOT) {
@@ -522,7 +608,7 @@ async function boot() {
       if (k === 0) { st.locked = true; st.lockAt = -10; }
       update(0); st.t = 10; if (k === 0) st.lockAt = 0;
     } else if (Q.get('forgeTest')) {
-      const names = Q.get('forgeTest').split(','); const F = forgeDrawings(names.map(n => FIGURES[n]), names.map(n => `· ${n}`));
+      const names = Q.get('forgeTest').split(','); const F = forgeDrawings(names.map(n => FIGURES[n]), names.map(n => TEST_TITLES[n] || '影 Yours'));
       const ft = +(Q.get('ft') || 3);
       if (Q.get('phase') === 'long') { await F.longP; st.anim = st.t - ft; } else { await F.doneP; st.mode = 'forged'; st.anim = st.t - ft; st.locked = ft > 1.6; st.lockAt = st.t - (ft - 1.6); }
     } else if (Q.get('drawDemo')) {
@@ -530,6 +616,9 @@ async function boot() {
         if (w === 2) { g.lineWidth = 26; g.lineJoin = 'round'; const c2 = document.createElement('canvas'); c2.width = c2.height = 1000; const gg = c2.getContext('2d'); gg.fillStyle = '#fff'; FIGURES[n](gg); g.restore(); g.save(); g.scale(MR / 1000, MR / 1000); g.drawImage(c2, 0, 0); g.globalCompositeOperation = 'destination-out'; g.drawImage(c2, 0, 0); g.globalCompositeOperation = 'source-over'; FIGURES[n](g); }
         else FIGURES[n](g); g.restore(); refreshFill(w, true); });
       for (const m of wallMats) m.uniforms.drawAmt.value = 1; st.t += 5;
+    } else if (Q.get('shatter')) { // still of the shatter → re-forge at <sec> after the click
+      st.mode = 'free'; st.freeStart = -100; st.lastLock = -100; update(0); const e = +Q.get('shatter'); st.t = 20; shatterTo((presetIdx + 1) % PRESET_LIST.length);
+      const w = await loadPreset(presetIdx); st.next = w; if (e < SH.DUR) st.shT = st.t - e + 1 / 60; else { st.shT = st.t - SH.DUR; update(1 / 60); st.rfT = st.t - (e - SH.DUR) + 1 / 60; }
     } else { st.introT = SHOT_T - 1 / 60; st.t = SHOT_T; [0, 1, 2].forEach(i => st['lamp' + i] = true); st.lastLockIntro = SHOT_T >= LOCK_T; }
   }
   requestAnimationFrame(tick);

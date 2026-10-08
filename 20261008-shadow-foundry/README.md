@@ -7,10 +7,10 @@
 Three track lamps light one tangle of about 1,500 aged-brass rods, hung from the ceiling on a single wire. Each lamp casts its shadow on a different surface: the east wall, the north wall and the dark polished floor. From most angles the shadows are formless blobs. Turn the sculpture to its one true angle and all three shadows lock into pictures at once: a cat, a tree and a swallow. Then you can draw three shadows of your own, and the foundry forges a new sculpture that casts them.
 
 ## How to use it
-- **Watch** for the first ~5 seconds. The lamps switch on, the sculpture tumbles, and the shadows lock.
-- **Drag** to turn the sculpture: horizontal drag turns it, vertical drag tilts it. The shadows stay dark; they sharpen (and the sound tunes in) as you get closer, and a soft magnetic detent catches you near the solution.
+- **Watch** the opening, *The Forge* (~5 s; click or Esc to skip). Three lamps clunk on onto empty walls. About 1,500 brass rods fly in out of the dark and swirl as a storm cloud, so every pool fills with moving hatching. At ~4.2 s they all implode together, and in the last quarter-second all three shadows become pictures at once.
+- **Drag** to turn the sculpture: horizontal drag turns it, vertical drag tilts it. Out of alignment, the sculpture loosens into a cloud of rods; turning it back pulls them together. The shadows stay dark; they sharpen (and the sound tunes in) as you get closer, and a soft magnetic detent catches you near the solution.
 - **Draw your own three shadows**: sketch one silhouette per lit surface (closed outlines fill in automatically), then press *Forge*. A new rod sculpture is computed in a background Web Worker (the page never freezes); the long rods fly in first, then the edge rods.
-- **Next sculpture** loads No. 2 (hand · key · butterfly). Built-in sculptures are precomputed (`data/preset-*.json`) and load instantly.
+- **Click the sculpture** (or *Next sculpture*) to shatter it: the rods burst into a storm and implode into the next curated work, No. 2 (hand · key · butterfly). Built-in sculptures are precomputed (`data/preset-*.json`) and load instantly.
 - Sound is procedural (WebAudio) and starts on your first click. Use the speaker glyph to mute.
 
 Desktop browsers (1440×900 to 1920×1080), WebGL2.
@@ -35,6 +35,7 @@ Desktop browsers (1440×900 to 1920×1080), WebGL2.
 
 ## Versions
 - **V1** (2026-10-08): the opening lock sequence, constrained turntable with sharpening cues, draw-your-own, procedural sound and museum labels.
+- **Pass 2 / experience** (2026-10-08): *The Forge* implosion opening with skip; shatter → storm → re-forge; misalignment loosens the sculpture (no figure-revealing scramble); the wire casts no shadow.
 - **Pass 1 / visual escalation** (2026-10-08): ≥98 % rod coverage via edge rods and hole fill; precomputed sculptures; a front-facing cat; a butterfly replaces the fish; a real room (ceiling track, ceiling wire, polished floor, bounce-lit plaster); exposure lowered so the pools show lamp colour; dust; the forge moved to a Web Worker with progressive fly-in.
 
 Fonts: Cormorant Garamond (OFL), Noto Serif TC (OFL), self-hosted subsets. three.js (MIT), vendored.
