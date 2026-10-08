@@ -1,13 +1,115 @@
-# Phase B — Prototype evaluations (honest), 2026-10-09 rev. 2 (~07:35 TPE)
+# Phase B — Prototype evaluations (honest), 2026-10-09 rev. 3 (~07:57 TPE)
 
-> **Rev. 2 changes:** (1) an originality check of existing web work (below) dropped C's Originality to 0; (2) A got a second erosion model (stream-power law, `?model=sp`) that produced the first real canyon frame; (3) the recommendation moved from C to **A**.
+> **Rev. 3 changes (after the 07:35 critique "all three are ordinary"):** (1) a look-dev spike for A — **A2 "canyon
+> postcard"** (`prototypes/canyon-postcard/`); (2) a 4th wildcard prototype — **D 龜裂 Dry Lake** (`prototypes/dry-lake/`);
+> (3) re-scored comparison and an updated (still non-binding) recommendation. Rev. 2 text is kept below unchanged.
+> Contact sheet: `shots/contact-sheet-phaseB-rev3.png`.
 
-All frames: headless Chrome + SwiftShader, deterministic `?shot=1&t=<steps>` at 1600×900.
-Contact sheet: `shots/contact-sheet-phaseB.png`. Live: https://thedreamerstop.github.io/grok-bot-showroom/20261009-round4-lab/prototypes/
-Scores use the Visual Quality Benchmark v4 in RESEARCH.md (0–2 each, 24 max). Motion (#11) is judged from live
-smoke tests + frame pairs only, so it is provisional for all three.
+## A2 · Deep Time look-dev spike — "canyon postcard" (kill criterion: still a terrain tool at ~08:15 → say so)
+Shots: before `shots/proto-deep-time-v4-sp.png` → after `shots/proto-deep-time-A2-postcard.png`, 100 % crop
+`shots/proto-deep-time-A2-postcard-crop.png`, seed frame (t=0) `shots/proto-deep-time-A2-postcard-t0-seed.png`, unseeded
+sim attempts `shots/proto-deep-time-A2-unseeded-network.png`, `shots/proto-deep-time-A2-unseeded-k1500.png`.
+- **What changed (rendering):** no slab or void. A rim-level horizon view (fov 38) across a plateau; a sky with a
+  gradient and sun glow; distant buttes in three haze layers; and a far plain continued past the sim domain (a ray–plane
+  hit plus a procedural distant canyon network), so the world runs to the horizon. A **stair-step strata profile** is
+  applied to the B-spline-interpolated height: hard layers become vertical cliffs and soft layers talus slopes, which
+  gives the Grand Canyon "layer-cake" read from far away. A Coconino-cream / Redwall-red / mauve palette, desert-varnish
+  streaks and cliff fluting. **Golden-hour key light** (sun elevation ≈11°, from the right) with warm bounce light inside
+  the canyon and violet sky fill in shadow. **Sun shadows are computed once per frame as a sim-space texture (80-step
+  horizon march) and sampled bilinearly, so the moiré is gone.** Water is a sky-reflecting ribbon (Fresnel) where log₂(drainage) > 6.5, so it
+  only shows on real rivers. Mesh 1100² removes the triangle saw-tooth on cliff edges.
+- **What changed (sim):** the same stream-power model (MFD accumulation, K·A^½·S/hardness, creep, talus) with a uniform
+  drizzle and a fixed base level at the far edge, but **the main canyon and 9 tributaries are seeded procedurally**
+  (a meandering centre line plus branching side canyons with ragged rims). The sim then runs 1,500 steps and adds the
+  river network, gullies and rim erosion.
+- **Kill-criterion verdict:** **not killed.** At thumbnail and full-frame size it reads as a canyon-country postcard
+  (winding, branching canyon, stepped strata, river at the bottom, buttes on the horizon, warm/cool light), not a GIS tool.
+  Harsh caveats: (1) at 100 % the walls read as **clay/plastic** with too-regular fine strata lines; there is no rock grain
+  or talus debris. (2) The near-left mesas melt into blobs where creep rounded the terrace. (3) The far plain is a large,
+  low-information band (≈30 % of the frame). (4) **Most importantly, the canyon is art-directed, not emergent.**
+  Unseeded, the stream-power sim only makes shallow dendritic valleys in 3,000–4,000 steps (see the unseeded shots).
+  So the "you are the rain → a canyon appears" causality, A's hero, is *weaker* in A2 than in v4.
+- **Path to keep both:** the child's gesture lays down the river (drag = where the rain runs, or the time-lapse is
+  driven by the user's rain path). The sim deepens that seed into a canyon over a visible deep-time clock, and the
+  stair-step strata renderer makes any incision look like the Grand Canyon. Needs: rock micro-normal/grain, talus
+  scree, varnish streaks from the rim downward, a smaller far plain, and a real-GPU speed test (the live page renders the
+  postcard; SwiftShader live is ~0.3 fps, which says nothing about real GPUs).
+- **Scores (A2):** Focal 1 · Value 2 · Palette 2 · Light 2 · Depth 2 · Material 1 · Detail 1 · Originality 1 · Hero 1 ·
+  Emergent 1 · Motion 1 · Polish 1 → **16/24** (v4 was 12). Originality stays 1: art-directed canyon renders exist in
+  terrain demos. The originality claim lives in the *deep-time causality*, and this spike didn't prove that.
+
+## D · 龜裂 Dry Lake — wildcard: draw in wet mud, and the drying ground redraws your gesture as cracks
+Shots: `shots/proto-dry-lake-t0.png` (spiral drawn in wet mud), `shots/proto-dry-lake-t520-front.png` (sun drying front
+sweeping across), `shots/proto-dry-lake-t1000-full.png` (dried: crack network traces the spiral), 100 % crop
+`shots/proto-dry-lake-t1000-crop.png`, live test `shots/proto-dry-lake-live-wave.png` (synthetic pointer drag of a sine
+wave, then release: cracks re-draw the wave).
+- **Idea / physics:** pastes have **memory** (Nakahara & Matsuo 2005–2011; Ooshida's continuum model): stir a wet
+  paste and its later desiccation cracks align with the flow you gave it. A child stirs the mud with a finger, the sun
+  dries it, and the ground "remembers" and redraws the swirl as cracks. Experts get T-junction hierarchy plus the
+  memory effect, a real and little-known result.
+- **Core effect (working):** CPU sim on a 4-px cell grid. Moisture field dries (faster near crack edges, much faster
+  under the cursor "sun" when the button is up). Tensile stress = dryness. Cracks nucleate where
+  stress·(distance to nearest crack)/L_c(dryness) > local random strength, which gives the hierarchy: early long cracks,
+  later ones subdividing plates. Tips random-walk and are steered toward the **stored flow orientation** (a doubled-angle
+  tensor field written by your drag). A tip stops at another crack (T-junction) or in still-wet ground. Cracks are drawn
+  as vectors at screen resolution, widen with age and generation, and feed a shader (mipmap blur = proximity field) for
+  curled plate rims, deep slots, a sun-side shadow, and a wet sheen with sky reflection and glints.
+- **Child test:** passes on the first try. "I drew a spiral in the mud and the cracks made my spiral." The before/after pair needs no text.
+- **Originality check (harsh, web search ~07:52):** drying-mud crack sims **already exist**: Emergent Mind Labs
+  *Drying Mud* (canvas spring lattice, T-junction hierarchy, rewet brush suggested), helpmarq *Crack Polygon Order*
+  (an installable component with primary/secondary/tertiary cracks and a rewet cycle), Steven Abbott's crack simulator,
+  and a Three.js "expanding cracked floor" tutorial. **The base effect is a commodity (0).** I found no interactive
+  memory-of-flow piece (only papers), so the twist is new. → **Originality 1**, and it can reach 2 only if the gesture → memory
+  → cracks loop is the whole show.
+- **Weak (harsh):** a flat, top-down 2D plane, so Depth is 0. At 100 % the plates look like **embossed ink or woodcut**
+  more than clay (uniform dark slot fill, no plate thickness, no lifted flakes, no per-plate colour). It is sepia
+  monochrome. Wet mud reads as smooth grey-brown clay, not a glossy puddle. There is one verb, plus waiting.
+  Physics caveat: papers disagree on the flow-memory sign (Nakahara: cracks parallel to flow for water-poor pastes;
+  Ooshida's model: perpendicular, as for vibration). I implemented "parallel", which is the more legible choice.
+- **Ceiling:** medium-high for emotion, low for world-building. Possible additions: a low-angle 3D view of the plates
+  catching the golden sun, rain re-wetting and healing the cracks (and a second drying showing the memory twice),
+  footprints and birds, plates curling and flaking, a whole dry lakebed (Uyuni hexagons) or a terraced paddy at sunset.
+- **Scores (D):** Focal 2 · Value 1 · Palette 1 · Light 1 · Depth 0 · Material 1 · Detail 1 · Originality 1 · Hero 2 ·
+  Emergent 2 · Motion 1 · Polish 0 → **13/24**.
+
+## Comparison (rev. 3)
+| Criterion | A v4 (07:35) | **A2 postcard** | B Plateau | C Frost Window | **D Dry Lake** |
+|---|---|---|---|---|---|
+| 1 Focal | 2 | 1 | 2 | 2 | 2 |
+| 2 Value | 1 | 2 | 1 | 2 | 1 |
+| 3 Palette | 1 | 2 | 1 | 2 | 1 |
+| 4 Light | 1 | 2 | 1 | 1 | 1 |
+| 5 Depth | 1 | 2 | 1 | 1 | 0 |
+| 6 Material | 1 | 1 | 2 | 2 | 1 |
+| 7 Detail @100 % | 0 | 1 | 1 | 0 | 1 |
+| 8 Originality | 1 | 1 | 1 | 0 | 1 |
+| 9 Hero legibility (kids) | 1 | 1 | 1 | 2 | 2 |
+| 10 Emergent | 2 | 1 | 1 | 2 | 2 |
+| 11 Motion (prov.) | 1 | 1 | 1 | 1 | 1 |
+| 12 Polish | 0 | 1 | 0 | 0 | 0 |
+| **Total** | 12 | **16** | 13 | 15 | **13** |
+
+Nobody has #8 = 2 yet. Only C and D have #9 = 2.
+
+## Recommendation (mine, rev. 3 — the independent reviewer decides)
+Still **A**, now with the A2 art direction as the visual target, *on one condition the reviewer should check*: Phase C
+must prove that the canyon the player sees comes from the player's own gesture. That means the drag lays down the river
+course, deep time deepens it, and the stair-step strata renderer makes it look like a postcard. If that can't be shown in
+the first hour of Phase C, A2 is "a pretty canyon render" (Originality 1, Emergent 1) and A's case collapses.
+**D** is the best *child moment* found so far (the gesture comes back as cracks) and has a real, little-known physics
+idea. But its base effect is commodity, its look is 2D and monochrome, and its world is small. Pick D if the reviewer
+values a crisp, surprising causal loop over world-scale beauty. In that case, Phase C should start with a low 3D view
+and real clay material.
+
+## Open question for the reviewer
+Is it acceptable that A's canyon is *seeded by the player's drag and then deepened by the sim* (honest, but the shape is
+partly authored), or does Deep Time need a fully emergent canyon (which my sim can't yet produce at the depth that makes
+the postcard)?
 
 ---
+
+# Rev. 2 (07:35 TPE, kept for history)
+
 
 ## A · 雨刻 Deep Time — erosion diorama
 Shots: `shots/proto-deep-time-v2-t0.png` (before), `shots/proto-deep-time-v2-t5000.png` (after), `shots/proto-deep-time-v2-crop.png`; v1 history `proto-deep-time-t0/-t4000*.png`.
