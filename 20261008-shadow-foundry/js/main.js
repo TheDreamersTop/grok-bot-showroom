@@ -227,7 +227,26 @@ function applyState() {
   }
   hazeMat.uniforms.freeze.value = S.freeze; moteMat.uniforms.freeze.value = S.freeze; moteMat.uniforms.time.value = S.time; hazeMat.uniforms.time.value = S.time; compMat.uniforms.time.value = S.time; compMat.uniforms.fade.value = S.fade;
   if (!SHOT) { cam.x += (mouse.x - cam.x) * 0.04; cam.y += (mouse.y - cam.y) * 0.04; }
-  placeCamera(cam.x, cam.y, S.push);
+  placeCamera(cam.x, cam.y, S.push); applyLampView();
+}
+// ---------------- 'Be the lamp': fly the camera into a lamp and look down its beam; the brass silhouette is the figure
+const FOV0 = camera.fov, LV_FOV = 40, LV_DUR = 1.2;
+const LV = { i: Q.get('lv') !== null ? +Q.get('lv') : -1, on: Q.get('lv') !== null, k: Q.get('lvk') !== null ? +Q.get('lvk') : (Q.get('lv') !== null ? 1 : 0), from: -1 };
+const LV_UP = [new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(-1, 0, -1).normalize()]; // floor lamp: "up" = away from the main camera, so its letter reads upright
+const _lvM = new THREE.Matrix4(), _lvQ = new THREE.Quaternion(), _lvQ0 = new THREE.Quaternion(), _lvP = new THREE.Vector3(), HAZE0 = +(Q.get('hz') || 0.045);
+function lvEase(x) { x = clamp(x, 0, 1); return x * x * x * (x * (x * 6 - 15) + 10); }
+function enterLamp(i) { if (st.mode === 'draw') return; LV.i = i; LV.on = true; st.drag = false; st.vy = st.vt = 0; hint(''); $('lvcap').classList.add('on'); sound.start(); sound.whoosh(); }
+function exitLamp() { if (!LV.on) return; LV.on = false; $('lvcap').classList.remove('on'); }
+window.__lampView = (i) => (i === undefined || i < 0 ? exitLamp() : enterLamp(i), { i: LV.i, on: LV.on, k: +LV.k.toFixed(2) });
+function applyLampView() {
+  if (LV.i < 0) return; const e = lvEase(LV.k);
+  fixtures.forEach((f, j) => { f.g.visible = !(j === LV.i && e > 0.6); });
+  hazeMat.uniforms.density.value = HAZE0 * (1 - 0.65 * e); // looking straight down a beam would fog the view
+  for (let j = 0; j < 3; j++) moteMat.uniforms.li.value[j] *= 1 - 0.7 * e; // and turn the nearby dust into snow
+  if (e <= 0) { if (camera.fov !== FOV0) { camera.fov = FOV0; camera.updateProjectionMatrix(); } if (!LV.on) LV.i = -1; return; }
+  _lvP.copy(lamps[LV.i].position); _lvM.lookAt(_lvP, CEN, LV_UP[LV.i]); _lvQ.setFromRotationMatrix(_lvM);
+  _lvQ0.copy(camera.quaternion); camera.position.lerp(_lvP, e); camera.quaternion.copy(_lvQ0).slerp(_lvQ, e);
+  camera.fov = FOV0 + (LV_FOV - FOV0) * e; camera.updateProjectionMatrix(); camera.updateMatrixWorld();
 }
 function render() {
   applyState(); ROD_FX.keyDirV.value.copy(KEY_W).transformDirection(camera.matrixWorldInverse);
@@ -397,7 +416,8 @@ ui.innerHTML = `
 <div id="actions"><div id="word"><div id="wslots"><canvas></canvas><canvas></canvas><canvas></canvas></div><div id="wprompt">Type any 3 letters to forge them in brass</div></div><button id="bCopy" class="hidden">Copy share link ⧉</button><input id="copyField" class="hidden" readonly aria-label="Share link"><button id="bDraw">Draw your own three shadows <span class="zh">畫你的影子</span></button><button id="bNext">Next sculpture →</button></div>
 <div id="drawbar" class="hidden"><div class="dt">Draw a silhouette on each lit wall. Closed outlines fill in by themselves.</div>
 <div class="db"><button id="bClear">Clear</button><button id="bCancel">Back</button><button id="bForge" disabled>Forge the sculpture →</button></div></div>
-<div id="forging" class="hidden">forging…</div>`;
+<div id="forging" class="hidden">forging…</div><div id="lvcap">You are the lamp — Esc to step back</div>`;
+if (LV.on) document.getElementById('lvcap').classList.add('on');
 const $ = (id) => document.getElementById(id);
 const placard = { full: '', hidden: '', shown: null };
 function setPlacard(no, titles, nRods, fid, word, reordered, tilted) { // the figure names stay hidden until the shadows lock (no spoilers)
@@ -493,6 +513,7 @@ function update(dt) {
     if (it > FREE_T) { st.mode = 'free'; st.freeStart = t; hint('Drag to turn the sculpture until its shadows become pictures'); }
   } else if (st.mode === 'free' || st.mode === 'forged') {
     if (!st.drag) { st.yaw += st.vy; st.tilt += st.vt; st.vy *= 0.92; st.vt *= 0.92; }
+    if (LV.on) { const ty = Math.round(st.yaw / (2 * Math.PI)) * 2 * Math.PI; st.yaw += (ty - st.yaw) * (1 - Math.exp(-dt / 0.35)); st.tilt += (0 - st.tilt) * (1 - Math.exp(-dt / 0.35)); st.vy = st.vt = 0; }
     st.tilt = clamp(st.tilt, -0.7, 0.7);
     ang = poseAngle(st.yaw, st.tilt);
     const since = t - (st.lastLock || st.freeStart);
@@ -529,6 +550,8 @@ function update(dt) {
   if (st.mode === 'intro') heroAmt = sm(LOCK_T + 0.1, LOCK_T + 1.05, st.introT) * (1 - sm(UNLOCK_T - 0.2, UNLOCK_T + 0.9, st.introT));
   else { const tgt = (st.locked && !st.drag && LD.drag < 0 && !LD.homing.some(Boolean) && t - st.lockAt > 0.35) ? 1 : 0; heroAmt += (tgt - heroAmt) * (1 - Math.exp(-dt / (tgt ? 0.55 : 0.3))); if (SHOT && Q.get('pose') === 'solved') heroAmt = 1; }
   updateLamps(dt);
+  if (st.mode === 'draw' && LV.on) exitLamp();
+  if (!(SHOT && Q.get('lvk') !== null)) LV.k = clamp(LV.k + (LV.on ? 1 : -1) * dt / LV_DUR, 0, 1);
   showPlacard(st.mode === 'intro' ? st.introT >= LOCK_T + 0.6 && !st.waitWork : (st.mode === 'free' || st.mode === 'forged' || st.mode === 'draw'));
   S.push = push; S.freeze = freeze; S.time = t;
   const drawAmt = st.mode === 'draw' ? 1 : 0; for (const m of wallMats) m.uniforms.drawAmt.value += (drawAmt - m.uniforms.drawAmt.value) * (SHOT ? 1 : 0.15);
@@ -563,13 +586,15 @@ function skipIntro() { // jump to the last moment of the forge: rods snap home, 
   if (st.waitWork) { st.skipWanted = true; hint('forging your sculpture…'); return; } /* the word isn't forged yet: skip as soon as it is */
   st.introT = LOCK_T - 0.15; hint('');
 }
-addEventListener('keydown', (e) => { if (e.key === 'Escape') { sound.start(); skipIntro(); } });
+addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (LV.on) { exitLamp(); e.lvHandled = true; return; } sound.start(); skipIntro(); }
+  if (/^[123]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey && st.mode !== 'draw' && (lampEnabled() || LV.on)) { const i = [1, 0, 2][+e.key - 1]; if (LV.on && LV.i === i) exitLamp(); else enterLamp(i); } });
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 let lastX = 0, lastY = 0, drawing = null, downX = 0, downY = 0, downT = 0;
 function hitsSculpture(e) { ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera); rodMeshes.forEach(m => { m.boundingSphere = null; }); return ray.intersectObjects(rodMeshes, false).length > 0; }
 canvas.addEventListener('pointerdown', (e) => {
   sound.start(); lastX = e.clientX; lastY = e.clientY; downX = e.clientX; downY = e.clientY; downT = performance.now(); st.lastMove = st.t;
   if (st.mode === 'draw') { const hit = wallHit(e); if (hit) { drawing = hit; strokeTo(hit, true); } return; }
+  if (LV.on || LV.k > 0) { exitLamp(); st.lvClick = performance.now(); return; } /* lamp view: a click steps back, no dragging */
   const li = lampEnabled() ? lampUnderMouse(e) : -1;
   if (st.mode === 'intro' && st.introT < LOCK_T - 0.15) { skipIntro(); return; }
   if (st.mode === 'intro') { // skip ahead: keep lamps on, go free from current pose
@@ -583,9 +608,10 @@ addEventListener('pointermove', (e) => {
   mouse.x = e.clientX / innerWidth * 2 - 1; mouse.y = e.clientY / innerHeight * 2 - 1;
   if (st.mode === 'draw') { if (drawing) { const hit = wallHit(e, drawing.w); if (hit) strokeTo(hit, false); } return; }
   if (LD.drag >= 0) { moveLampDrag(e); return; }
-  if (!st.drag) { setLampHover(lampEnabled() ? lampUnderMouse(e) : -1); return; } const dx = e.clientX - lastX, dy = e.clientY - lastY; lastX = e.clientX; lastY = e.clientY; st.lastMove = st.t;
+  if (!st.drag) { setLampHover(lampEnabled() && LV.k === 0 ? lampUnderMouse(e) : -1); return; } const dx = e.clientX - lastX, dy = e.clientY - lastY; lastX = e.clientX; lastY = e.clientY; st.lastMove = st.t;
   st.vy = dx * 0.0065; st.vt = dy * 0.0045; st.yaw += st.vy; st.tilt = clamp(st.tilt + st.vt, -0.7, 0.7);
 });
+canvas.addEventListener('dblclick', (e) => { if (performance.now() - (st.lvClick || 0) < 450 || LV.on || st.mode === 'draw' || !lampEnabled()) return; const li = lampUnderMouse(e); if (li >= 0) { if (LD.drag >= 0) endLampDrag(); enterLamp(li); } });
 addEventListener('pointerup', (e) => { if (LD.drag >= 0) { endLampDrag(); return; } if (st.drag && (st.mode === 'free' || st.mode === 'forged') && Math.hypot(e.clientX - downX, e.clientY - downY) < 5 && performance.now() - downT < 350 && hitsSculpture(e)) { st.drag = false; shatterTo((presetIdx + 1) % PRESET_LIST.length); return; }
   st.drag = false; canvas.style.cursor = st.mode === 'draw' ? 'crosshair' : 'grab'; if (drawing) { finishStroke(drawing.w); drawing = null; } });
 
@@ -617,7 +643,7 @@ function constrainLamp(i, v) { // each pool already nearly touches its room corn
 function startLampDrag(i, e) { LD.drag = i; LD.homing[i] = false; trackPoint(i, e, LD.grab); LD.start.copy(LD.off[i]); LD.tgt[i].copy(LD.off[i]); st.drag = false; canvas.style.cursor = 'grabbing'; hint(''); st.lastMove = st.t; }
 function moveLampDrag(e) { const i = LD.drag; const p = trackPoint(i, e, new THREE.Vector3()); LD.tgt[i].copy(LD.start).add(p.sub(LD.grab)); constrainLamp(i, LD.tgt[i]); st.lastMove = st.t; }
 function endLampDrag() { const i = LD.drag; LD.drag = -1; LD.homing[i] = true; LD.vel[i].set(0, 0, 0); LD.tgt[i].set(0, 0, 0); canvas.style.cursor = 'grab'; }
-function setLampHover(i) { if (LD.hover === i) return; LD.hover = i; if (st.mode !== 'draw' && LD.drag < 0) canvas.style.cursor = 'grab'; if (i >= 0 && !st.lampHinted) { st.lampHinted = 1; hint('Drag a lamp along its track'); setTimeout(() => hint(''), 2600); } }
+function setLampHover(i) { if (LD.hover === i) return; LD.hover = i; if (st.mode !== 'draw' && LD.drag < 0) canvas.style.cursor = 'grab'; if (i >= 0 && !st.lampHinted) { st.lampHinted = 1; hint('Drag a lamp along its track · double-click to be the lamp'); setTimeout(() => hint(''), 3200); } }
 window.__lamps = () => ({ screen: fixtures.map(f => { const v = f.g.position.clone().project(camera); return [Math.round((v.x + 1) / 2 * innerWidth), Math.round((1 - v.y) / 2 * innerHeight)]; }), off: LD.off.map(o => o.toArray().map(x => +x.toFixed(3))), hover: LD.hover, hl: LD.hl.map(x => +x.toFixed(2)), drag: LD.drag, homing: LD.homing.slice(), cursor: canvas.style.cursor, mode: st.mode, hero: +heroAmt.toFixed(2) });
 if (Q.get('lamp')) { const [i, x, y, z] = Q.get('lamp').split(',').map(Number); LD.off[i].set(x, y || 0, z || 0); } // shot mode: a displaced lamp
 if (Q.get('hover')) { const i = +Q.get('hover'); LD.hover = i; LD.hl[i] = 1; }
@@ -753,7 +779,7 @@ addEventListener('keydown', (e) => {
   if (/^[a-zA-Z]$/.test(e.key)) { if (wordState.s.length >= 3) wordState.s = ''; wordState.s += e.key.toUpperCase(); drawSlots(); clearTimeout(wordState.timer); if (wordState.s.length === 3) wordState.timer = setTimeout(submitWord, 1100); sound.start(); }
   else if (e.key === 'Backspace') { wordState.s = wordState.s.slice(0, -1); clearTimeout(wordState.timer); drawSlots(); }
   else if (e.key === 'Enter') { if (wordState.s) e.preventDefault(); /* a focused button must not also fire */ submitWord(); }
-  else if (e.key === 'Escape' && wordState.s) { wordState.s = ''; clearTimeout(wordState.timer); drawSlots(); }
+  else if (e.key === 'Escape' && wordState.s && !e.lvHandled) { wordState.s = ''; clearTimeout(wordState.timer); drawSlots(); }
 });
 $('bCopy').onclick = async (e) => { e.stopPropagation(); if (!work || !work.word) return; const url = location.origin + location.pathname + '#w=' + work.word;
   const done = (msg) => { $('bCopy').textContent = msg; clearTimeout(copyT); copyT = setTimeout(() => { $('bCopy').textContent = 'Copy share link ⧉'; }, 2200); };
@@ -836,7 +862,7 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 boot();
-window.__S = S; window.__st = st; window.__render = render; window.__sound = sound;
+window.__S = S; window.__st = st; window.__render = render; window.__sound = sound; window.__lv = LV;
 
 // ---------------- test hooks
 window.__t3points = () => {

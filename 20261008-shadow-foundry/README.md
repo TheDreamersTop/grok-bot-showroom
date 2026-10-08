@@ -1,52 +1,83 @@
 # 影鑄 Shadow Foundry
 
+**▶ Live:** https://thedreamerstop.github.io/grok-bot-showroom/20261008-shadow-foundry/
+
+![Shadow Foundry: three shadows lock into a cat, a tree and a swallow](shots/p3n-live-t7-final.png)
+
+---
+
+## 中文
+
+**一團黃銅桿，正面看什麼都不是；從側面看，是三幅畫。**
+
+約 1,500 根做舊黃銅桿以一條細線懸在天花板下，三盞軌道燈各自把它的影子投在一面牆上：東牆、北牆與拋光地板。多數角度下，影子只是一團亂線。把雕塑轉到唯一正確的角度，三個影子會同時鎖定成畫面：一隻貓、一棵樹、一隻燕子。
+
+### 怎麼玩
+- **觀看開場**《鍛造》（約 5 秒；點擊或按 Esc 跳過）：三盞燈喀一聲亮起，上千根黃銅桿從黑暗中飛入、在空中翻騰成一團風暴，然後一起內爆，三個影子在最後一刻同時成形。
+- **拖曳** 轉動雕塑：左右拖轉向、上下拖傾斜。接近正解時，影子邊緣會變銳利、聲音會調準，並有輕微的磁吸。
+- **輸入三個字母**（A–Z）：當場鑄造一座文字雕塑。左牆、右牆、地板依輸入順序各投出一個字母。只有在能明顯改善投影時，才會調換牆面順序，展示牌會寫明實際投影順序，例如「CAT · cast as C·T·A」。
+- **成為那盞燈**：雙擊燈頭，或按 **1 / 2 / 3**（左燈／右燈／地板燈），鏡頭飛進燈裡、順著光束往下看。從燈的位置看，黃銅雕塑本身的輪廓就是那個圖形，你會在黃銅裡看見那隻貓。按 Esc 或點一下即可返回。
+- **畫出自己的三個影子**：每面亮牆畫一個輪廓（封閉線條會自動填滿），按「Forge」，背景 Web Worker 就會算出一座能投出這三個影子的新雕塑。
+- **點擊雕塑** 或「Next sculpture」：雕塑碎成風暴，再內爆成下一件作品：No. 2（手・鑰匙・蝴蝶）、No. 3（G・E・B，向《哥德爾、艾舍爾、巴赫》封面致敬）。
+- **拖曳燈具** 沿天花板軌道移動：光圈滑動，影子即時重新投影並拉伸變形；放手後燈會彈回原位，喀一聲。
+- **分享**：「Copy share link」複製如 `…/20261008-shadow-foundry/#w=GEB` 的網址；打開即直接鑄造該字。若瀏覽器拒絕剪貼簿，網址會在小欄位中選取好，按 Ctrl+C 即可。
+- 聲音全為程式合成，第一次點擊後才啟動；右上角喇叭可靜音，設定會被記住。
+
+### 技術
+影子藝術／視覺外殼（Mitra & Pauly, *Shadow Art*, 2009）、桿件沿遮罩距離場追蹤、實際桿件投影覆蓋率量測（內建作品 ≥ 98 %）；three.js r160 自訂石膏著色器（Poisson PCF 軟影、鏡頭光斑）、體積霧（由陰影貼圖切出光束）、HDR + ACES 合成；Web Worker 鑄造；WebAudio 程式音效與限幅器；依幀時間自動調整畫質。純靜態檔案，無建置步驟。
+
+### 已知限制
+只在軟體繪圖（SwiftShader）下測試過，尚未在真實 GPU 上量測幀率；從主鏡頭看，雕塑本身也隱約看得出圖形；部分字母組合（如 LOV）較難投得乾淨，也可能被調換牆面順序。
+
+---
+
+## English
+
 *A brass sculpture that is nothing from the front, and three different pictures from the side.*
 
-**Live:** https://thedreamerstop.github.io/grok-bot-showroom/20261008-shadow-foundry/
+About 1,500 aged-brass rods hang from the ceiling on a single wire. Three track lamps each cast its shadow on a different surface: the east wall, the north wall and the dark polished floor. From most angles the shadows are formless tangles. Turn the sculpture to its one true angle and all three lock into pictures at once: a cat, a tree and a swallow.
 
-Three track lamps light one tangle of about 1,500 aged-brass rods, hung from the ceiling on a single wire. Each lamp casts its shadow on a different surface: the east wall, the north wall and the dark polished floor. From most angles the shadows are formless blobs. Turn the sculpture to its one true angle and all three shadows lock into pictures at once: a cat, a tree and a swallow. Then you can draw three shadows of your own, and the foundry forges a new sculpture that casts them.
+### How to interact
+- **Watch** the opening, *The Forge* (~5 s; click or Esc to skip). Three lamps clunk on; rods fly in out of the dark, swirl as a storm, and implode together. In the last quarter-second all three shadows become pictures at once.
+- **Drag** to turn the sculpture (horizontal = turn, vertical = tilt). Near the solution the shadows sharpen, the sound tunes in, and a soft magnetic detent catches you.
+- **Type three letters** (A–Z) to forge a word sculpture. It reads in typed order: left wall, right wall, then the floor letter, upright from the camera. A worker also fits the floor letter at its natural 45° and the best wall reorder, and switches only for a worst-wall gain of > 6 / > 3 points. The placard then says so (e.g. *CAT · cast as C·T·A*) and prints the measured coverage.
+- **Be the lamp:** double-click a lamp head or press **1 / 2 / 3** (left / right / floor lamp). The camera flies into the lamp and looks down its beam. From there the brass sculpture's own silhouette *is* the figure: you see the cat in the brass itself. Esc or a click flies back. Typing still works in lamp view; dragging is off.
+- **Draw your own three shadows:** one silhouette per lit surface (closed outlines fill in), then *Forge*. A Web Worker computes a new rod sculpture that casts them.
+- **Click the sculpture** (or *Next sculpture*) to shatter it into a storm that implodes into the next work: No. 2 (hand · key · butterfly), No. 3 (G · E · B, after Hofstadter's *Gödel, Escher, Bach* cover).
+- **Drag a lamp** along its ceiling track: its pool slides and the shadow reprojects live. Let go and it springs home with a clunk.
+- Nothing is a dead end: *Next* or *Draw* pressed mid-forge waits its turn, letters typed during the opening or a shatter are kept, a pasted link waits until you leave drawing mode, and Esc during a shared word's forge skips as soon as it's ready.
+- Sound is procedural WebAudio. It starts on your first click or key press (no autoplay warnings), runs through a master limiter, and pauses while the tab is hidden. The speaker glyph mutes, and the choice is remembered.
 
-## How to use it
-- **Watch** the opening, *The Forge* (~5 s; click or Esc to skip). Three lamps clunk on onto empty walls. About 1,500 brass rods fly in out of the dark and swirl as a storm cloud, so every pool fills with moving hatching. At ~4.2 s they all implode together, and in the last quarter-second all three shadows become pictures at once.
-- **Drag** to turn the sculpture: horizontal drag turns it, vertical drag tilts it. Out of alignment, the sculpture loosens into a cloud of rods; turning it back pulls them together. The shadows stay dark; they sharpen (and the sound tunes in) as you get closer, and a soft magnetic detent catches you near the solution.
-- **Draw your own three shadows**: sketch one silhouette per lit surface (closed outlines fill in automatically), then press *Forge*. A new rod sculpture is computed in a background Web Worker (the page never freezes); the long rods fly in first, then the edge rods.
-- **Type three letters** (A–Z; the prompt sits above the links) to forge a word sculpture. It reads in typed order: left wall, right wall, then the floor letter, upright as seen from the camera. Press Enter, or simply wait a moment after the third letter. The current sculpture shatters into a storm while a Web Worker computes the new one, then the rods implode into your word. The worker also fully fits the floor letter at its natural 45° and the best wall reorder. It switches only when the worst wall gains more than 6 points (45° floor) or more than 3 points (reorder), and the placard then says so. The placard prints your word and the measured rod coverage of the worst wall. Backspace edits; Esc clears.
-- **Share a word**: *Copy share link* copies a URL such as `…/20261008-shadow-foundry/#w=GEB`. Opening it plays *The Forge* straight into that word; pasting a new `#w=` link into an open tab forges it too. Built-in and drawn works clear the hash. Only the clipboard is used; nothing is sent anywhere. If the browser denies clipboard access, the link appears selected in a small field: press Ctrl+C (⌘C). A link pasted while you are drawing (or mid-forge) waits and forges as soon as you leave. When a word is cast in a different order, the placard says so (e.g. *CAT · cast as C·T·A*).
-- Nothing is a dead end: *Next sculpture* or *Draw* pressed mid-shatter waits for the current forge, letters typed during the opening or a shatter are kept, and Esc while a shared word is still forging skips as soon as it is ready.
-- **Click the sculpture** (or *Next sculpture*) to shatter it: the rods burst into a storm and implode into the next curated work: No. 2 (hand · key · butterfly), then No. 3 (G · E · B, after Hofstadter's *Gödel, Escher, Bach* cover).
-- **Drag a lamp**: hover a lamp head (it glows faintly) and drag it along its ceiling track. It stays aimed at the sculpture, so its pool slides across the wall and the shadow reprojects live: the cat shears, the tree stretches, the swallow smears. Let go and it springs back home with a clunk. Only the light and its shadow camera move; nothing is re-forged.
-- After the opening (and whenever the shadows lock), the camera pushes in until the pools fill about 60 % of the frame, then eases back out as soon as you drag. Built-in sculptures are precomputed (`data/preset-*.json`) and load instantly.
-- Sound is procedural (WebAudio). The AudioContext is created only inside your first click or key press, so the browser logs no autoplay warnings. The lamp clunks, the storm, the collapse hit and the chord are balanced (measured offline) and run through a master limiter. The speaker glyph mutes, and the choice is remembered. Audio pauses while the tab is hidden.
-- `?debug=1` shows a frame-time overlay: real fps from the uncapped frame time, rolling ms, p95 and quality level.
+### Share links
+`https://thedreamerstop.github.io/grok-bot-showroom/20261008-shadow-foundry/#w=ABC`, where `ABC` is any three letters A–Z. Opening it plays *The Forge* straight into that word; pasting a new `#w=` into an open tab forges it too. Built-in and drawn works clear the hash. *Copy share link* uses the clipboard only; if that's denied, the URL is shown selected for Ctrl+C (⌘C). `?debug=1` shows a frame-time overlay.
 
-Desktop browsers (1440×900 to 1920×1080), WebGL2.
-
-## How it works
-- **Shadow art / visual hull** (after Mitra & Pauly, *Shadow Art*, SIGGRAPH Asia 2009). Each target is a 2D mask. A point is inside the sculpture iff its perspective projection from every lamp lands inside that lamp's mask.
-- **Making three drawings consistent.** Per-figure similarity transforms are hill-climbed to maximize hull fidelity, followed by a repair driven by an exact per-pixel ray test: each unreachable shadow pixel gets the cheapest small disc added to the other two masks (≤3.2 px).
-- **Forging.** Long rods (min. length 0.78) are sphere-traced inside the hull against signed-distance fields of the masks, in three gauges. Interior-repair rods fill holes perpendicular to the lamp ray, and thin edge rods are laid tangent to each silhouette to trace its outline. Coverage is measured by rasterising the actual rod capsules from each lamp: every built-in figure is ≥98 % covered (No. 1 cat/tree/swallow 98.7/99.5/98.4 %, No. 2 hand/key/butterfly 98.7/98.2/98.0 %, No. 3 G/E/B in reading order with an upright floor B: 95.6/95.8/96.6 %). Typed words are forged live. After forging, a spur trim clips or drops every rod whose shadow leaves the targets (rods outside a 2.5 px band on any wall are clipped to their longest inside run, or removed), so low-scoring words lose their stray hairs. In a 22-word table the worst wall is ≥90 % for 19 words and ≥95 % for 7. 12/22 keep typed order and 10/22 keep the floor upright (e.g. ABC 91.5, TPE 92.5, DOG 94.0, CAT 89.3 as C-T-A, LOV 75.7 the weakest). Median forge time is 4 s. The placard always prints the measured number.
+### How it works
+- **Shadow art / visual hull** (after Mitra & Pauly, *Shadow Art*, SIGGRAPH Asia 2009). A point is inside the sculpture iff its perspective projection from every lamp lands inside that lamp's mask. Per-figure similarity transforms are hill-climbed for hull fidelity, then a per-pixel ray test repairs unreachable pixels with the cheapest small discs.
+- **Forging.** Long rods are sphere-traced inside the hull against signed-distance fields of the masks, in three gauges. Interior-repair rods fill holes, edge rods trace each outline, and a spur trim clips rods whose shadows leave the targets. Coverage is measured by rasterising the real rod capsules from each lamp. Built-ins are ≥ 98 % (No. 1 cat/tree/swallow 98.7/99.5/98.4 %, No. 2 98.7/98.2/98.0 %, No. 3 GEB 95.6/95.8/96.6 % in reading order with an upright floor B). In a 22-word table, typed words reach ≥ 90 % on the worst wall for 19 words and ≥ 95 % for 7, with a median forge of ~4 s.
 - **Rendering** (three.js r160):
-  - Each surface is lit only by its own lamp.
-  - The custom plaster shader samples that lamp's shadow map with a rotated Poisson PCF. Its penumbra radius carries the "you are getting closer" signal. A procedural lens cookie (hotspot, faint ring, chromatic fringe) shapes each pool. The lamps are 2700 K, 5600 K and 4000 K.
-  - A fake one-bounce from the three pools lights the room, and the polished floor shows a blurred planar reflection with Fresnel.
-  - The three pools differ on purpose: a soft-edged ellipse (cat), a smaller hard-edged circle (tree) and a larger floor pool. They are aimed off-centre so they no longer overlap dead centre. Outside the pools the plaster is lifted to ~0.017 linear, weighted out of the light so shadow contrast stays.
-  - The brass gets its own key light and a Fresnel rim in the rod shader (emissive, sculpture only), so up close it reads as polished rods.
-  - A quality governor watches the rolling frame time. After 2 s over 28 ms it steps down: first haze samples (64 → 40), then pixel ratio (→ 0.8), and no further. It never touches shadow-map resolution, and after 5 s under 14 ms it steps back up (`?noqgov` disables it).
-  - During the storm, the haze gets cleaner and slightly denser so the flying rods slice visible streaks through the beams. This adds no extra samples, and it is off once the quality governor steps down.
-  - Also: volumetric haze from the shadow maps (so the beams are sliced by the rods), dust motes lit only inside the cones, an HDR composite with ACES and grain, and instanced rods with per-rod AO and a patina/polished/blackened-steel mix.
+  - **Lighting:** each surface is lit only by its own lamp. A custom plaster shader samples that lamp's shadow map with rotated Poisson PCF, and its penumbra carries the "getting closer" cue. Procedural lens cookies shape three deliberately different pools: a soft ellipse, a small hard circle and a large floor pool. A one-bounce fake fills the room, and the polished floor has a blurred planar reflection.
+  - **Atmosphere:** volumetric haze is marched through the shadow maps, so the rods slice the beams, more visibly during the storm. Dust motes, an HDR composite with ACES and grain.
+  - **Brass:** instanced rods with per-rod AO, a brass key light and a Fresnel rim.
+  - **Quality governor:** above 28 ms per frame it lowers haze samples, then pixel ratio (floor at 0.8, shadow maps untouched), and recovers when frames are fast again.
 - Everything is static files; no build step, no server.
+
+### Known limitations
+- Tested only with software rendering (headless Chrome + SwiftShader, ~0.3–8 fps). Real-GPU frame rates haven't been measured; the governor is there for slow machines.
+- From the main camera the sculpture itself faintly reads as the figure (the visual hull has the figure's outline). *Be the lamp* turns this into the point, but the "nothing from the front" claim is only half true.
+- Some letter triples cast poorly: LOV's worst wall is 75.7 %. Some words are cast in a different wall order or with a 45° floor letter; the placard says so.
+- Desktop only (1440×900–1920×1080, WebGL2). No mobile work.
 
 ## Folder
 | Path | Contents |
 |---|---|
 | `index.html`, `js/`, `style.css`, `fonts/`, `data/`, `vendor/` | the experience |
 | `prototypes/` | the three Phase-B prototypes (Shadow Foundry, Lumen Atelier, Chladni) |
-| `shots/` | screenshots |
+| `shots/` | screenshots and before/after evidence |
 
 ## Versions
-- **V1** (2026-10-08): the opening lock sequence, constrained turntable with sharpening cues, draw-your-own, procedural sound and museum labels.
-- **Pass 2 / experience** (2026-10-08): *The Forge* implosion opening with skip; shatter → storm → re-forge; misalignment loosens the sculpture (no figure-revealing scramble); the wire casts no shadow; type-three-letters word sculptures with `#w=` share links; No. 3 GEB; a stronger hero push-in; draggable lamps; a compact layout below 1440×900.
-- **Pass 3** (2026-10-08): placard titles hidden until the lock; words in typed order with an upright floor letter (switches only for a > 6 / > 3 point gain); spur trim; brass key + rim light; broken-Venn pools; plaster lift; frame-time governor + `?debug=1`; gesture-only audio.
-- **Pass 1 / visual escalation** (2026-10-08): ≥98 % rod coverage via edge rods and hole fill; precomputed sculptures; a front-facing cat; a butterfly replaces the fish; a real room (ceiling track, ceiling wire, polished floor, bounce-lit plaster); exposure lowered so the pools show lamp colour; dust; the forge moved to a Web Worker with progressive fly-in.
+- **Pass 3 / polish** (2026-10-08): placard titles hidden until the lock; typed order with an upright floor letter; spur trim; brass key + rim light; three distinct pools; plaster lift; frame-time governor + `?debug=1`; gesture-only audio with a limiter and remembered mute; dead-end fixes; storm streaks; *Be the lamp*.
+- **Pass 2 / experience** (2026-10-08): *The Forge* implosion opening; shatter → storm → re-forge; type-three-letters word sculptures with `#w=` links; No. 3 GEB; hero push-in; draggable lamps.
+- **Pass 1 / visual escalation** (2026-10-08): ≥ 98 % rod coverage; precomputed sculptures; a real room (ceiling track, wire, polished floor, bounce-lit plaster); dust; forging in a Web Worker.
+- **V1** (2026-10-08): the lock sequence, constrained turntable with sharpening cues, draw-your-own, procedural sound, museum labels.
 
-Fonts: Cormorant Garamond (OFL), Noto Serif TC (OFL), self-hosted subsets. three.js (MIT), vendored.
+Fonts: Cormorant Garamond (OFL), Noto Serif TC (OFL), self-hosted subsets. three.js (MIT), vendored. Built with Grok Bot.
