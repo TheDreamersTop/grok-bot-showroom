@@ -38,7 +38,7 @@ const stepMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, vertexShade
     float ice=s.r, vap=s.g, fog=s.b, ori=s.a;
     // vapour diffuses (5-point), fed by the fog film, consumed by ice
     float lap = texture(S,vUv+vec2(px.x,0)).g + texture(S,vUv-vec2(px.x,0)).g + texture(S,vUv+vec2(0,px.y)).g + texture(S,vUv-vec2(0,px.y)).g - 4.*vap;
-    vap += 0.22*lap + 0.0006*(fog*0.7 - vap);
+    vap += 0.22*lap + 0.0004*(fog*0.7 - vap);
     if (ice < 0.5) {
       // anisotropic stochastic attachment: a neighbour crystal grows along its six preferred axes
       float best = 0.; float bestOri = -1.;
@@ -61,6 +61,13 @@ const stepMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, vertexShade
       fog *= 1.-w; vap *= 1.-w; if (w > 0.5) { ice = 0.; ori = -1.; } }
     fog = min(1., fog + 0.00005);                                  // the glass slowly fogs again
     o = vec4(ice, max(vap,0.), fog, ori); }` });
+const DISP = new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false });
+const dispMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, vertexShader: VS, uniforms: { S: { value: null }, res: { value: new THREE.Vector2(W, H) } },
+  fragmentShader: `precision highp float; in vec2 vUv; out vec4 o; uniform sampler2D S; uniform vec2 res;
+  void main(){ vec2 px=1./res; float ice=0., w=0.; float oriS=0., oriC=0.;
+    for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++){ vec4 n=texture(S,vUv+vec2(i,j)*px); float k=(i==0&&j==0)?4.:((i==0||j==0)?2.:1.);
+      ice+=min(n.r,1.)*k; w+=k; if(n.a>=0.){ float a=n.a*6.2831853; oriS+=sin(a)*k; oriC+=cos(a)*k; } }
+    vec4 c=texture(S,vUv); o=vec4(ice/w, c.b, atan(oriS,oriC), min(c.r,2.)); }` });
 function run(m, t) { quad.material = m; renderer.setRenderTarget(t); renderer.render(sc, cam); renderer.setRenderTarget(null); }
 let frame = 0;
 function init(seed) { initMat.uniforms.seed.value = seed; run(initMat, A); frame = 0; }
@@ -110,29 +117,35 @@ const midA = mkB(480, 270), midB = mkB(480, 270), softA = mkB(160, 90), softB = 
 function blur(src, tmp, dst, r) { blurMat.uniforms.S.value = src.texture; blurMat.uniforms.dir.value.set(r / 1.778, 0); quad.material = blurMat; renderer.setRenderTarget(tmp); renderer.render(sc, cam);
   blurMat.uniforms.S.value = tmp.texture; blurMat.uniforms.dir.value.set(0, r); renderer.setRenderTarget(dst); renderer.render(sc, cam); renderer.setRenderTarget(null); }
 const comp = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, vertexShader: VS,
-  uniforms: { S: { value: null }, BG: { value: midA.texture }, SOFT: { value: softA.texture }, BGS: { value: bgRT.texture }, res: { value: new THREE.Vector2(W, H) }, scr: { value: new THREE.Vector2(innerWidth, innerHeight) }, time: { value: 0 } },
-  fragmentShader: `precision highp float; in vec2 vUv; out vec4 o; uniform sampler2D S, BG, SOFT, BGS; uniform vec2 res, scr; uniform float time;` + NOISE + `
+  uniforms: { S: { value: null }, D: { value: null }, BG: { value: midA.texture }, SOFT: { value: softA.texture }, BGS: { value: bgRT.texture }, res: { value: new THREE.Vector2(W, H) }, scr: { value: new THREE.Vector2(innerWidth, innerHeight) }, time: { value: 0 } },
+  fragmentShader: `precision highp float; in vec2 vUv; out vec4 o; uniform sampler2D S, D, BG, SOFT, BGS; uniform vec2 res, scr; uniform float time;` + NOISE + `
   vec3 bgBlur(vec2 uv, float r){ return r < 0.02 ? texture(BG,uv).rgb : texture(SOFT,uv).rgb; }
   vec3 aces(vec3 x){ return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.); }
-  void main(){ vec2 uv=vUv; vec2 px=1./res; vec4 s=texture(S,uv);
-    float ice = s.r, fog = s.b;
-    // smooth ice coverage + normal for refraction
-    float il=texture(S,uv-vec2(px.x,0)).r, ir=texture(S,uv+vec2(px.x,0)).r, it=texture(S,uv+vec2(0,px.y)).r, ib=texture(S,uv-vec2(0,px.y)).r;
-    float iceS = clamp((ice+il+ir+it+ib)/5.0, 0., 2.);
-    vec2 g = vec2(ir-il, it-ib);
-    vec3 sharp = texture(BGS, uv).rgb;                       // the village is beyond focus
-    vec3 soft  = bgBlur(uv + g*0.004, 0.05);
+  void main(){ vec2 uv=vUv; vec2 px=1./res; vec4 dd=texture(D,uv);
+    float fog = dd.g;
+    // sub-cell frost: bilinear ice coverage thresholded at screen resolution -> crisp feather edges
+    float cov = dd.r;
+    float e = 0.5*px.x;
+    float cl=texture(D,uv-vec2(px.x,0)).r, cr=texture(D,uv+vec2(px.x,0)).r, ct=texture(D,uv+vec2(0,px.y)).r, cb=texture(D,uv-vec2(0,px.y)).r;
+    vec2 g = vec2(cr-cl, ct-cb);
+    float iceM = smoothstep(0.30, 0.48, cov);
+    // needle striations along the local crystal axis (screen-res, not cell-res)
+    float ang = dd.b/6.0; vec2 ax = vec2(cos(ang), sin(ang)); vec2 sp = uv*scr;
+    float stri = 0.5+0.5*sin(dot(sp, vec2(-ax.y, ax.x))*1.9 + 6.*vnoise(sp*0.05));
+    float spark = pow(vnoise(sp*0.9), 12.)*3.;
+    vec3 sharp = texture(BGS, uv).rgb;
+    vec3 soft  = bgBlur(uv + g*0.01, 0.05);
     vec3 col = sharp;
-    // condensation: milky scattering + micro droplets
-    float drops = smoothstep(.55,.9,vnoise(uv*res*1.2));
-    vec3 fogc = soft*0.7 + vec3(.020,.018,.020) + soft*drops*0.3;
+    float drops = smoothstep(.6,.95,vnoise(uv*scr*0.35));
+    vec3 fogc = soft*0.7 + vec3(.020,.018,.020) + soft*drops*0.35;
     col = mix(col, fogc, smoothstep(0.05,0.6,fog));
-    // frost: bright crystalline, catches the warm lights through the glass
-    float edge = clamp(length(g)*0.8,0.,1.);
-    vec3 glow = bgBlur(uv + g*0.02, 0.09);
-    vec3 frost = vec3(.16,.20,.27)*0.5 + glow*1.3 + vec3(.45,.55,.7)*edge*0.25 + vec3(1.,.8,.6)*edge*dot(glow,vec3(.3))*3.;
-    frost *= 0.85 + 0.3*hash(floor(uv*res));
-    col = mix(col, frost, smoothstep(0.15, 0.9, iceS));
+    float edge = clamp(length(g)*2.5,0.,1.);
+    vec3 glow = bgBlur(uv + g*0.03, 0.09);
+    float thick = clamp(dd.a,0.,2.)*0.5;
+    vec3 frost = vec3(.14,.18,.25)*0.6 + glow*(1.0+0.8*stri) + vec3(.55,.65,.8)*edge*0.5 + vec3(1.,.82,.62)*edge*dot(glow,vec3(.3))*3.5;
+    frost *= 0.75 + 0.35*stri + 0.2*thick;
+    frost += vec3(1.,.95,.9)*spark*(0.3+dot(glow,vec3(.6)));
+    col = mix(col, frost, iceM);
     // window frame & mullion (warm-lit wood), interior reflection
     vec2 p = uv*vec2(1.778,1.);
     float frame = max(step(uv.x, .035)+step(.965, uv.x), step(uv.y,.06)+step(.94,uv.y));
@@ -146,7 +159,7 @@ const comp = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, vertexShader: 
     o = vec4(col,1.); }` });
 function renderBG(seed) { bgMat.uniforms.seed.value = seed; quad.material = bgMat; renderer.setRenderTarget(bgRT); renderer.render(sc, cam); renderer.setRenderTarget(null);
   blur(bgRT, midB, midA, 1 / 540 * 0.8); blur(midA, softB, softA, 1 / 90 * 0.9); }
-function render() { comp.uniforms.S.value = A.texture; quad.material = comp; renderer.setRenderTarget(null); renderer.render(sc, cam); }
+function render() { dispMat.uniforms.S.value = A.texture; run(dispMat, DISP); comp.uniforms.S.value = A.texture; comp.uniforms.D.value = DISP.texture; quad.material = comp; renderer.setRenderTarget(null); renderer.render(sc, cam); }
 
 // ---------------------------------------------------------------- input
 let last = null, down = false;

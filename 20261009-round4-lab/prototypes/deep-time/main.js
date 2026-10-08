@@ -115,14 +115,53 @@ void main(){ vec2 px=vec2(1./N); vec4 t=texture(T,vUv); float b=t.x; float acc=0
   b += 0.02*acc; b = mix(b, avg, t.y>0.05 ? 0.035 : 0.003);   // slight creep smooths pipe-model checkerboarding
   o = vec4(b, t.yzw); }`, { T: { value: null } });
 
+
+// ---------------------------------------------------------------- alternative model: stream-power landscape evolution (?model=sp)
+const SPM = Q.get('model') !== 'pipe';   // default: stream-power; ?model=pipe = virtual-pipe shallow water (v1-v3)
+const accMat = pass(`
+uniform sampler2D T; uniform vec3 rain; uniform float rainAmt;
+float Hh(vec2 uv){ return texture(T,uv).x; }
+void main(){ vec2 px=vec2(1./N); float acc=0.;
+  vec2 rp = vUv - rain.xy; acc += rainAmt*exp(-dot(rp,rp)/(rain.z*rain.z)) + 0.;
+  for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++){ if(i==0&&j==0) continue;
+    vec2 q = vUv + vec2(i,j)*px; float hq = Hh(q); float Aq = texture(T,q).z;
+    // fraction of q's outflow that goes to me (multiple-flow-direction, slope^1.3)
+    float tot=0., mine=0.;
+    for(int b=-1;b<=1;b++) for(int a=-1;a<=1;a++){ if(a==0&&b==0) continue;
+      float dl = length(vec2(a,b)); float sl = (hq - Hh(q+vec2(a,b)*px))/dl;
+      if (sl>0.) { float w=pow(sl,1.3); tot+=w; if(a==-i&&b==-j) mine=w; } }
+    if (tot>0.) acc += Aq*mine/tot; }
+  vec4 t=texture(T,vUv); o = vec4(t.x, t.y, acc, t.w); }`, { T: { value: null }, rain: waterMat.uniforms.rain, rainAmt: { value: 0 } });
+const eroMat = pass(`
+uniform sampler2D T, B;
+void main(){ vec2 px=vec2(1./N); vec4 t=texture(T,vUv); float b=t.x, A=t.z;
+  float hmin=b; float S=0.;
+  for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++){ if(i==0&&j==0) continue; float hn=texture(T,vUv+vec2(i,j)*px).x; float sl=(b-hn)/length(vec2(i,j)); if(sl>S){S=sl;} hmin=min(hmin,hn); }
+  float hard = hardness(b + bandWarp(vUv));
+  float E = float(${+(Q.get('kc')||200)})*0.0001*hard*pow(max(A-3.0,0.),0.5)*min(S,3.0);
+  if (b > 0.2) b = max(b - E, min(b, hmin + 0.02));
+  else if (A > 2.0) b = min(b + 0.0008*sqrt(A), -0.25);           // sediment fan into the shallow sea
+  float lap = texture(T,vUv+vec2(px.x,0)).x+texture(T,vUv-vec2(px.x,0)).x+texture(T,vUv+vec2(0,px.y)).x+texture(T,vUv-vec2(0,px.y)).x-4.*b;
+  b += 0.0006*lap;                                                  // hillslope creep
+  float river = clamp((log2(1.+A) - 3.0)*0.35, 0., 2.0);           // channel water depth (cells) for rendering
+  float d = b < 0. ? -b : river;
+  float wet = max(t.w*0.998, smoothstep(0.1,0.6,river));
+  o = vec4(b, d, A, wet); }`, { T: { value: null }, B: { value: B0.texture } });
+function stepSP(rainOn) {
+  accMat.uniforms.T.value = T0.texture; accMat.uniforms.rainAmt.value = rainOn ? 1.0 : 0; run(accMat, T1); [T0, T1] = [T1, T0];
+  eroMat.uniforms.T.value = T0.texture; run(eroMat, T1); [T0, T1] = [T1, T0];
+  if (!Q.has('notherm')) { thermMat.uniforms.T.value = T0.texture; run(thermMat, T1); [T0, T1] = [T1, T0]; }
+}
+
 function run(mat, target) { quad.material = mat; renderer.setRenderTarget(target); renderer.render(simScene, simCam); }
 function init(seed) {
-  initMat.uniforms.seed.value = seed; for (const m of [fluxMat, waterMat, advMat, thermMat]) m.uniforms.seed.value = seed;
+  initMat.uniforms.seed.value = seed; for (const m of [fluxMat, waterMat, advMat, thermMat, accMat, eroMat]) m.uniforms.seed.value = seed;
   run(initMat, T0); run(initMat, B0);
   renderer.setRenderTarget(F0); renderer.setClearColor(0, 0); renderer.clear(); renderer.setRenderTarget(F1); renderer.clear();
   renderer.setRenderTarget(null);
 }
 function step(rainOn) {
+  if (SPM) return stepSP(rainOn);
   fluxMat.uniforms.T.value = T0.texture; fluxMat.uniforms.F.value = F0.texture; run(fluxMat, F1); [F0, F1] = [F1, F0];
   waterMat.uniforms.T.value = T0.texture; waterMat.uniforms.F.value = F0.texture; waterMat.uniforms.rainAmt.value = rainOn ? 0.55 : 0; run(waterMat, T1); [T0, T1] = [T1, T0];
   advMat.uniforms.T.value = T0.texture; advMat.uniforms.F.value = F0.texture; run(advMat, T1); [T0, T1] = [T1, T0];
@@ -153,7 +192,9 @@ vec3 strata(float z, vec2 uv){
   else c = mix(vec3(.78,.50,.18), vec3(.45,.24,.26), h2);                  // ochre / mauve shale
   float fine = fract(zz/(0.8*HS)); c *= 0.9 + 0.1*smoothstep(.0,.15,fine)*smoothstep(1.,.8,fine);
   return c*0.42; }
-float Hs(vec2 uv){ return texture(T,uv).x; }
+vec4 TB(vec2 uv){ vec2 p=uv*N-.5; vec2 i=floor(p), f=fract(p); vec2 q=(i+.5)/N; float e=1./N;
+  return mix(mix(texture(T,q),texture(T,q+vec2(e,0)),f.x), mix(texture(T,q+vec2(0,e)),texture(T,q+vec2(e,e)),f.x), f.y); }
+float Hs(vec2 uv){ return TB(uv).x; }
 `;
 const terrainMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3,
   uniforms: { T: { value: null }, B: { value: B0.texture }, N: { value: N }, HS: { value: HS }, seed: { value: 3 }, sunDir: { value: new THREE.Vector3(-0.85, 0.40, 0.15).normalize() }, rain: waterMat.uniforms.rain, rainAmt: { value: 0 }, VS: { value: VERT_SCALE } },
@@ -166,7 +207,7 @@ const terrainMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3,
     for(int i=0;i<56;i++){ vec2 p=uv+d*t; if(p.x<0.||p.y<0.||p.x>1.||p.y>1.) break;
       float hh = Hs(p)*VS; float ray = h + 0.0015 + slope*t; res = min(res, 10.*(ray-hh)/t); t += max(0.6/N, t*0.06); }
     return smoothstep(0.,1.,clamp(res,0.,1.)); }
-  void main(){ vec2 px=vec2(1./N); vec4 t=texture(T,vUv);
+  void main(){ vec2 px=vec2(1./N); vec4 t=TB(vUv);
     float bl=Hs(vUv-vec2(px.x,0.)), br=Hs(vUv+vec2(px.x,0.)), bt=Hs(vUv+vec2(0.,px.y)), bb=Hs(vUv-vec2(0.,px.y));
     float bl2=Hs(vUv-vec2(2.*px.x,0.)), br2=Hs(vUv+vec2(2.*px.x,0.)), bt2=Hs(vUv+vec2(0.,2.*px.y)), bb2=Hs(vUv-vec2(0.,2.*px.y));
     vec3 n = normalize(vec3((bl+bl2-br-br2)*VS, 6.*px.x, -(bt+bt2-bb-bb2)*VS));
@@ -202,8 +243,8 @@ const waterMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1, N - 1, N - 1), ne
     void main(){ vUv=uv; vec4 t=texture(T,uv); vD=t.y; vec3 p=vec3(position.x, (t.x+t.y)*VS + 0.0004, -position.y); vW=p; gl_Position=projectionMatrix*viewMatrix*vec4(p,1.); }`,
   fragmentShader: RCOMMON + `
   uniform float VS; uniform sampler2D F; in vec2 vUv; in vec3 vW; in float vD; out vec4 o;
-  float W(vec2 uv){ vec4 t=texture(T,uv); return t.x+t.y; }
-  void main(){ vec2 px=vec2(1./N); vec4 t=texture(T,vUv); float d=t.y; if(d<0.06) discard;
+  float W(vec2 uv){ vec4 t=TB(uv); return t.x+t.y; }
+  void main(){ vec2 px=vec2(1./N); vec4 t=TB(vUv); float d=t.y; if(d<0.10) discard;
     float hl=W(vUv-vec2(px.x,0.)), hr=W(vUv+vec2(px.x,0.)), ht=W(vUv+vec2(0.,px.y)), hb=W(vUv-vec2(0.,px.y));
     vec3 n = normalize(vec3((hl-hr)*VS, 2.*px.x, -(ht-hb)*VS));
     vec4 f=texture(F,vUv); float flow = (f.x+f.y+f.z+f.w)/max(d,0.05);
@@ -266,7 +307,7 @@ const post = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMater
     vec3 aces(vec3 x){ return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.); }
     void main(){ vec2 p=vUv-.5;
       // tilt-shift: blur grows away from the focus band
-      float bl = smoothstep(.12,.5,abs(vUv.y-.47))*3.0; vec3 c=vec3(0.); float w=0.;
+      float bl = smoothstep(.2,.6,abs(vUv.y-.47))*2.0; vec3 c=vec3(0.); float w=0.;
       for(int i=-3;i<=3;i++) for(int j=-3;j<=3;j++){ vec2 q=vec2(i,j); float k=exp(-dot(q,q)/6.); c+=texture(S,vUv+q*bl/res).rgb*k; w+=k; }
       c/=w; c = aces(c*1.05); c = pow(c, vec3(1./2.2));
       c *= 1.-0.35*dot(p,p)*1.8; c += (fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)-.5)/255.;
@@ -300,8 +341,8 @@ if (SHOT) {
   const total = TSTEPS; let s = 0;
   const chunk = () => {
     const end = Math.min(total, s + 50);
-    for (; s < end; s++) { const k = s / Math.max(total, 1); const on = k < 0.75 && !Q.has('norain');
-      const a = s * 0.004; waterMat.uniforms.rain.value.set(.24 + .02 * Math.cos(a * 1.3), .52 + .03 * Math.sin(a), .045);
+    for (; s < end; s++) { const k = s / Math.max(total, 1); const on = k < (SPM ? 0.97 : 0.75) && !Q.has('norain');
+      const a = s * 0.004; waterMat.uniforms.rain.value.set(+(Q.get('rx') || .24) + .02 * Math.cos(a * 1.3), +(Q.get('ry') || .52) + .03 * Math.sin(a), +(Q.get('rr') || .045));
       step(on); }
     window.__steps = s;
     if (s < total) setTimeout(chunk, 0); else { terrainMat.uniforms.rainAmt.value = 0; render(); window.__ready = true; }
