@@ -438,6 +438,7 @@ let presetIdx = +(Q.get('preset') || 0);
 if (Q.get('T')) PRESETS[presetIdx].T = JSON.parse(Q.get('T'));
 let work = null;          // current forged work {orig, masks, rods, fidHull, fidRods, titles, no}
 let SCR = [{ yaw: 2.27, tilt: 0.62 }, { yaw: +(Q.get('sy') || -0.698), tilt: +(Q.get('st') || 0.62) }];
+const IDLE_T = +(Q.get('idle') || 20);
 const st = { mode: 'intro', t: 0, introT: 0, yaw: 0, tilt: 0, vy: 0, vt: 0, drag: false, lockAt: -1, locked: false, lastMove: 0, freeStart: 0, labelA: 0, anim: 0, lastLockIntro: false, lampMul: 1 };
 
 function loadWork(w) {
@@ -513,6 +514,8 @@ function update(dt) {
     if (it > FREE_T) { st.mode = 'free'; st.freeStart = t; hint('Drag to turn the sculpture until its shadows become pictures · press 1 2 3 to be a lamp'); }
   } else if (st.mode === 'free' || st.mode === 'forged') {
     if (!st.drag) { st.yaw += st.vy; st.tilt += st.vt; st.vy *= 0.92; st.vt *= 0.92; }
+    if (!LV.on && !st.locked && !st.drag && LD.drag < 0 && !SHOT && t - Math.max(st.lastInput || 0, st.freeStart || 0) > IDLE_T) { /* idle: drift back to the three pictures (any input cancels) */
+      const ty = Math.round(st.yaw / (2 * Math.PI)) * 2 * Math.PI; const k = 1 - Math.exp(-dt / 1.1); st.yaw += (ty - st.yaw) * k; st.tilt += (0 - st.tilt) * k; st.vy *= 0.9; st.vt *= 0.9; }
     if (LV.on) { const ty = Math.round(st.yaw / (2 * Math.PI)) * 2 * Math.PI; st.yaw += (ty - st.yaw) * (1 - Math.exp(-dt / 0.35)); st.tilt += (0 - st.tilt) * (1 - Math.exp(-dt / 0.35)); st.vy = st.vt = 0; }
     st.tilt = clamp(st.tilt, -0.7, 0.7);
     ang = poseAngle(st.yaw, st.tilt);
@@ -864,6 +867,7 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 boot();
+['pointerdown', 'pointermove', 'keydown', 'wheel'].forEach(ev => addEventListener(ev, () => { st.lastInput = st.t; }, { passive: true }));
 window.__S = S; window.__st = st; window.__render = render; window.__sound = sound; window.__lv = LV;
 
 // ---------------- test hooks
