@@ -402,7 +402,7 @@ const $ = (id) => document.getElementById(id);
 const placard = { full: '', hidden: '', shown: null };
 function setPlacard(no, titles, nRods, fid, word, reordered, tilted) { // the figure names stay hidden until the shadows lock (no spoilers)
   const forged = word && !PRESET_LIST.some(P => P.word === word);
-  placard.full = word ? `No. ${no} — <span class="pword">${word}</span>${forged ? ' · forged for you' : ''}${reordered ? ` · cast as ${titles.map(t => t.split(' ')[1]).join('·')}` : ''}${reordered || tilted ? ` <span class="pnote">(${reordered ? (tilted ? 'letters rearranged, floor letter turned' : 'letters rearranged') : 'floor letter turned'} for a cleaner cast)</span>` : ''}` : `No. ${no} — ${titles.map(t => t.split(' ')[1]).join(', ')}`;
+  placard.full = word ? `No. ${no} — <span class="pword">${word}</span>${forged ? ' · forged for you' : ''}${reordered ? ` · cast as ${[1, 0, 2].map(k => titles[k].split(' ')[1]).join('·')}` : ''}${tilted ? ` <span class="pnote">(floor letter turned for a cleaner cast)</span>` : ''}` : `No. ${no} — ${titles.map(t => t.split(' ')[1]).join(', ')}`;
   placard.hidden = `No. ${no} — <span class="pdots">· · ·</span>`; placard.shown = null; showPlacard(false);
   $('pm').innerHTML = `aged brass &amp; blackened steel, ${nRods.toLocaleString('en-US')} rods · ${(100 * Math.min(...fid)).toFixed(1)} % shadow fidelity`;
 }
