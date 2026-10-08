@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>聲沙 Chladni — prototype</title>
+<style>
+html,body{margin:0;height:100%;background:#050506;overflow:hidden;font-family:"Cormorant Garamond","Noto Serif",Georgia,serif;color:#ece6da}
+canvas{display:block;width:100vw;height:100vh;cursor:ew-resize}
+#title{position:fixed;left:48px;top:40px;letter-spacing:.35em;font-size:13px;text-transform:uppercase;opacity:.75;pointer-events:none}
+#title b{display:block;font-size:34px;letter-spacing:.2em;font-weight:400;margin-bottom:6px}
+#hz{position:fixed;right:52px;top:36px;text-align:right;pointer-events:none}
+#hz .f{font-size:64px;font-weight:300;letter-spacing:.04em}
+#hz .m{font-size:12px;letter-spacing:.35em;opacity:.6;text-transform:uppercase}
+#hint{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);font-size:13px;letter-spacing:.3em;text-transform:uppercase;opacity:.55;pointer-events:none}
+#grain{position:fixed;inset:0;pointer-events:none;opacity:.06;mix-blend-mode:overlay;width:100vw;height:100vh}
+#vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 48%,rgba(0,0,0,0) 40%,rgba(0,0,0,.7) 100%)}
+</style>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.js","three/addons/":"../vendor/addons/"}}</script>
+</head><body>
+<canvas id="c"></canvas><canvas id="grain"></canvas><div id="vig"></div>
+<div id="title"><b>聲 沙</b>Chladni · sand that listens</div>
+<div id="hz"><div class="f"><span id="f">—</span> <span style="font-size:22px">Hz</span></div><div class="m">mode <span id="m">—</span></div></div>
+<div id="hint">drag left / right to bow the plate · keys 1–9 for notes</div>
+<script type="module">
+import * as THREE from 'three';
+import { GPUComputationRenderer } from 'three/addons/GPUComputationRenderer.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+const Q = new URLSearchParams(location.search), SHOT = Q.has('shot');
+const TEX = 512; // 262,144 grains
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true, preserveDrawingBuffer: SHOT });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x050506);
+const pmrem = new THREE.PMREMGenerator(renderer); scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.02).texture;
+const camera = new THREE.PerspectiveCamera(26, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(1.2, 5.2, 8.6); camera.lookAt(-0.2, -0.2, 0.4);
+
+// plate
+const S = 2.6; // half size
+const plateMat = new THREE.MeshStandardMaterial({ color: 0x15161a, metalness: 0.85, roughness: 0.32 });
+plateMat.onBeforeCompile = sh => { // brushed streaks
+  sh.fragmentShader = sh.fragmentShader.replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+  { vec2 q=vViewPosition.xy; float s=fract(sin(floor(gl_FragCoord.y*0.5+gl_FragCoord.x*0.03)*91.7)*4375.5); roughnessFactor = clamp(roughnessFactor + (s-.5)*.12,0.,1.); }`);
+};
+const plate = new THREE.Mesh(new RoundedBoxGeometry(S * 2, 0.08, S * 2, 4, 0.03), plateMat); plate.position.y = -0.04; scene.add(plate);
+const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 6, 32), new THREE.MeshStandardMaterial({ color: 0x888076, metalness: 1, roughness: 0.3 })); stem.position.y = -3.08; scene.add(stem);
+const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.06, 6), new THREE.MeshStandardMaterial({ color: 0xb8ab98, metalness: 1, roughness: 0.25 })); bolt.position.y = 0.03; scene.add(bolt);
+const key = new THREE.DirectionalLight(0xfff1e0, 2.2); key.position.set(-4, 8, 2); scene.add(key);
+const rim = new THREE.DirectionalLight(0x9fb6ff, 1.2); rim.position.set(3, 2, -6); scene.add(rim);
+scene.add(new THREE.AmbientLight(0xffffff, 0.04));
+
+// ---------- simulation ----------
+const gpu = new GPUComputationRenderer(TEX, TEX, renderer);
+const p0 = gpu.createTexture(); const d = p0.image.data;
+for (let i = 0; i < TEX * TEX; i++) { d[i * 4] = Math.random() * 2 - 1; d[i * 4 + 1] = Math.random() * 2 - 1; d[i * 4 + 2] = 0; d[i * 4 + 3] = Math.random(); }
+const posVar = gpu.addVariable('tPos', `
+uniform float time, amp, n, m, sgn;
+float hash(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
+float mode(vec2 x){ vec2 u=x*.5+.5; const float PI=3.14159265; return cos(n*PI*u.x)*cos(m*PI*u.y) + sgn*cos(m*PI*u.x)*cos(n*PI*u.y); }
+void main(){
+  vec2 uv=gl_FragCoord.xy/resolution.xy; vec4 p=texture2D(tPos,uv);
+  float z=mode(p.xy); float e=.002;
+  vec2 gz=vec2(mode(p.xy+vec2(e,0))-mode(p.xy-vec2(e,0)), mode(p.xy+vec2(0,e))-mode(p.xy-vec2(0,e)))/(2.*e);
+  float A=abs(z)*amp;
+  vec2 r=vec2(hash(uv*1.7+time),hash(uv*3.1-time*1.3))-.5;
+  float n0=hash(uv*9.1+time*.37); p.xy += r*(A*.05 + amp*.0035*n0) - z*gz*amp*.0005;
+  // central clamp: grains can't sit on the bolt
+  float rc=length(p.xy); if(rc<.06) p.xy*= .06/max(rc,1e-4);
+  p.xy=clamp(p.xy,-.985,.985);
+  p.z = mix(p.z, A*(.4+.6*hash(uv+time*.7)), .5);
+  gl_FragColor=p;
+}`, p0);
+gpu.setVariableDependencies(posVar, [posVar]);
+const U = posVar.material.uniforms; U.time = { value: 0 }; U.amp = { value: 0 }; U.n = { value: 3 }; U.m = { value: 5 }; U.sgn = { value: -1 };
+const err = gpu.init(); if (err) console.error(err);
+
+// grains
+const g = new THREE.BufferGeometry(); const ref = new Float32Array(TEX * TEX * 2);
+for (let i = 0; i < TEX * TEX; i++) { ref[i * 2] = ((i % TEX) + 0.5) / TEX; ref[i * 2 + 1] = (Math.floor(i / TEX) + 0.5) / TEX; }
+g.setAttribute('ref', new THREE.BufferAttribute(ref, 2)); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TEX * TEX * 3), 3));
+g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 10);
+function grainMat(shadow) {
+  return new THREE.ShaderMaterial({
+    uniforms: { tPos: { value: null }, S: { value: S }, px: { value: renderer.getPixelRatio() * innerHeight / 1080 } },
+    transparent: shadow, depthWrite: !shadow,
+    vertexShader: `uniform sampler2D tPos; uniform float S, px; attribute vec2 ref; varying float vS; varying float vH;
+    void main(){ vec4 p=texture2D(tPos,ref); vec3 w=vec3(p.x*S, ${shadow ? '0.002' : '0.012+p.z*0.10'}, p.y*S);
+      ${shadow ? 'w.xz += vec2(0.018,0.012)*(1.+p.z*6.);' : ''}
+      vec4 mv=modelViewMatrix*vec4(w,1.); gl_Position=projectionMatrix*mv; vS=p.w; vH=p.z;
+      gl_PointSize = px*(${shadow ? '3.4' : '2.3'})*(0.7+0.6*p.w)*(9./-mv.z); }`,
+    fragmentShader: `varying float vS; varying float vH; void main(){ vec2 c=gl_PointCoord-.5; float r=dot(c,c); if(r>.25) discard;
+      ${shadow ? 'gl_FragColor=vec4(0.,0.,0.,.35*(1.-r*4.));' :
+      `vec3 base=mix(vec3(.78,.66,.50),vec3(1.,.93,.82),vS); float sh=.65+.35*(-c.x-c.y+.5); gl_FragColor=vec4(base*sh*1.25,1.);`} }`,
+  });
+}
+const shadowMat = grainMat(true), sandMat = grainMat(false);
+const shadowPts = new THREE.Points(g, shadowMat); shadowPts.renderOrder = 1; scene.add(shadowPts);
+const sandPts = new THREE.Points(g, sandMat); sandPts.renderOrder = 2; scene.add(sandPts);
+
+// ---------- modes & audio ----------
+const MODES = [[1, 2, -1], [2, 3, 1], [3, 5, -1], [1, 4, 1], [2, 5, -1], [4, 5, 1], [3, 7, -1], [5, 6, 1], [4, 9, -1], [6, 7, -1], [5, 9, 1], [7, 8, 1]];
+const f0 = 96; const modeHz = MODES.map(([n, m]) => f0 * (n * n + m * m) / 5);
+let freq = modeHz[2], drive = 0, curMode = 2;
+const fEl = document.getElementById('f'), mEl = document.getElementById('m');
+let ac, osc, gain, filt;
+function audio() { if (ac) return; ac = new AudioContext(); osc = ac.createOscillator(); osc.type = 'sawtooth'; filt = ac.createBiquadFilter(); filt.type = 'bandpass'; filt.Q.value = 6; gain = ac.createGain(); gain.gain.value = 0; osc.connect(filt).connect(gain).connect(ac.destination); osc.start(); }
+function setFreq(f) { freq = Math.max(modeHz[0] * 0.8, Math.min(modeHz[modeHz.length - 1] * 1.1, f)); }
+let dragging = false, lx = 0;
+addEventListener('pointerdown', e => { audio(); dragging = true; lx = e.clientX; });
+addEventListener('pointerup', () => dragging = false);
+addEventListener('pointermove', e => { if (!dragging) return; const dx = e.clientX - lx; lx = e.clientX; setFreq(freq * Math.pow(2, dx / 600)); drive = Math.min(1, drive + Math.abs(dx) * 0.01 + 0.05); });
+addEventListener('keydown', e => { const k = +e.key; if (k >= 1 && k <= 9) { audio(); setFreq(modeHz[k + 1]); drive = 1; } });
+
+function resonance() { // pick nearest mode and lorentzian response
+  let best = 0, bd = 1e9; modeHz.forEach((h, i) => { const dd = Math.abs(Math.log(freq / h)); if (dd < bd) { bd = dd; best = i; } });
+  const resp = 1 / (1 + Math.pow(bd / 0.025, 2));
+  return [best, resp];
+}
+let frame = 0, t = 0;
+function step(n) {
+  for (let i = 0; i < n; i++) {
+    const [mi, resp] = resonance();
+    if (mi !== curMode) { curMode = mi; }
+    const [nn, mm, sg] = MODES[curMode]; U.n.value = nn; U.m.value = mm; U.sgn.value = sg;
+    U.amp.value = SHOT ? 1 : drive * resp + 0.0; U.time.value = (t += 0.0137) % 100;
+    gpu.compute();
+  }
+}
+function tick() {
+  frame++;
+  if (SHOT) { if (frame === 1) { const mi = +(Q.get('mode') || 6); freq = modeHz[mi]; curMode = mi; } step(frame < 3 ? 160 : 0); }
+  else { step(2); drive *= dragging ? 0.985 : 0.97; if (ac) { osc.frequency.setTargetAtTime(freq, ac.currentTime, 0.02); filt.frequency.setTargetAtTime(freq * 2, ac.currentTime, 0.05); gain.gain.setTargetAtTime(0.12 * drive * (0.3 + 0.7 * resonance()[1]), ac.currentTime, 0.05); } }
+  const tp = gpu.getCurrentRenderTarget(posVar).texture; sandMat.uniforms.tPos.value = tp; shadowMat.uniforms.tPos.value = tp;
+  fEl.textContent = freq.toFixed(0); mEl.textContent = `(${MODES[curMode][0]}, ${MODES[curMode][1]})`;
+  renderer.render(scene, camera);
+  if (SHOT && frame > 3) window.__ready = true;
+  if (!SHOT || frame < 6) requestAnimationFrame(tick);
+}
+tick();
+const gc = document.getElementById('grain'); gc.width = gc.height = 256; const gg = gc.getContext('2d');
+function grain() { const id = gg.createImageData(256, 256); for (let i = 0; i < id.data.length; i += 4) { const v = Math.random() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; } gg.putImageData(id, 0, 0); }
+grain(); if (!SHOT) setInterval(grain, 80);
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+</script></body></html>

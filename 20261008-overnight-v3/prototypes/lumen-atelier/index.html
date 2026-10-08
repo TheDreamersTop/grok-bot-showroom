@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>光室 Lumen Atelier — prototype</title>
+<style>
+html,body{margin:0;height:100%;background:#07080d;overflow:hidden;font-family:"Cormorant Garamond","Noto Serif",Georgia,serif;color:#f0e2c4}
+canvas{display:block;width:100vw;height:100vh;cursor:crosshair}
+#title{position:fixed;left:48px;top:40px;letter-spacing:.35em;font-size:13px;text-transform:uppercase;opacity:.8;pointer-events:none}
+#title b{display:block;font-size:34px;letter-spacing:.2em;font-weight:400;margin-bottom:6px}
+#hint{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);font-size:13px;letter-spacing:.3em;text-transform:uppercase;opacity:.6;pointer-events:none}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="title"><b>光 室</b>Lumen Atelier</div>
+<div id="hint">click: hang a lantern · drag: cut paper · drag the moon</div>
+<script>
+const Q = new URLSearchParams(location.search), SHOT = Q.has('shot');
+const cv = document.getElementById('c');
+const gl = cv.getContext('webgl2', { antialias: false, preserveDrawingBuffer: SHOT });
+gl.getExtension('EXT_color_buffer_float'); gl.getExtension('OES_texture_float_linear');
+const SCALE = +(Q.get('s') || 0.5);
+let W, H;
+function size() { cv.width = innerWidth; cv.height = innerHeight; W = Math.ceil(innerWidth * SCALE / 64) * 64; H = Math.ceil(innerHeight * SCALE / 64) * 64; }
+size();
+
+// ---------- scene canvas (emission rgb + occupancy alpha) ----------
+const sc = document.createElement('canvas'); sc.width = W; sc.height = H; const g = sc.getContext('2d');
+// albedo canvas (what solid things look like when lit) – same layout
+let moon = { x: 0.78, y: 0.2 };
+const lanterns = [];
+function rng(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+const strokes = []; // user paper cuts
+function buildScene() {
+  g.clearRect(0, 0, W, H);
+  const r = rng(7), sx = W / 960, sy = H / 540; g.save(); g.scale(sx, sy);
+  const ink = '#06070c';
+  // far hills (occluders)
+  g.fillStyle = ink;
+  g.beginPath(); g.moveTo(0, 540); g.lineTo(0, 430);
+  for (let x = 0; x <= 960; x += 20) g.lineTo(x, 430 + 18 * Math.sin(x * 0.011) + 10 * Math.sin(x * 0.031));
+  g.lineTo(960, 540); g.fill();
+  // houses
+  const houses = [[120, 300, 70, 130], [205, 330, 60, 100], [290, 280, 80, 150], [600, 310, 70, 120], [690, 290, 90, 140], [800, 335, 60, 95]];
+  for (const [x, y, w, h] of houses) {
+    g.fillStyle = ink; g.fillRect(x, y, w, h + 120);
+    g.beginPath(); g.moveTo(x - 8, y); g.lineTo(x + w / 2, y - w * 0.55); g.lineTo(x + w + 8, y); g.fill();
+    g.fillRect(x + w * 0.7, y - w * 0.5, 9, 30); // chimney
+    // windows: emissive
+    for (let wy = y + 18; wy < y + h - 20; wy += 34) for (let wx = x + 12; wx < x + w - 18; wx += 26) {
+      if (r() < 0.55) { g.fillStyle = r() < 0.8 ? '#ffb347' : '#ff7a3c'; g.fillRect(wx, wy, 11, 16); }
+    }
+  }
+  // lighthouse tower
+  g.fillStyle = ink; g.beginPath(); g.moveTo(455, 470); g.lineTo(470, 170); g.lineTo(500, 170); g.lineTo(515, 470); g.fill();
+  g.fillRect(458, 150, 54, 10); g.beginPath(); g.moveTo(462, 120); g.lineTo(485, 92); g.lineTo(508, 120); g.fill();
+  g.fillStyle = '#fff1c2'; g.fillRect(470, 123, 30, 26);
+  g.fillStyle = ink; g.fillRect(483, 123, 4, 26);
+  // trees
+  for (const [x, s] of [[40, 1], [400, 0.8], [560, 0.9], [905, 1.1]]) {
+    g.fillStyle = ink; g.fillRect(x - 4 * s, 360, 8 * s, 120);
+    for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(x - (46 - i * 9) * s, 400 - i * 34 * s); g.lineTo(x, 330 - i * 36 * s); g.lineTo(x + (46 - i * 9) * s, 400 - i * 34 * s); g.fill(); }
+  }
+  // lantern string
+  g.strokeStyle = ink; g.lineWidth = 2; g.beginPath(); g.moveTo(370, 300); g.quadraticCurveTo(455, 360, 600, 310); g.stroke();
+  const cols = ['#ff4d6d', '#ffd166', '#4cc9f0', '#80ffdb', '#ff9e00', '#c77dff'];
+  for (let i = 1; i < 8; i++) { const t = i / 8, x = (1 - t) * (1 - t) * 370 + 2 * t * (1 - t) * 455 + t * t * 600, y = (1 - t) * (1 - t) * 300 + 2 * t * (1 - t) * 360 + t * t * 310; g.fillStyle = cols[i % 6]; g.beginPath(); g.arc(x, y + 7, 5, 0, 7); g.fill(); }
+  g.restore();
+  // user paper cuts
+  g.strokeStyle = ink; g.lineCap = 'round'; g.lineWidth = 7 * sx;
+  for (const s of strokes) { g.beginPath(); s.forEach((p, i) => i ? g.lineTo(p[0] * W, p[1] * H) : g.moveTo(p[0] * W, p[1] * H)); g.stroke(); }
+  for (const l of lanterns) { g.fillStyle = l.c; g.beginPath(); g.arc(l.x * W, l.y * H, 6 * sx, 0, 7); g.fill(); }
+  // moon
+  g.fillStyle = '#dfe8ff'; g.beginPath(); g.arc(moon.x * W, moon.y * H, 22 * sx, 0, 7); g.fill();
+  dirty = true;
+}
+let dirty = true;
+
+// ---------- GL helpers ----------
+const VS = `#version 300 es
+in vec2 p; out vec2 uv; void main(){ uv=p*.5+.5; gl_Position=vec4(p,0,1); }`;
+function prog(fs) {
+  const p = gl.createProgram();
+  for (const [t, s] of [[gl.VERTEX_SHADER, VS], [gl.FRAGMENT_SHADER, '#version 300 es\nprecision highp float;\nprecision highp int;\n' + fs]]) {
+    const sh = gl.createShader(t); gl.shaderSource(sh, s); gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh) + s);
+    gl.attachShader(p, sh);
+  }
+  gl.bindAttribLocation(p, 0, 'p'); gl.linkProgram(p);
+  const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+  for (let i = 0; i < n; i++) { const a = gl.getActiveUniform(p, i); u[a.name] = gl.getUniformLocation(p, a.name); }
+  return { p, u };
+}
+const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+function tex(w, h, fmt = gl.RGBA16F, filt = gl.NEAREST) {
+  const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texStorage2D(gl.TEXTURE_2D, 1, fmt, w, h);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filt); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+  return { t, f, w, h };
+}
+const sceneTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, sceneTex);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+const jfa = [tex(W, H), tex(W, H)], sdf = tex(W, H, gl.R16F);
+const NC = Math.ceil(Math.log(Math.hypot(W, H) * 3 / 1.5 + 1) / Math.log(4)); // cascades
+const casc = [tex(W, H), tex(W, H)];
+console.log('RC', W, H, 'cascades', NC);
+
+const P_init = prog(`uniform sampler2D s; in vec2 uv; out vec4 o; void main(){ vec4 c=texture(s,vec2(uv.x,1.-uv.y)); o = c.a>.5 ? vec4(gl_FragCoord.xy,0,1) : vec4(-1e4,-1e4,0,0); }`);
+const P_jfa = prog(`uniform sampler2D s; uniform float k; uniform vec2 R; out vec4 o; void main(){ vec2 p=gl_FragCoord.xy; vec4 best=vec4(-1e4,-1e4,0,0); float bd=1e9;
+  for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){ vec2 q=p+vec2(x,y)*k; if(q.x<0.||q.y<0.||q.x>=R.x||q.y>=R.y) continue; vec4 v=texelFetch(s,ivec2(q),0); float d=distance(v.xy,p); if(v.w>.5&&d<bd){bd=d;best=v;} } o=best; }`);
+const P_sdf = prog(`uniform sampler2D s; out vec4 o; void main(){ vec4 v=texelFetch(s,ivec2(gl_FragCoord.xy),0); o=vec4(v.w>.5?distance(v.xy,gl_FragCoord.xy):1e4); }`);
+const P_rc = prog(`uniform sampler2D sceneT, sdfT, upT; uniform vec2 R; uniform int n, last; uniform vec2 moon; uniform float L0;
+out vec4 o;
+const float TAU=6.2831853;
+vec3 sky(float a){ vec2 d=vec2(cos(a),sin(a)); float up=max(d.y,0.); return vec3(.10,.16,.38)*pow(up,.7) + vec3(.01,.012,.03); }
+vec4 march(vec2 p, vec2 d, float t0, float t1){
+  float t=t0;
+  for(int i=0;i<48;i++){ vec2 q=p+d*t; if(q.x<0.||q.y<0.||q.x>=R.x||q.y>=R.y) return vec4(0,0,0,1);
+    float s=texelFetch(sdfT,ivec2(q),0).r; if(s<.75){ vec4 c=texelFetch(sceneT,ivec2(q.x,R.y-1.-q.y),0); return vec4(pow(c.rgb,vec3(2.2))*4.0,0.); }
+    t+=max(s,.5); if(t>=t1) break; }
+  return vec4(0,0,0,1);
+}
+void main(){
+  ivec2 c=ivec2(gl_FragCoord.xy); int b=2<<n; int rays=b*b; ivec2 pr=c/b; ivec2 li=c%b; int idx=li.y*b+li.x;
+  float a=(float(idx)+.5)/float(rays)*TAU; vec2 d=vec2(cos(a),sin(a));
+  vec2 pos=(vec2(pr)+.5)*float(b);
+  float f4=pow(4.,float(n)); float t0=L0*(f4-1.)/3., t1=L0*(f4*4.-1.)/3.;
+  vec4 r=march(pos,d,t0,t1);
+  if(r.a>0.){
+    if(last==1){ r.rgb+=sky(a); // moonlight: directional disk
+      vec2 md=normalize(moon-pos); r.rgb+= vec3(.55,.62,.9)*smoothstep(.9985,.9996,dot(md,d))*0.;
+    } else {
+      int ub=b*2; vec2 g=pos/float(ub)-.5; ivec2 g0=ivec2(floor(g)); vec2 fr=fract(g); ivec2 PN=ivec2(R)/ub;
+      vec3 acc=vec3(0);
+      for(int j=0;j<4;j++){ ivec2 o2=ivec2(j&1,j>>1); ivec2 pp=clamp(g0+o2,ivec2(0),PN-1); float w=(o2.x==1?fr.x:1.-fr.x)*(o2.y==1?fr.y:1.-fr.y);
+        vec3 s=vec3(0); for(int k=0;k<4;k++){ int ui=idx*4+k; s+=texelFetch(upT,pp*ub+ivec2(ui%ub,ui/ub),0).rgb; } acc+=w*s*.25; }
+      r.rgb+=acc;
+    }
+  }
+  o=vec4(r.rgb,1);
+}`);
+const P_out = prog(`uniform sampler2D c0, sceneT, sdfT; uniform vec2 R, S; uniform float time; in vec2 uv; out vec4 o;
+float h(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
+float n2(vec2 p){ vec2 i=floor(p),f=fract(p); f=f*f*(3.-2.*f); return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+1.),f.x),f.y); }
+void main(){
+  vec2 p=uv*R; // radiance at cascade-0 probes (2px spacing), bilinear
+  vec2 g=p/2.-.5; ivec2 g0=ivec2(floor(g)); vec2 fr=fract(g); ivec2 PN=ivec2(R)/2; vec3 L=vec3(0);
+  for(int j=0;j<4;j++){ ivec2 o2=ivec2(j&1,j>>1); ivec2 pp=clamp(g0+o2,ivec2(0),PN-1); float w=(o2.x==1?fr.x:1.-fr.x)*(o2.y==1?fr.y:1.-fr.y);
+    vec3 s=vec3(0); for(int k=0;k<4;k++) s+=texelFetch(c0,pp*2+ivec2(k%2,k/2),0).rgb; L+=w*s*.25; }
+  vec4 sc=texture(sceneT,vec2(uv.x,1.-uv.y));
+  float sd=texture(sdfT,uv).r;
+  // paper backdrop with fibres
+  vec2 q=uv*S; float fib=n2(q*.9)*.5+n2(q*2.3)*.3+n2(q*7.)*.2;
+  vec3 paper=vec3(.80,.78,.74)*(.88+.12*fib);
+  vec3 col;
+  if(sc.a>.5){ // solid: emitter or ink
+    vec3 e=pow(sc.rgb,vec3(2.2));
+    float lum=dot(e,vec3(.3,.6,.1));
+    col = lum>.02 ? e*2.2 : vec3(.010,.011,.016)+L*.03;
+  } else {
+    col = paper*L*1.6;
+    col *= .85+.15*smoothstep(0.,6.,sd); // contact darkening near cut paper
+  }
+  col = col/(1.+col*.6); // tonemap
+  col = pow(col,vec3(1./2.2));
+  vec2 v=uv-.5; col*=1.-.55*dot(v,v)*1.6;
+  col += (h(uv*S+time)-.5)*.035;
+  o=vec4(col,1);
+}`);
+
+function draw(P, fb, w, h) { gl.useProgram(P.p); gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.viewport(0, 0, w, h); }
+function bindT(P, name, t, unit) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t); gl.uniform1i(P.u[name], unit); }
+let frame = 0;
+function render() {
+  frame++;
+  if (dirty) {
+    dirty = false;
+    gl.bindTexture(gl.TEXTURE_2D, sceneTex); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sc);
+    draw(P_init, jfa[0].f, W, H); bindT(P_init, 's', sceneTex, 0); gl.drawArrays(gl.TRIANGLES, 0, 3);
+    let src = 0;
+    for (let k = 1 << Math.ceil(Math.log2(Math.max(W, H))); k >= 1; k >>= 1) {
+      draw(P_jfa, jfa[1 - src].f, W, H); bindT(P_jfa, 's', jfa[src].t, 0); gl.uniform1f(P_jfa.u.k, k); gl.uniform2f(P_jfa.u.R, W, H); gl.drawArrays(gl.TRIANGLES, 0, 3); src = 1 - src;
+    }
+    draw(P_sdf, sdf.f, W, H); bindT(P_sdf, 's', jfa[src].t, 0); gl.drawArrays(gl.TRIANGLES, 0, 3);
+    let cur = 0;
+    for (let n = NC - 1; n >= 0; n--) {
+      draw(P_rc, casc[cur].f, W, H); bindT(P_rc, 'sceneT', sceneTex, 0); bindT(P_rc, 'sdfT', sdf.t, 1); bindT(P_rc, 'upT', casc[1 - cur].t, 2);
+      gl.uniform2f(P_rc.u.R, W, H); gl.uniform1i(P_rc.u.n, n); gl.uniform1i(P_rc.u.last, n === NC - 1 ? 1 : 0); gl.uniform1f(P_rc.u.L0, 1.5);
+      gl.uniform2f(P_rc.u.moon, moon.x * W, (1 - moon.y) * H);
+      gl.drawArrays(gl.TRIANGLES, 0, 3); cur = 1 - cur;
+    }
+    window.__c0 = casc[1 - cur];
+  }
+  draw(P_out, null, cv.width, cv.height); bindT(P_out, 'c0', window.__c0.t, 0); bindT(P_out, 'sceneT', sceneTex, 1); bindT(P_out, 'sdfT', sdf.t, 2);
+  gl.uniform2f(P_out.u.R, W, H); gl.uniform2f(P_out.u.S, cv.width, cv.height); gl.uniform1f(P_out.u.time, SHOT ? 0 : frame % 97);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  if (SHOT && frame > 2) window.__ready = true;
+  if (!SHOT || frame < 4) requestAnimationFrame(render);
+}
+// ---------- interaction ----------
+let down = null, cur = null, dragMoon = false; const cols = ['#ffb347', '#ff4d6d', '#4cc9f0', '#80ffdb', '#c77dff', '#ffd166']; let ci = 0;
+cv.addEventListener('pointerdown', e => {
+  const x = e.clientX / innerWidth, y = e.clientY / innerHeight;
+  if (Math.hypot((x - moon.x) * innerWidth, (y - moon.y) * innerHeight) < 40) { dragMoon = true; return; }
+  down = [x, y]; cur = [[x, y]];
+});
+addEventListener('pointermove', e => {
+  const x = e.clientX / innerWidth, y = e.clientY / innerHeight;
+  if (dragMoon) { moon.x = x; moon.y = y; buildScene(); return; }
+  if (cur) { cur.push([x, y]); if (cur.length === 3) strokes.push(cur); if (cur.length > 2) buildScene(); }
+});
+addEventListener('pointerup', e => {
+  if (cur && cur.length <= 2) { lanterns.push({ x: down[0], y: down[1], c: cols[ci++ % cols.length] }); buildScene(); }
+  cur = null; dragMoon = false;
+});
+if (Q.has('demo')) { strokes.push([[0.2, 0.25], [0.3, 0.2], [0.38, 0.27]]); lanterns.push({ x: 0.33, y: 0.62, c: '#4cc9f0' }, { x: 0.62, y: 0.7, c: '#ff4d6d' }); }
+buildScene(); render();
+</script></body></html>

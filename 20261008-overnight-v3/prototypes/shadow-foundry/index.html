@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>影鑄 Shadow Foundry — prototype</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+html,body{margin:0;height:100%;background:#0b0a09;overflow:hidden;font-family:"Cormorant Garamond","Noto Serif",Georgia,serif;color:#e8dcc8}
+canvas#c{display:block;width:100vw;height:100vh;cursor:grab}
+#vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 45% 45%,rgba(0,0,0,0) 45%,rgba(0,0,0,.55) 100%)}
+#grain{position:fixed;inset:0;pointer-events:none;opacity:.07;mix-blend-mode:overlay}
+#title{position:fixed;left:48px;top:40px;letter-spacing:.35em;font-size:13px;text-transform:uppercase;opacity:.75}
+#title b{display:block;font-size:34px;letter-spacing:.2em;font-weight:400;margin-bottom:6px}
+#hint{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);font-size:13px;letter-spacing:.3em;text-transform:uppercase;opacity:.6}
+#stat{position:fixed;right:48px;top:44px;font-size:12px;letter-spacing:.25em;opacity:.55;text-align:right}
+</style>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.js","three/addons/":"../vendor/addons/"}}</script>
+</head><body>
+<canvas id="c"></canvas><canvas id="grain"></canvas><div id="vig"></div>
+<div id="title"><b>影 鑄</b>Shadow Foundry</div>
+<div id="stat">ALIGNMENT <span id="al">--</span></div>
+<div id="hint">drag to turn the sculpture · find the angle</div>
+<script type="module">
+import * as THREE from 'three';
+import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const Q = new URLSearchParams(location.search);
+const SHOT = Q.has('shot');
+const N = 120, PAD = 4, R = N + 2 * PAD; // mask res, MC grid res
+
+// ---------- silhouettes (procedural Path2D, font independent) ----------
+function mask(draw) {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.strokeStyle = '#fff'; g.lineCap = g.lineJoin = 'round';
+  draw(g);
+  const s = document.createElement('canvas'); s.width = s.height = N;
+  const h = s.getContext('2d'); h.drawImage(c, 0, 0, N, N);
+  const d = h.getImageData(0, 0, N, N).data, m = new Uint8Array(N * N);
+  for (let i = 0; i < N * N; i++) m[i] = d[i * 4 + 3] > 110 ? 1 : 0;
+  return { m, canvas: c };
+}
+const ell = (g, x, y, rx, ry, r = 0) => { g.beginPath(); g.ellipse(x, y, rx, ry, r, 0, 7); g.fill(); };
+// back wall: sitting cat (facing right)
+const CAT = mask(g => {
+  ell(g, 118, 178, 64, 70); ell(g, 168, 88, 44, 40);
+  g.beginPath(); g.moveTo(134, 70); g.lineTo(140, 10); g.lineTo(170, 52); g.fill();
+  g.beginPath(); g.moveTo(170, 50); g.lineTo(204, 8); g.lineTo(208, 74); g.fill();
+  g.lineWidth = 20; g.beginPath(); g.moveTo(80, 236); g.bezierCurveTo(20, 246, 6, 170, 44, 128); g.stroke();
+  g.beginPath(); g.roundRect(70, 222, 120, 30, 12); g.fill();
+  ell(g, 182, 140, 22, 46, -0.15);
+});
+// left wall: tree
+const TREE = mask(g => {
+  g.beginPath(); g.moveTo(112, 252); g.lineTo(144, 252); g.lineTo(136, 150); g.lineTo(120, 150); g.fill();
+  g.lineWidth = 12; g.beginPath(); g.moveTo(128, 175); g.lineTo(80, 120); g.moveTo(130, 165); g.lineTo(178, 110); g.stroke();
+  ell(g, 128, 92, 70, 62); ell(g, 78, 118, 44, 36); ell(g, 182, 112, 46, 38); ell(g, 128, 40, 46, 34);
+});
+// floor: bird seen from above, wings spread along x
+const BIRD = mask(g => {
+  ell(g, 128, 128, 26, 84); ell(g, 128, 44, 22, 22);
+  g.beginPath(); g.moveTo(128, 18); g.lineTo(120, 30); g.lineTo(136, 30); g.fill();
+  g.beginPath(); g.moveTo(108, 120); g.bezierCurveTo(70, 70, 20, 80, 4, 110); g.bezierCurveTo(40, 120, 60, 150, 110, 160); g.fill();
+  g.beginPath(); g.moveTo(148, 120); g.bezierCurveTo(186, 70, 236, 80, 252, 110); g.bezierCurveTo(216, 120, 196, 150, 146, 160); g.fill();
+  g.beginPath(); g.moveTo(128, 190); g.lineTo(92, 250); g.lineTo(128, 236); g.lineTo(164, 250); g.fill();
+});
+
+// ---------- visual hull carving ----------
+const A = CAT.m, B = TREE.m, C = BIRD.m;
+const occ = new Uint8Array(N * N * N);
+for (let k = 0; k < N; k++) for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+  const a = A[(N - 1 - j) * N + i], b = B[(N - 1 - j) * N + (N - 1 - k)], c = C[k * N + i];
+  occ[(k * N + j) * N + i] = a & b & c;
+}
+// coverage stats: reprojection vs mask
+function cover(proj) { let hit = 0, tot = 0; return proj; }
+const pa = new Uint8Array(N * N), pb = new Uint8Array(N * N), pc = new Uint8Array(N * N);
+for (let k = 0; k < N; k++) for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) if (occ[(k * N + j) * N + i]) {
+  pa[(N - 1 - j) * N + i] = 1; pb[(N - 1 - j) * N + (N - 1 - k)] = 1; pc[k * N + i] = 1;
+}
+const cov = (m, p) => { let t = 0, h = 0; for (let i = 0; i < m.length; i++) if (m[i]) { t++; h += p[i]; } return (100 * h / t).toFixed(1); };
+console.log('coverage cat/tree/bird %', cov(A, pa), cov(B, pb), cov(C, pc));
+
+// ---------- renderer / scene ----------
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: SHOT });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b0a09);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(9.5, 5.2, 11.5); camera.lookAt(-0.6, 2.35, -0.8);
+
+// plaster texture
+function plaster() {
+  const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d');
+  const id = g.createImageData(512, 512);
+  for (let i = 0; i < 512 * 512; i++) { const v = 200 + (Math.random() * 30 - 15) + 10 * Math.sin(i * 0.0007); id.data[i * 4] = v; id.data[i * 4 + 1] = v * 0.97; id.data[i * 4 + 2] = v * 0.92; id.data[i * 4 + 3] = 255; }
+  g.putImageData(id, 0, 0); g.filter = 'blur(1.2px)'; g.drawImage(c, 0, 0);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 3); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const wallMat = new THREE.MeshStandardMaterial({ color: 0xa89c8c, map: plaster(), roughness: 0.95 });
+const W = 3.2, E = 7;
+const back = new THREE.Mesh(new THREE.PlaneGeometry(E + W + 6, 9), wallMat); back.position.set((E - W) / 2 + 3, 4.5, -W); back.receiveShadow = true; scene.add(back);
+const left = new THREE.Mesh(new THREE.PlaneGeometry(E + W + 6, 9), wallMat); left.rotation.y = Math.PI / 2; left.position.set(-W, 4.5, (E - W) / 2 + 3); left.receiveShadow = true; scene.add(left);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(E + W + 6, E + W + 6), new THREE.MeshStandardMaterial({ color: 0x5e554c, map: plaster(), roughness: 0.85 }));
+floor.rotation.x = -Math.PI / 2; floor.position.set((E - W) / 2 + 3, 0, (E - W) / 2 + 3); floor.receiveShadow = true; scene.add(floor);
+// skirting
+const sk = new THREE.MeshStandardMaterial({ color: 0x2a2520, roughness: 0.6 });
+const s1 = new THREE.Mesh(new THREE.BoxGeometry(20, 0.18, 0.06), sk); s1.position.set(5, 0.09, -W + 0.03); scene.add(s1);
+const s2 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 20), sk); s2.position.set(-W + 0.03, 0.09, 5); scene.add(s2);
+
+scene.add(new THREE.HemisphereLight(0x8090a0, 0x201810, 0.035));
+const CEN = new THREE.Vector3(0, 2.55, 0), S = 2.5;
+function spot(color, inten, pos, ang) {
+  const l = new THREE.SpotLight(color, inten, 0, ang, 0.55, 0);
+  l.position.copy(pos); l.target.position.copy(CEN); scene.add(l.target);
+  l.castShadow = true; l.shadow.mapSize.set(2048, 2048); l.shadow.bias = -0.0004; l.shadow.normalBias = 0.01; l.shadow.radius = 1.5;
+  l.shadow.camera.near = pos.distanceTo(CEN) - 3; l.shadow.camera.far = pos.distanceTo(CEN) + 6;
+  scene.add(l); return l;
+}
+const D = 30;
+spot(0xffc58f, 4.2, new THREE.Vector3(0, CEN.y, D), 0.085);   // -> back wall (cat)
+spot(0xbfd4ff, 3.4, new THREE.Vector3(D, CEN.y, 0), 0.085);   // -> left wall (tree)
+spot(0xffe6c8, 3.4, new THREE.Vector3(0, D, 0), 0.085);       // -> floor (bird)
+
+// sculpture
+const bronze = new THREE.MeshStandardMaterial({ color: 0x8a6440, metalness: 1, roughness: 0.3, envMapIntensity: 1.0 });
+const mc = new MarchingCubes(R, bronze, false, false, 400000);
+mc.isolation = 0.5;
+const f = mc.field;
+for (let k = 0; k < N; k++) for (let j = 0; j < N; j++) for (let i = 0; i < N; i++)
+  f[(k + PAD) * R * R + (j + PAD) * R + (i + PAD)] = occ[(k * N + j) * N + i];
+// smoothing (box blur 3^3, 2 passes)
+for (let pass = 0; pass < 2; pass++) { const g = f.slice(); for (let z = 1; z < R - 1; z++) for (let y = 1; y < R - 1; y++) for (let x = 1; x < R - 1; x++) { let s = 0; for (let dz = -1; dz <= 1; dz++) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) s += g[(z + dz) * R * R + (y + dy) * R + x + dx]; f[z * R * R + y * R + x] = s / 27; } }
+const t0 = performance.now(); mc.update(); console.log('mc tris', mc.count / 3, (performance.now() - t0).toFixed(0) + 'ms');
+mc.castShadow = true; mc.receiveShadow = true;
+mc.scale.setScalar(S / 2 * R / N);
+const pivot = new THREE.Group(); pivot.position.copy(CEN); pivot.add(mc); scene.add(pivot);
+
+// ---------- interaction ----------
+const target = new THREE.Quaternion();
+const scramble = () => new THREE.Quaternion().setFromEuler(new THREE.Euler(0.9, -1.3, 0.5));
+let q = SHOT ? (Q.get('a') === '1' ? scramble() : new THREE.Quaternion().slerp(scramble(), +(Q.get('a') || 0))) : scramble();
+pivot.quaternion.copy(q);
+let drag = false, px = 0, py = 0, vx = 0, vy = 0;
+canvas.addEventListener('pointerdown', e => { drag = true; px = e.clientX; py = e.clientY; canvas.style.cursor = 'grabbing'; });
+addEventListener('pointerup', () => { drag = false; canvas.style.cursor = 'grab'; });
+addEventListener('pointermove', e => { if (!drag) return; vx = (e.clientX - px) * 0.006; vy = (e.clientY - py) * 0.006; px = e.clientX; py = e.clientY; applyRot(vx, vy); });
+addEventListener('keydown', e => { if (e.key === 'r') { pivot.quaternion.copy(scramble()); } if (e.key === ' ') auto = !auto; });
+let auto = false;
+const ax = new THREE.Vector3(), ay = new THREE.Vector3();
+function applyRot(dx, dy) {
+  ay.set(0, 1, 0); ax.set(1, 0, 0).applyQuaternion(camera.quaternion);
+  pivot.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(ay, dx)).premultiply(new THREE.Quaternion().setFromAxisAngle(ax, dy)).normalize();
+}
+const alEl = document.getElementById('al');
+let frame = 0;
+function tick() {
+  frame++;
+  if (!SHOT) {
+    if (!drag) { vx *= 0.94; vy *= 0.94; applyRot(vx, vy); }
+    const ang = pivot.quaternion.angleTo(target);
+    if (auto || (!drag && ang < 0.22)) pivot.quaternion.slerp(target, auto ? 0.03 : 0.08);
+    pivot.position.y = CEN.y + Math.sin(frame * 0.01) * 0.0;
+    alEl.textContent = (100 * Math.max(0, 1 - ang / Math.PI)).toFixed(1) + '%';
+  } else alEl.textContent = (100 * Math.max(0, 1 - pivot.quaternion.angleTo(target) / Math.PI)).toFixed(1) + '%';
+  renderer.render(scene, camera);
+  if (SHOT && frame > 3) window.__ready = true;
+  if (!SHOT || frame < 6) requestAnimationFrame(tick);
+}
+tick();
+// grain
+const gc = document.getElementById('grain'); gc.width = 256; gc.height = 256; const gg = gc.getContext('2d');
+function grain() { const id = gg.createImageData(256, 256); for (let i = 0; i < id.data.length; i += 4) { const v = Math.random() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; } gg.putImageData(id, 0, 0); }
+grain(); gc.style.width = '100vw'; gc.style.height = '100vh'; gc.style.imageRendering = 'pixelated';
+if (!SHOT) setInterval(grain, 80);
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+</script></body></html>
