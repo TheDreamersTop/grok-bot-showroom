@@ -19,9 +19,14 @@ export function createSPL(N, opt = {}) {
   const pop = () => { const r = heap[0]; heap[0] = heap[--hn]; let k = 0; for (;;) { const l = 2 * k + 1, rr = l + 1; let s = k;
     if (l < hn && less(heap[l], heap[s])) s = l; if (rr < hn && less(heap[rr], heap[s])) s = rr; if (s === k) break; const t = heap[k]; heap[k] = heap[s]; heap[s] = t; k = s; } return r; };
   let upl = 0;   // total uplift so far: strata are fixed in the rock, so layer = f(h − upl)
-  const hardK = (z, i) => HARD[layerOf(z - upl, i, N)] ? 0.35 : 1.0;
-  const scOf = (z, i) => P.ScH ? (HARD[layerOf(z - upl, i, N)] ? P.ScH : P.ScS) : P.Sc;
+  const DIP = new Float32Array(NN), HU = Uint8Array.from(HARD);   // per-cell dip offset of the strata (same as layerOf), precomputed
+  for (let i = 0; i < NN; i++) DIP[i] = ((i % N) / N - .5) * 0.8 + (((i / N) | 0) / N - .5) * 0.6;
+  const hardAt = (z, i) => { const k = Math.floor((z - upl + DIP[i]) / LAYER); return HU[((k % NLAY) + NLAY) % NLAY]; };
+  const hardK = (z, i) => hardAt(z, i) ? 0.35 : 1.0;
+  const scOf = (z, i) => P.ScH ? (hardAt(z, i) ? P.ScH : P.ScS) : P.Sc;
   const dipZ = i => ((i % N) / N - .5) * 2.0 + (((i / N) | 0) / N - .5) * 1.5;
+  const NB = new Int32Array(NN * 8);   // neighbour table (-1 = off grid): no div/mod or bounds tests in the hot loops
+  for (let i = 0; i < NN; i++) { const cx = i % N, cy = (i / N) | 0; for (let k = 0; k < 8; k++) { const x = cx + DX[k], y = cy + DY[k]; NB[i * 8 + k] = (x < 0 || y < 0 || x >= N || y >= N) ? -1 : y * N + x; } }
   const base = new Uint8Array(NN); for (let i = 0; i < N; i++) base[i] = 1;
   const isBase = i => base[i] === 1;
   const lower = new Float32Array(NN);   // optional scripted forcing: extra base-level lowering rate (per step) along the stroke
@@ -32,13 +37,13 @@ export function createSPL(N, opt = {}) {
     // priority flood fill from base row
     hn = 0; closed.fill(0);
     for (let i = 0; i < NN; i++) if (base[i]) { hf[i] = h[i]; closed[i] = 1; push(i); }
-    while (hn) { const c = pop(); const cx = c % N, cy = (c / N) | 0;
-      for (let k = 0; k < 8; k++) { const x = cx + DX[k], y = cy + DY[k]; if (x < 0 || y < 0 || x >= N || y >= N) continue; const n = y * N + x; if (closed[n]) continue;
+    while (hn) { const c = pop(); const o = c * 8;
+      for (let k = 0; k < 8; k++) { const n = NB[o + k]; if (n < 0 || closed[n]) continue;
         closed[n] = 1; hf[n] = Math.max(h[n], hf[c] + 1e-4 * DL[k]); push(n); } }
     // receivers (steepest descent on filled surface)
     ndon.fill(0);
-    for (let i = 0; i < NN; i++) { rec[i] = i; dist[i] = 1; if (isBase(i)) continue; const cx = i % N, cy = (i / N) | 0; let best = 0;
-      for (let k = 0; k < 8; k++) { const x = cx + DX[k], y = cy + DY[k]; if (x < 0 || y < 0 || x >= N || y >= N) continue; const n = y * N + x;
+    for (let i = 0; i < NN; i++) { rec[i] = i; dist[i] = 1; if (isBase(i)) continue; const o = i * 8; let best = 0;
+      for (let k = 0; k < 8; k++) { const n = NB[o + k]; if (n < 0) continue;
         const s = (hf[i] - hf[n]) / DL[k]; if (s > best) { best = s; rec[i] = n; dist[i] = DL[k]; } }
       const r = rec[i]; if (r !== i) don[r * 8 + ndon[r]++] = i; }
     // stack (iterative DFS from base nodes)
@@ -55,8 +60,8 @@ export function createSPL(N, opt = {}) {
       const F = P.K * hardK(h[i], i) * dt * Math.pow(A[i], P.m) / dist[i];
       h[i] = (h[i] + F * h[r]) / (1 + F); }
     // threshold hillslopes: nothing steeper than Sc relative to any lower neighbour (cliff retreat), two sweeps
-    for (let pass = 0; pass < 2; pass++) for (let s = 0; s < ns; s++) { const i = stack[s]; if (isBase(i)) continue; const cx = i % N, cy = (i / N) | 0; let lim = h[i]; const sc = scOf(h[i], i);
-      for (let k = 0; k < 8; k++) { const x = cx + DX[k], y = cy + DY[k]; if (x < 0 || y < 0 || x >= N || y >= N) continue; lim = Math.min(lim, h[y * N + x] + sc * DL[k]); }
+    for (let pass = 0; pass < 2; pass++) for (let s = 0; s < ns; s++) { const i = stack[s]; if (isBase(i)) continue; const o = i * 8; let lim = h[i]; const sc = scOf(h[i], i);
+      for (let k = 0; k < 8; k++) { const n = NB[o + k]; if (n < 0) continue; const v = h[n] + sc * DL[k]; if (v < lim) lim = v; }
       h[i] = lim; }
     return ns;
   }

@@ -203,9 +203,11 @@ in vec2 vUv; in vec3 vW; out vec4 o;
     float wet = t.w * smoothstep(ptop-6., ptop-1., h);   // the drawn line reads as rain-darkened, glistening ground
     col *= 1. - 0.45*wet; { vec3 Rw=reflect(normalize(vW-cameraPosition), n); col += wet * skyCol(Rw) * 0.18 * pow(max(dot(Rw,sun),0.),24.) * 6.; }
     vec3 V=normalize(cameraPosition-vW); vec3 rd=-V;
-    if (riv>0.) { vec3 R=reflect(rd, vec3(0.,1.,0.)); float fr=0.04+0.96*pow(1.-max(V.y,0.),5.);
-      vec3 w = RIVON ? (mix(vec3(.11,.22,.17), skyCol(R)*0.55, clamp(fr,.06,.6)) + vec3(1.,.8,.55)*pow(max(dot(R,sun),0.),60.)*1.5*sh) * mix(0.6,1.0,sh) : mix(vec3(.10,.22,.20)*0.6, skyCol(R)*0.9, fr) * mix(0.55,1.,sh);
-      col = mix(col, w, riv); }
+    if (riv>0.) { float r1=fbm(vW.xz*vec2(900.,300.)+vec2(0.,vW.x*200.)), r2=fbm(vW.xz*vec2(260.,780.)+7.);   // ripples, streaked
+      vec3 wn=normalize(vec3((r1-.5)*0.10,1.,(r2-.5)*0.10)); vec3 R=reflect(rd, wn); float fr=0.04+0.96*pow(1.-max(dot(V,wn),0.),5.);
+      vec3 w = RIVON ? (mix(vec3(.075,.15,.12), skyCol(R)*0.5, clamp(fr,.05,.6)) + vec3(1.,.8,.55)*pow(max(dot(R,sun),0.),60.)*1.5*sh) * mix(0.6,1.0,sh) : mix(vec3(.10,.22,.20)*0.6, skyCol(R)*0.9, fr) * mix(0.55,1.,sh);
+      float bank = riv*(1.-riv)*4.; col *= 1.-0.35*bank;                     // dark wet margin where water meets rock
+      w *= 0.85+0.3*r1; col = mix(col, w, smoothstep(0.15,0.6,riv)); }
     float dist=length(vW-cameraPosition);
     col = haze(col, rd, dist, vW.y);
     o=vec4(col,1.); }` });
