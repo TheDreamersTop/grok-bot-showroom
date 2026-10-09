@@ -147,7 +147,7 @@ vec3 strataCol(float z){ float k=floor(z/LAYER); float h=hash(vec2(k,3.7)); floa
   return c; }
 `;
 const terrainMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3,
-  uniforms: { ptop: { value: 46 }, upl: { value: 0 }, T: { value: null }, SHT: { value: SH.texture }, N: { value: N }, seed: { value: +(Q.get('seed') || 3) }, sun: { value: SUN }, vsc: { value: VSC } },
+  uniforms: { ghost: { value: new THREE.Vector2(0, 0) }, ptop: { value: 46 }, upl: { value: 0 }, T: { value: null }, SHT: { value: SH.texture }, N: { value: N }, seed: { value: +(Q.get('seed') || 3) }, sun: { value: SUN }, vsc: { value: VSC } },
   vertexShader: SHARED + `uniform sampler2D T; uniform float vsc; out vec2 vUv; out vec3 vW;
     vec4 TB(vec2 uv){ vec2 p=uv*N-.5; vec2 i=floor(p), f=fract(p); vec2 q=(i+.5)/N; float e=1./N;
       return mix(mix(texture(T,q),texture(T,q+vec2(e,0)),f.x), mix(texture(T,q+vec2(0,e)),texture(T,q+vec2(e,e)),f.x), f.y); }
@@ -157,7 +157,7 @@ const terrainMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3,
   float s=0.; for(int j=0;j<4;j++){ float r=0.; for(int k=0;k<4;k++){ r += wx[k]*texture(T,(i+vec2(float(k)-1.,float(j)-1.)+.5)/N).x; } s += wy[j]*r; } return s; }
 void main(){ vUv=uv; vec2 u=vec2(uv.x, 1.-uv.y); vUv=u; float h=terrace(HB(u),u); vec3 p=vec3(u.x-.5, h*vsc, u.y-.5); vW=p;
       gl_Position=projectionMatrix*viewMatrix*vec4(p,1.); }`,
-  fragmentShader: RCOMMON + `uniform float ptop;
+  fragmentShader: RCOMMON + `uniform float ptop; uniform vec2 ghost;
 #define RIVON ${Q.has('oldriver') ? 'false' : 'true'}
 #define RLO ${(P('rlo') || 9.0).toFixed(2)}
 in vec2 vUv; in vec3 vW; out vec4 o;
@@ -176,8 +176,9 @@ in vec2 vUv; in vec3 vW; out vec4 o;
     top *= 0.88+0.24*fbm(vUv*90.);
     float trees = smoothstep(.66,.74,fbm(vUv*420.+3.))*flat_*smoothstep(HTOP*0.6,HTOP*0.8,h);
     vec3 alb = mix(rock, top, flat_*0.85); alb = mix(alb, vec3(.16,.17,.10), trees*0.55);
-    alb *= mix(1., 0.72+0.28*bed, wall) * (0.82+0.36*g1*wall + (1.-wall)*0.18);
-    { float sub = fract(z/(LAYER*0.5) + 0.3*fbm(vUv*30.)); alb *= mix(1., 0.8 + 0.2*smoothstep(0.,.08,sub), wall); }   // ledge partings
+    float cliff = 1.-smoothstep(.25,.55,n.y);   // fine bedding only on true cliffs, so talus slopes don't read as contour lines
+    alb *= mix(1., 0.72+0.28*bed, cliff) * (0.82+0.36*g1*wall + (1.-wall)*0.18);
+    { float sub = fract(z/(LAYER*0.5) + 0.3*fbm(vUv*30.)); alb *= mix(1., 0.8 + 0.2*smoothstep(0.,.08,sub), cliff); }   // ledge partings
     { float hk = hardOf(floor(z/LAYER)); float below = fract(z/LAYER);                                   // desert varnish: dark streaks hanging from hard ledges, irregular pitch
       float st = smoothstep(.6,.8, fbm(vec2((vW.x+vW.z)*1400.+g2*3., z*0.05)));
       alb *= 1. - 0.14*st*wall*(hk>1. ? (1.-below) : 0.3);
@@ -200,7 +201,11 @@ in vec2 vUv; in vec3 vW; out vec4 o;
     // river: water where drainage area is large, reflecting the sky
     float riv = RIVON ? smoothstep(RLO, RLO+1.6, t.z) * smoothstep(.45,.75,n.y+0.1) * smoothstep(ptop-3., ptop-9., h) : smoothstep(9.5, 11.0, log2(1.+t.z)) * smoothstep(.9,.97,n.y+0.1) * smoothstep(HTOP-4., HTOP-12., h);
     riv = max(riv, smoothstep(0.10, 0.45, t.y));   // lakes
-    float wet = t.w * smoothstep(ptop-6., ptop-1., h);   // the drawn line reads as rain-darkened, glistening ground
+    float wet = t.w * smoothstep(ptop-6., ptop-1., h);
+    if (ghost.y > 0.) { float gd = 1e9; vec2 pc = vec2(0.30, 0.56+0.07*sin(0.6));   // wordless hint: a wet streak draws itself and dries
+      for (int q=1; q<=24; q++) { float s=min(float(q)/24., ghost.x); vec2 c = vec2(0.30+0.40*s, 0.56+0.07*sin(s*6.283+0.6));
+        vec2 pa=vUv-pc, ba=c-pc; float hq=clamp(dot(pa,ba)/max(dot(ba,ba),1e-9),0.,1.); gd = min(gd, length(pa-ba*hq)); pc = c; if (float(q)/24. >= ghost.x) break; }
+      wet = max(wet, ghost.y * (1.-smoothstep(0.004, 0.011, gd)) * smoothstep(ptop-3., ptop-1., h)); }   // the drawn line reads as rain-darkened, glistening ground
     col *= 1. - 0.45*wet; { vec3 Rw=reflect(normalize(vW-cameraPosition), n); col += wet * skyCol(Rw) * 0.18 * pow(max(dot(Rw,sun),0.),24.) * 6.; }
     vec3 V=normalize(cameraPosition-vW); vec3 rd=-V;
     if (riv>0.) { float r1=fbm(vW.xz*vec2(900.,300.)+vec2(0.,vW.x*200.)), r2=fbm(vW.xz*vec2(260.,780.)+7.);   // ripples, streaked
@@ -304,7 +309,9 @@ if (SHOT) {
     let q = gov.q; if (gov.ema > 22 && q > 0.5) q -= 0.1; else if (gov.ema < 14 && q < 1) q += 0.1;
     if (q !== gov.q) { gov.q = q; gov.hold = 0; rtMain.setSize(Math.round(innerWidth * q), Math.round(innerHeight * q)); post.material.uniforms.res.value.set(innerWidth * q, innerHeight * q); } }
   window.__gov = () => ({ q: gov.q, frameMs: gov.ema });
-  const loop = () => { requestAnimationFrame(loop); governor(); tick(); if (performance.now() - idle > 6000) hud.textContent = 'drag across the plateau'; render(); window.__ready = true; }; loop();
+  const loop = () => { requestAnimationFrame(loop); governor(); tick(); { const it = (performance.now() - idle - 5000) / 1000; let gx = 0, gy = 0;   // wordless idle hint: a wet stroke draws itself across the plateau, then dries
+      if (it > 0) { const c = it % 5; gx = Math.min(1, c / 1.6); gy = c < 1.6 ? 1 : Math.max(0, 1 - (c - 1.6) / 1.4); }
+      terrainMat.uniforms.ghost.value.set(gx, gy); } render(); window.__ready = true; }; loop();
 }
 window.__timing = () => ({ steps: simInfo.steps, total: simInfo.total, msPerStep: simInfo.msPerStep, budget: simInfo.budget, done: simInfo.done });
 window.__cellToScreen = (x, y) => { const v = new THREE.Vector3(x / N - .5, (simInfo.top || 20) * VSC, y / N - .5).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; };
