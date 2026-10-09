@@ -42,7 +42,7 @@ const pass = (frag, u) => new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, v
 function run(m, target) { quad.material = m; renderer.setRenderTarget(target); renderer.render(simScene, simCam); renderer.setRenderTarget(null); }
 
 // ---------------------------------------------------------------- initial land: a plateau tilted toward a far base level
-const initMat = pass(`
+const initMat = pass(`${Q.has('gesture') ? '#define GESTURE' : ''}
 float mxOf(float y){ return 0.5 + 0.16*sin(y*8.5+0.6) + 0.07*sin(y*19.+2.) + (fbm(vec2(y*3.,1.))-.5)*0.15; }
 float sdSeg(vec2 p, vec2 a, vec2 b){ vec2 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.,1.); return length(pa-ba*h); }
 void main(){ vec2 uv=vUv;
@@ -62,8 +62,15 @@ void main(){ vec2 uv=vUv;
     float along = clamp(length(w-a)/L,0.,1.);
     tcut = max(tcut, (1.-smoothstep(0.012, 0.07*(1.-0.6*along), d))*(1.-0.75*along)); }
   float c = max(cut, tcut*0.85);
+  #ifdef GESTURE
+  c = 1.-smoothstep(0.004, 0.018, dm);            // only a shallow finger-groove along the drawn path: the sim must dig the canyon
+  floorZ = plateau - 3.0;
+  #endif
   float b = mix(plateau, floorZ, c);
   if (uv.y < 1.5/N && c > 0.6) b = 0.;
+  #ifdef GESTURE
+  if (uv.y < 1.5/N && c > 0.3) b = 0.;
+  #endif
   o = vec4(b, 0., 0., b); }`, {});
 const accMat = pass(`uniform sampler2D T; uniform vec3 rain; uniform float rainAmt, base;
 float Hh(vec2 uv){ return texture(T,uv).x; }

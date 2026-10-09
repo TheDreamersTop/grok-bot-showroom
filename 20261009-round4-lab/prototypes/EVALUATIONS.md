@@ -34,6 +34,15 @@ sim attempts `shots/proto-deep-time-A2-unseeded-network.png`, `shots/proto-deep-
   stair-step strata renderer makes any incision look like the Grand Canyon. Needs: rock micro-normal/grain, talus
   scree, varnish streaks from the rim downward, a smaller far plain, and a real-GPU speed test (the live page renders the
   postcard; SwiftShader live is ~0.3 fps, which says nothing about real GPUs).
+- **Gesture test (07:59–08:02, `?gesture=1`):** I replaced the seeded canyon with only a 3-cell finger groove along the
+  same path (what a child's drag would leave) and ran stream-power for 3,000 steps at K=300 and K=1200
+  (`shots/proto-deep-time-A2-gesture-t0.png` → `-gesture-t3000.png`). **The groove did not deepen into a canyon.** Instead,
+  the tilted plateau broke up into scattered stepped badlands near the camera. The knickpoint retreat from base level is
+  ~20 steps per cell, and the talus pass fills the slot as fast as it cuts. Evidence for the open question: with today's
+  model, a postcard canyon from the player's own gesture needs either a much faster incision scheme (multiple incision
+  sub-steps per frame, implicit stream-power solver à la Braun–Willett, or a lower talus near channels) or an
+  art-directed "deep-time" driver (base level lowered along the drawn path, with sim gullies on top). Fun side note:
+  the t=0 groove frame, with the strata renderer, already looks like a slot canyon "drawn by a finger".
 - **Scores (A2):** Focal 1 · Value 2 · Palette 2 · Light 2 · Depth 2 · Material 1 · Detail 1 · Originality 1 · Hero 1 ·
   Emergent 1 · Motion 1 · Polish 1 → **16/24** (v4 was 12). Originality stays 1: art-directed canyon renders exist in
   terrain demos. The originality claim lives in the *deep-time causality*, and this spike didn't prove that.
