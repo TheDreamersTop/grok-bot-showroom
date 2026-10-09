@@ -130,6 +130,10 @@ float HB(vec2 uv){ vec2 p=uv*N-.5; vec2 i=floor(p), f=fract(p);
   vec4 wy = vec4(pow(1.-f.y,3.), 3.*f.y*f.y*f.y-6.*f.y*f.y+4., -3.*f.y*f.y*f.y+3.*f.y*f.y+3.*f.y+1., f.y*f.y*f.y)/6.;
   float s=0.; for(int j=0;j<4;j++){ float r=0.; for(int k=0;k<4;k++){ r += wx[k]*texture(T,(i+vec2(float(k)-1.,float(j)-1.)+.5)/N).x; } s += wy[j]*r; } return s; }
 float Ht(vec2 uv){ return terrace(HB(uv), uv); }
+vec4 TBS(vec2 uv){ vec2 p=uv*N-.5; vec2 i=floor(p), f=fract(p);   // smooth cubic B-spline of the data texture (river/lake masks without texel stairs)
+  vec4 wx = vec4(pow(1.-f.x,3.), 3.*f.x*f.x*f.x-6.*f.x*f.x+4., -3.*f.x*f.x*f.x+3.*f.x*f.x+3.*f.x+1., f.x*f.x*f.x)/6.;
+  vec4 wy = vec4(pow(1.-f.y,3.), 3.*f.y*f.y*f.y-6.*f.y*f.y+4., -3.*f.y*f.y*f.y+3.*f.y*f.y+3.*f.y+1., f.y*f.y*f.y)/6.;
+  vec4 s=vec4(0.); for(int j=0;j<4;j++){ vec4 r=vec4(0.); for(int k=0;k<4;k++){ r += wx[k]*texture(T,(i+vec2(float(k)-1.,float(j)-1.)+.5)/N); } s += wy[j]*r; } return s; }
 vec3 skyCol(vec3 rd){ float y=rd.y; float sd=max(dot(rd,sun),0.);
   vec3 hor = mix(vec3(.58,.62,.78), vec3(1.10,.62,.32), pow(sd,3.));
   vec3 c = mix(hor, vec3(.16,.30,.62), smoothstep(-.01,.22,y));
@@ -199,8 +203,9 @@ in vec2 vUv; in vec3 vW; out vec4 o;
     vec3 lin = dif*vec3(2.8,1.75,0.95)*2.4 + skyl*vec3(.26,.36,.62)*0.55*(1.-0.5*depth) + bounce*vec3(.62,.30,.14)*(0.35+0.9*depth) + vec3(.30,.13,.06)*depth*0.5;
     vec3 col = alb*lin;
     // river: water where drainage area is large, reflecting the sky
-    float riv = RIVON ? smoothstep(RLO, RLO+1.6, t.z) * smoothstep(.45,.75,n.y+0.1) * smoothstep(ptop-3., ptop-9., h) : smoothstep(9.5, 11.0, log2(1.+t.z)) * smoothstep(.9,.97,n.y+0.1) * smoothstep(HTOP-4., HTOP-12., h);
-    riv = max(riv, smoothstep(0.10, 0.45, t.y));   // lakes
+    vec4 ts = TBS(vUv);
+    float riv = RIVON ? smoothstep(RLO, RLO+1.6, ts.z) * smoothstep(.45,.75,n.y+0.1) * smoothstep(ptop-3., ptop-9., h) : smoothstep(9.5, 11.0, log2(1.+t.z)) * smoothstep(.9,.97,n.y+0.1) * smoothstep(HTOP-4., HTOP-12., h);
+    riv = max(riv, smoothstep(0.10, 0.45, ts.y));   // lakes
     float wet = t.w * smoothstep(ptop-6., ptop-1., h);
     if (ghost.y > 0.) { float gd = 1e9; vec2 pc = vec2(0.30, 0.56+0.07*sin(0.6));   // wordless hint: a wet streak draws itself and dries
       for (int q=1; q<=24; q++) { float s=min(float(q)/24., ghost.x); vec2 c = vec2(0.30+0.40*s, 0.56+0.07*sin(s*6.283+0.6));
