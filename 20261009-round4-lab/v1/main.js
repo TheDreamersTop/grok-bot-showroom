@@ -210,6 +210,7 @@ const skyMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, depthWrite: 
   uniforms: { ptopS: { value: 20 }, sun: { value: SUN }, ipm: { value: new THREE.Matrix4() }, cpos: { value: camera.position }, N: { value: N }, seed: { value: 3 }, T: { value: null }, SHT: { value: null }, vsc: { value: VSC } },
   vertexShader: `out vec2 vP; void main(){ vP=position.xy; gl_Position=vec4(position.xy,0.9999,1.); }`,
   fragmentShader: RCOMMON + `uniform mat4 ipm; uniform vec3 cpos; uniform float ptopS; in vec2 vP; out vec4 o;
+#define DBGPLAIN ${Q.has('dbgplain') ? 'true' : 'false'}
     float d_lit(vec3 rd, float az){ return 0.5+0.5*clamp(sun.x*sign(rd.x)*0.0+0.6,0.,1.); }
     void main(){ vec4 w=ipm*vec4(vP,1.,1.); vec3 rd=normalize(w.xyz/w.w-cpos);
       vec3 c=skyCol(rd);
@@ -226,7 +227,7 @@ const skyMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, depthWrite: 
       if (rd.y < 0.) { float hp = 0.; float tt = (cpos.y-hp)/max(-rd.y,1e-4); vec3 wp = cpos+rd*tt;
         { float tq = (cpos.y-ptopS*vsc)/max(-rd.y,1e-4); vec3 q = cpos+rd*tq; if (q.z > -0.5) { tt = tq; wp = q; } }   // the tableland continues left/right/behind you
         vec3 g = (wp.z > -0.5 ? vec3(.60,.41,.30)*0.40 : vec3(.68,.47,.31)*0.55)*(0.85+0.3*fbm(wp.xz*30.))*(vec3(2.6,1.75,1.05)*2.0*sun.y*1.4 + vec3(.18,.24,.37));
-        g = wp.z > -0.5 ? haze(g, rd, tt, wp.y) : haze(g, rd, tt*0.8, 1.); c = g; }
+        g = wp.z > -0.5 ? haze(g, rd, tt, wp.y) : haze(g, rd, tt*0.8, 1.); c = g; if (DBGPLAIN && wp.z <= -0.5) c = vec3(1.,0.,1.); }
       o=vec4(c,1.); }` });
 const sky = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), skyMat); sky.frustumCulled = false; sky.renderOrder = -10; scene.add(sky);
 
@@ -276,7 +277,7 @@ const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -5 * VSC);
 addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); rtMain.setSize(innerWidth, innerHeight); post.material.uniforms.res.value.set(innerWidth, innerHeight); });
 
 const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
-const CFG = {}; for (const k of ['K', 'Ac', 'U', 'ScH', 'ScS', 'H0', 'bg', 'budget', 'seed']) if (Q.has(k)) CFG[k] = +Q.get(k); if (Q.has('edges')) CFG.edges = Q.get('edges');
+const CFG = {}; for (const k of ['K', 'Ac', 'U', 'ScH', 'ScS', 'H0', 'bg', 'budget', 'seed', 'blur']) if (Q.has(k)) CFG[k] = +Q.get(k); if (Q.has('edges')) CFG.edges = Q.get('edges');
 worker.postMessage({ type: 'init', N, cfg: CFG, stroke: SHOT ? (Q.get('stroke') || null) : null, t: SHOT ? TSTEPS : 0 });
 const hud = document.getElementById('hud');
 if (SHOT) {
@@ -288,6 +289,7 @@ if (SHOT) {
   addEventListener('pointerdown', e => { if (choreo.mode !== 'aerial') { choreo.from = { p: camera.position.clone(), t: rimView().t }; choreo.mode = 'toAerial'; choreo.k = 0; drawing = false; return; } drawing = true; last = toCell(e); idle = Infinity; hud.textContent = ''; });
   addEventListener('pointermove', e => { if (!drawing) return; const c = toCell(e); if (c && last) { worker.postMessage({ type: 'seg', pts: [last, c] }); drew = true; focus.sx += c[0] / N - .5; focus.sz += c[1] / N - .5; focus.n++; focus.x = focus.sx / focus.n; focus.z = focus.sz / focus.n; } last = c; });
   addEventListener('pointerup', () => { if (drawing && drew) worker.postMessage({ type: 'release' }); drawing = false; drew = false; hud.textContent = ''; idle = Infinity; });
+  addEventListener('keydown', e => { if (e.key === 'r' || e.key === 'R') { worker.postMessage({ type: 'init', N, cfg: Object.assign({}, CFG, { seed: 1 + Math.floor(Math.random() * 1000) }) }); choreo.mode = 'aerial'; choreo.phase = 0; camera.position.copy(AER.p); camera.lookAt(AER.t); focus.sx = focus.sz = focus.n = 0; focus.x = 0; focus.z = 0.02; } });   // R = new plateau
   worker.onmessage = ({ data: m }) => { const was = simInfo.done; onFrame(m); if (m.done && m.steps > 0 && !Q.has('norim')) { choreo.mode = 'toRim'; choreo.k = 0; } };
   const gov = { q: 1, ema: 16, t: performance.now(), hold: 0 };   // quality governor: scale the HDR target to hold ~45+ fps
   function governor() { const now = performance.now(), d = now - gov.t; gov.t = now; gov.ema += (Math.min(d, 100) - gov.ema) * 0.05; if (++gov.hold < 60) return;
