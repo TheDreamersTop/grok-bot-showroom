@@ -295,7 +295,7 @@ const skyMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, depthWrite: 
       if (rd.y < 0.) { float hp = 0.; float tt = (cpos.y-hp)/max(-rd.y,1e-4); vec3 wp = cpos+rd*tt;
         { float tq = (cpos.y-ptopS*vsc)/max(-rd.y,1e-4); vec3 q = cpos+rd*tq; if (q.z > -0.5 - 0.22*fbm(vec2(q.x*3.,7.)) - 0.06*sin(q.x*9.+1.)) { tt = tq; wp = q; } }   // irregular rim, not a ruler edge   // the tableland continues left/right/behind you
         vec3 lightG = vec3(2.6,1.75,1.05)*2.0*sun.y*1.4 + vec3(.18,.24,.37);
-        vec3 g = (wp.y > 1e-4 ? vec3(.60,.41,.30)*0.40 : vec3(.68,.47,.31)*0.55)*(0.85+0.3*fbm(wp.xz*30.))*lightG;
+        vec3 g = (wp.y > 1e-4 ? vec3(.60,.41,.30)*0.40 : vec3(.66,.42,.28)*0.40)*(0.85+0.3*fbm(wp.xz*30.))*lightG;
         bool farPlain = wp.y < 1e-4;
         if (farPlain) {   // the lowland beyond the escarpment: dark scrub/varnish mottling, and a second, distant tableland with its own cliff line
           g *= 0.75 + 0.5*fbm(wp.xz*4.) ; g = mix(g, vec3(.30,.20,.15)*lightG*0.5, 0.45*smoothstep(.55,.7,fbm(wp.xz*9.+3.)));
@@ -338,7 +338,7 @@ const focus = { x: 0, z: SHOT ? 0.06 : 0.02, sx: 0, sz: 0, n: 0 };   // rim view
 const rimView = () => { const y = (simInfo.top || 20) * VSC; const fx = focus.x, fz = focus.z;
   return { p: new THREE.Vector3(fx * 0.6 + 0.02, y + 0.045, Math.min(0.49, fz + 0.45)), t: new THREE.Vector3(fx - 0.02, y - 0.03, fz) }; };
 const revView = () => { const y = (simInfo.top || 20) * VSC; const fx = focus.x * 0.8, fz = focus.z;   // high reveal pose: the whole drawn shape, read from above
-  return { p: new THREE.Vector3(fx * 0.5, y + (P('ry') || 0.68), fz + (P('rz') || 0.80)), t: new THREE.Vector3(fx, y, fz - (P('rt') || 0.46)), f: P('rf') || 66 }; };
+  return { p: new THREE.Vector3(fx * 0.5, y + (P('ry') || 0.56), fz + (P('rz') || 0.60)), t: new THREE.Vector3(fx, y, fz - (P('rt') || 0.36)), f: P('rf') || 68 }; };
 const choreo = { phase: 0, night: 0, mode: 'aerial', k: 0, last: performance.now(), hold: 0 };
 function setView(a, b, k) { const e = k * k * (3 - 2 * k); camera.position.lerpVectors(a.p, b.p, e); const fa = a.f || FOV0, fb = b.f || FOV0; if (camera.fov !== fa + (fb - fa) * e) { camera.fov = fa + (fb - fa) * e; camera.updateProjectionMatrix(); } camera.lookAt(new THREE.Vector3().lerpVectors(a.t, b.t, e)); }
 function tick() {
@@ -401,7 +401,7 @@ if (SHOT) {
       if (it > 0) { const c = it % 5; gx = Math.min(1, c / 1.6); gy = c < 1.6 ? 1 : Math.max(0, 1 - (c - 1.6) / 1.4); }
       terrainMat.uniforms.ghost.value.set(gx, gy); } render(); window.__ready = true; }; loop();
 }
-window.__bench = (n = 3) => { const gl = renderer.getContext(), out = []; for (let l = 0; l < 5; l++) { applyLevel(l); render(); gl.finish(); const t0 = performance.now(); for (let k = 0; k < n; k++) render(); gl.finish(); out.push({ level: l, ms: +((performance.now() - t0) / n).toFixed(1) }); } return out; };
+window.__bench = (n = 3) => { const gl = renderer.getContext(), out = [], px = new Uint8Array(4); for (let l = 0; l < 5; l++) { applyLevel(l); render(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); const t0 = performance.now(); for (let k = 0; k < n; k++) { render(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); } out.push({ level: l, ms: +((performance.now() - t0) / n).toFixed(1) }); } return out; };
 window.__timing = () => ({ steps: simInfo.steps, total: simInfo.total, msPerStep: simInfo.msPerStep, budget: simInfo.budget, done: simInfo.done });
 window.__cellToScreen = (x, y) => { const v = new THREE.Vector3(x / N - .5, (simInfo.top || 20) * VSC, y / N - .5).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; };
 window.__stats = () => { const a = tdata;
