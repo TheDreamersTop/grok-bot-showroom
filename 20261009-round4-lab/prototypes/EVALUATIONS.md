@@ -215,3 +215,24 @@ over originality.
 Can A's riskier 3D deep-time world be made art-directed (not "terrain tool") in Phases C–D, or is the beautiful but
 cloned C, or the thin B, the safer bet? My bet is A, because originality is a hard gate and A's weakness (rendering
 polish) is fixable, whereas C's (prior art) is not.
+
+---
+
+# Rev. 3b (08:20 TPE) — Open question settled: can the player's gesture make the canyon? → **Fully emergent is feasible in V1.**
+
+Prototype: `prototypes/canyon-gesture/` (A2 renderer, new CPU solver `spl.js`; `canyon-postcard/` untouched).
+
+**Solver (Braun & Willett 2013, n = 1), 256², CPU, single thread.** Per step: priority-flood fill (Barnes 2014, ε) → D8 steepest receivers on the filled surface → stack by donor DFS from the base-level row → drainage area by reverse stack (with per-cell rain weight) → implicit incision in stack order `h ← (h + F·h_rec)/(1+F)`, `F = K·k(stratum)·dt·A^m/dx`, m = 0.5, only where A ≥ Ac (channel head) → two threshold-slope sweeps (Sc, cliff retreat). Uplift U = 0.1/yr-unit everywhere except the far-edge base-level row (h = 0). Strata alternate hard (k = 0.35) / soft by elevation + dip. Final params: K 0.004, Ac 60, Sc 2.2, dt 2, 210 steps.
+
+**Test.** Flat-ish layered plateau (h ≈ 4–6, tilt + fbm, no canyon anywhere). Gesture = a wobbly hand-drawn S from near the viewer to the far edge: groove 1.5 units deep (≈⅓ of one stratum) × 2.2 cells wide, plus rain ×60 along the stroke (= "held mouse"). Then deep time.
+
+**Timing (Node 22, this box, 1 thread):** 21–23 ms/step at 256² (6.6 ms at 128²). Final run = 210 steps = **4.8 s CPU**; implicit ⇒ dt 1 × 420 gives the same landscape as dt 2 × 210 (path depth 21.9 vs 21.8), so step size is free. Headless Chrome (SwiftShader box, main thread) 32–39 ms/step. Comfortably inside the 20–60 s budget even at 2 steps/frame live (~10 s to full canyon), or in a Worker.
+
+**Evidence** (`shots/contact-sheet-canyon-gesture.png`):
+- seed → 105 steps → 210 steps: the groove becomes a deep (≈22 of 46 units, ~5 strata), winding, stair-stepped canyon along the drawn S, with dendritic tributaries branching off both rims; the canyon head-cuts from the edge toward the viewer.
+- **Control, identical run without the gesture:** only an escarpment with small gullies along the edge, plateau intact. Off-gesture dissection (cells > 10 below the plateau, > 12 cells from the stroke, excluding the edge band) = 2.8 % with the gesture.
+- Second, different gesture (diagonal zig-zag): canyon follows it too ⇒ not tuned to one path.
+
+**Caveats (what V1 still needs, none of them a scripted canyon):** (1) the stroke must connect to an outlet (edge/base level) — a stroke ending mid-plateau will need "rain → lake → spill" or we auto-extend it to the nearest edge; (2) the canyon head-cuts from the outlet, so the near end of a long stroke lags (2nd gesture: near third still shallow at 210 steps) — fine as drama ("watch it eat its way back to you"), or raise K·rain; (3) small zig-zags get straightened (rivers short-cut — physically right, may disappoint a child); (4) canyon width is set by Sc — narrower and less "Grand" than the hand-shaped A2 postcard; widening needs a lateral-erosion/cliff-retreat term or Sc per stratum; (5) the A2 shading (terraces, colours) is still a render layer, not the sim's own strata — they agree only loosely; (6) river water ribbon needs re-tuning for the new A range (currently mostly hidden).
+
+**Verdict: fully emergent is feasible in V1.** The gesture alone, through a physically based implicit solver, produces a deep, branching, stair-stepped canyon that follows the player's line in ~5 s of CPU. A scripted driver is not needed for the canyon itself; art direction moves to parameters (K, Sc per stratum, rain along the stroke) and the render layer.
