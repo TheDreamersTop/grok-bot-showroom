@@ -43,6 +43,11 @@ sim attempts `shots/proto-deep-time-A2-unseeded-network.png`, `shots/proto-deep-
   sub-steps per frame, implicit stream-power solver à la Braun–Willett, or a lower talus near channels) or an
   art-directed "deep-time" driver (base level lowered along the drawn path, with sim gullies on top). Fun side note:
   the t=0 groove frame, with the strata renderer, already looks like a slot canyon "drawn by a finger".
+  Follow-up (08:05): K=3000/tal 6 and K=8000/tal 8 give **the same picture** (`-gesture-k8000-tal8.png`): dendritic
+  side gullies grow along the groove (pretty, "Painted Desert" badlands), but there is still no deep trunk canyon. So the
+  limiter is the explicit scheme (each cell may only drop to its lowest neighbour per step, so incision travels upstream
+  at ≤1 cell/step and the depth gain per step is small), not the erodibility. An implicit O(N) stream-power solver
+  (Braun & Willett 2013), or several incision sub-steps per frame along the steepest-descent tree, is the real fix.
 - **Scores (A2):** Focal 1 · Value 2 · Palette 2 · Light 2 · Depth 2 · Material 1 · Detail 1 · Originality 1 · Hero 1 ·
   Emergent 1 · Motion 1 · Polish 1 → **16/24** (v4 was 12). Originality stays 1: art-directed canyon renders exist in
   terrain demos. The originality claim lives in the *deep-time causality*, and this spike didn't prove that.
