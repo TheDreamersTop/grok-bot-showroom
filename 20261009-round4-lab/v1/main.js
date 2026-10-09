@@ -172,13 +172,14 @@ in vec2 vUv; in vec3 vW; out vec4 o;
     float fineZ = z/(LAYER*0.21) + 0.9*fbm(vUv*55.+z*0.02); float bed = smoothstep(0.,.18,fract(fineZ))*smoothstep(1.,.8,fract(fineZ));
     float flat_ = smoothstep(.80,.95,n.y);
     vec3 rock = strataCol(z);
-    vec3 top = mix(vec3(.66,.46,.30), vec3(.46,.38,.26), smoothstep(.4,.7,fbm(vUv*60.)));           // sandy benches, sparse juniper
+    vec3 top = mix(vec3(.68,.47,.31), vec3(.56,.42,.29), 0.55*smoothstep(.35,.75,fbm(vUv*60.))); top = mix(top, vec3(.74,.56,.40), 0.35*smoothstep(.45,.7,fbm(vUv*7.+3.)));   // calmer caprock, broad pale slickrock patches           // sandy benches, sparse juniper
     top *= 0.88+0.24*fbm(vUv*90.);
     float trees = smoothstep(.66,.74,fbm(vUv*420.+3.))*flat_*smoothstep(HTOP*0.6,HTOP*0.8,h);
     vec3 alb = mix(rock, top, flat_*0.85); alb = mix(alb, vec3(.16,.17,.10), trees*0.55);
-    alb *= mix(1., 0.88+0.12*bed, wall) * (0.82+0.36*g1*wall + (1.-wall)*0.18);
+    alb *= mix(1., 0.72+0.28*bed, wall) * (0.82+0.36*g1*wall + (1.-wall)*0.18);
+    { float sub = fract(z/(LAYER*0.5) + 0.3*fbm(vUv*30.)); alb *= mix(1., 0.8 + 0.2*smoothstep(0.,.08,sub), wall); }   // ledge partings
     { float hk = hardOf(floor(z/LAYER)); float below = fract(z/LAYER);                                   // desert varnish: dark streaks hanging from hard ledges, irregular pitch
-      float st = smoothstep(.55,.8, fbm(vec2(vUv.x*170.+vUv.y*130.+g2*2., z*0.06)));
+      float st = smoothstep(.6,.8, fbm(vec2((vW.x+vW.z)*1400.+g2*3., z*0.05)));
       alb *= 1. - 0.14*st*wall*(hk>1. ? (1.-below) : 0.3);
       float scree = (hk<1. ? 1. : 0.)*smoothstep(.55,.85,n.y+0.25)*wall;                                  // talus aprons on soft slopes
       alb = mix(alb, vec3(.62,.44,.32)*(0.8+0.4*g2), scree*0.45); }
@@ -197,7 +198,7 @@ in vec2 vUv; in vec3 vW; out vec4 o;
     col *= 1. - 0.45*wet; { vec3 Rw=reflect(normalize(vW-cameraPosition), n); col += wet * skyCol(Rw) * 0.18 * pow(max(dot(Rw,sun),0.),24.) * 6.; }
     vec3 V=normalize(cameraPosition-vW); vec3 rd=-V;
     if (riv>0.) { vec3 R=reflect(rd, vec3(0.,1.,0.)); float fr=0.04+0.96*pow(1.-max(V.y,0.),5.);
-      vec3 w = RIVON ? mix(vec3(.10,.24,.24), skyCol(R)*0.85, max(fr,.2)) * mix(0.6,1.0,sh) : mix(vec3(.10,.22,.20)*0.6, skyCol(R)*0.9, fr) * mix(0.55,1.,sh);
+      vec3 w = RIVON ? (mix(vec3(.11,.22,.17), skyCol(R)*0.55, clamp(fr,.06,.6)) + vec3(1.,.8,.55)*pow(max(dot(R,sun),0.),60.)*1.5*sh) * mix(0.6,1.0,sh) : mix(vec3(.10,.22,.20)*0.6, skyCol(R)*0.9, fr) * mix(0.55,1.,sh);
       col = mix(col, w, riv); }
     float dist=length(vW-cameraPosition);
     col = haze(col, rd, dist, vW.y);
@@ -224,8 +225,8 @@ const skyMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, depthWrite: 
       }
       if (rd.y < 0.) { float hp = 0.; float tt = (cpos.y-hp)/max(-rd.y,1e-4); vec3 wp = cpos+rd*tt;
         { float tq = (cpos.y-ptopS*vsc)/max(-rd.y,1e-4); vec3 q = cpos+rd*tq; if (q.z > -0.5) { tt = tq; wp = q; } }   // the tableland continues left/right/behind you
-        vec3 g = vec3(.62,.50,.36)*0.55*(0.85+0.3*fbm(wp.xz*30.))*(vec3(2.6,1.75,1.05)*2.0*sun.y*1.4 + vec3(.18,.24,.37));
-        g = haze(g, rd, tt*0.8, 1.); c = g; }
+        vec3 g = (wp.z > -0.5 ? vec3(.60,.41,.30)*0.40 : vec3(.68,.47,.31)*0.55)*(0.85+0.3*fbm(wp.xz*30.))*(vec3(2.6,1.75,1.05)*2.0*sun.y*1.4 + vec3(.18,.24,.37));
+        g = wp.z > -0.5 ? haze(g, rd, tt, wp.y) : haze(g, rd, tt*0.8, 1.); c = g; }
       o=vec4(c,1.); }` });
 const sky = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), skyMat); sky.frustumCulled = false; sky.renderOrder = -10; scene.add(sky);
 
@@ -243,11 +244,13 @@ const post = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMater
 const postScene = new THREE.Scene(); postScene.add(post);
 // ---------------------------------------------------------------- hero choreography: deep-time sky clock + camera descent to the rim
 const SUN0 = SUN.clone(); const AER = { p: new THREE.Vector3(cam.x, cam.y, cam.z), t: new THREE.Vector3(cam.tx, cam.ty, cam.tz) };
-const rimView = () => { const y = (simInfo.top || 20) * VSC; return { p: new THREE.Vector3(0.02, y + 0.045, 0.47), t: new THREE.Vector3(-0.02, y - 0.03, 0.02) }; };
+const focus = { x: 0, z: 0.02, sx: 0, sz: 0, n: 0 };   // rim view frames the player's own stroke (centroid of drawn cells)
+const rimView = () => { const y = (simInfo.top || 20) * VSC; const fx = focus.x, fz = focus.z;
+  return { p: new THREE.Vector3(fx * 0.6 + 0.02, y + 0.045, Math.min(0.49, fz + 0.45)), t: new THREE.Vector3(fx - 0.02, y - 0.03, fz) }; };
 const choreo = { phase: 0, night: 0, mode: 'aerial', k: 0, last: performance.now() };
 function setView(a, b, k) { const e = k * k * (3 - 2 * k); camera.position.lerpVectors(a.p, b.p, e); camera.lookAt(new THREE.Vector3().lerpVectors(a.t, b.t, e)); }
 function tick() {
-  const now = performance.now(), dt = Math.min(0.1, (now - choreo.last) / 1000); choreo.last = now;
+  const now = performance.now(), dt = Math.min(0.25, (now - choreo.last) / 1000); choreo.last = now;
   const running = simInfo.budget > 0 && !simInfo.done;
   if (running) { const prog = 1 - simInfo.budget / Math.max(1, simInfo.budget + simInfo.steps); choreo.phase += dt * (0.6 + 3.5 * prog); }   // days flicker faster as time accelerates
   const a = choreo.phase * 2 * Math.PI; const day = new THREE.Vector3(Math.cos(a) * 0.8, Math.sin(a) * 0.6 + 0.15, Math.sin(a * 0.5) * 0.4 + 0.5).normalize();
@@ -283,10 +286,15 @@ if (SHOT) {
   const toCell = e => { m2.set(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1); ray.setFromCamera(m2, camera); const p = new THREE.Vector3();
     plane.constant = -(simInfo.top || 20) * VSC; return ray.ray.intersectPlane(plane, p) ? [(p.x + .5) * N, (p.z + .5) * N] : null; };
   addEventListener('pointerdown', e => { if (choreo.mode !== 'aerial') { choreo.from = { p: camera.position.clone(), t: rimView().t }; choreo.mode = 'toAerial'; choreo.k = 0; drawing = false; return; } drawing = true; last = toCell(e); idle = Infinity; hud.textContent = ''; });
-  addEventListener('pointermove', e => { if (!drawing) return; const c = toCell(e); if (c && last) { worker.postMessage({ type: 'seg', pts: [last, c] }); drew = true; } last = c; });
+  addEventListener('pointermove', e => { if (!drawing) return; const c = toCell(e); if (c && last) { worker.postMessage({ type: 'seg', pts: [last, c] }); drew = true; focus.sx += c[0] / N - .5; focus.sz += c[1] / N - .5; focus.n++; focus.x = focus.sx / focus.n; focus.z = focus.sz / focus.n; } last = c; });
   addEventListener('pointerup', () => { if (drawing && drew) worker.postMessage({ type: 'release' }); drawing = false; drew = false; hud.textContent = ''; idle = Infinity; });
   worker.onmessage = ({ data: m }) => { const was = simInfo.done; onFrame(m); if (m.done && m.steps > 0 && !Q.has('norim')) { choreo.mode = 'toRim'; choreo.k = 0; } };
-  const loop = () => { requestAnimationFrame(loop); tick(); if (performance.now() - idle > 6000) hud.textContent = 'drag across the plateau'; render(); window.__ready = true; }; loop();
+  const gov = { q: 1, ema: 16, t: performance.now(), hold: 0 };   // quality governor: scale the HDR target to hold ~45+ fps
+  function governor() { const now = performance.now(), d = now - gov.t; gov.t = now; gov.ema += (Math.min(d, 100) - gov.ema) * 0.05; if (++gov.hold < 60) return;
+    let q = gov.q; if (gov.ema > 22 && q > 0.5) q -= 0.1; else if (gov.ema < 14 && q < 1) q += 0.1;
+    if (q !== gov.q) { gov.q = q; gov.hold = 0; rtMain.setSize(Math.round(innerWidth * q), Math.round(innerHeight * q)); post.material.uniforms.res.value.set(innerWidth * q, innerHeight * q); } }
+  window.__gov = () => ({ q: gov.q, frameMs: gov.ema });
+  const loop = () => { requestAnimationFrame(loop); governor(); tick(); if (performance.now() - idle > 6000) hud.textContent = 'drag across the plateau'; render(); window.__ready = true; }; loop();
 }
 window.__timing = () => ({ steps: simInfo.steps, total: simInfo.total, msPerStep: simInfo.msPerStep, budget: simInfo.budget, done: simInfo.done });
 window.__cellToScreen = (x, y) => { const v = new THREE.Vector3(x / N - .5, (simInfo.top || 20) * VSC, y / N - .5).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; };
