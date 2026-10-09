@@ -255,10 +255,10 @@ in vec2 vUv; in vec3 vW; out vec4 o;
     if (riv>0.) { float r1=fbm(vW.xz*vec2(900.,300.)+vec2(0.,vW.x*200.)), r2=fbm(vW.xz*vec2(260.,780.)+7.);   // ripples, streaked
       vec3 wn=normalize(vec3((r1-.5)*0.10,1.,(r2-.5)*0.10)); vec3 R=reflect(rd, wn); float fr=0.04+0.96*pow(1.-max(dot(V,wn),0.),5.);
       float deepW = clamp(smoothstep(.45,1.,riv)*0.6 + smoothstep(0.3,3.,ts.y)*0.6 + smoothstep(RLO+1.,RLO+4.,ts.z)*0.4, 0., 1.);
-      vec3 body = mix(vec3(.21,.40,.22), vec3(.05,.17,.10), deepW*0.7);                  // Horseshoe-Bend jade: luminous in the sun, deep green in shade
+      vec3 body = mix(vec3(.20,.38,.19), vec3(.05,.16,.09), deepW*0.7);                  // Horseshoe-Bend jade: luminous in the sun, deep green in shade
       body *= mix(0.55, 1.05, sh);
       float gl = max(dot(R,sun),0.);
-      vec3 w = mix(body, skyCol(R)*vec3(.75,.90,.80)*0.75, clamp(fr*1.2,.05,.35))                 // sky-reflection highlights in the ripples
+      vec3 w = mix(body, skyCol(R)*vec3(.70,.88,.66)*0.70, clamp(fr*1.2,.05,.35))                 // sky-reflection highlights in the ripples
              + vec3(1.,.85,.6)*(pow(gl,60.)*3.0 + pow(gl,8.)*0.25)*mix(0.3,1.,sh);              // sun glint path
       float bank = riv*(1.-riv)*4.; col = mix(col, col*0.62 + vec3(.05,.035,.02)*bank, bank*0.6);   // dark wet sand margin where water meets rock
       w *= 0.85+0.3*r1; col = mix(col, w, smoothstep(0.15,0.6,riv)); }
@@ -372,7 +372,7 @@ const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -5 * VSC);
 addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); applyLevel(window.__gov ? window.__gov().level : 0); });
 
 const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
-const CFG = {}; for (const k of ['K', 'Ac', 'U', 'ScH', 'ScS', 'H0', 'bg', 'budget', 'seed', 'blur', 'rimSharp']) if (Q.has(k)) CFG[k] = +Q.get(k); if (Q.has('edges')) CFG.edges = Q.get('edges');
+const CFG = {}; for (const k of ['K', 'Ac', 'U', 'ScH', 'ScS', 'H0', 'bg', 'budget', 'seed', 'blur', 'rimSharp', 'bgVar']) if (Q.has(k)) CFG[k] = +Q.get(k); if (Q.has('edges')) CFG.edges = Q.get('edges');
 worker.postMessage({ type: 'init', N, cfg: CFG, stroke: SHOT ? (Q.get('stroke') || null) : null, t: SHOT ? TSTEPS : 0 });
 const hud = document.getElementById('hud');
 if (SHOT) {

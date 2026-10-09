@@ -30,9 +30,16 @@ function loop() {
   if (!cfg.quiet || budget <= 0) pack(budget <= 0);
   if (budget > 0) setTimeout(loop, 0); else running = false;
 }
-function arid() { for (let i = 0; i < N * N; i++) if (sim.rain[i] <= 1) sim.rain[i] = cfg.bg; for (let i = 0; i < N * N; i++) sim.A[i] = sim.rain[i]; }
+let BGF = null;   // patchy background rain (a forcing, not a canyon): side canyons get uneven lengths instead of identical lobes
+function bgField() { if (BGF && BGF.length === N * N) return BGF; BGF = new Float32Array(N * N); let s = (cfg.seed || 3) * 9301 + 49297; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const G = 9, g = Array.from({ length: (G + 1) * (G + 1) }, r), G2 = 23, g2 = Array.from({ length: (G2 + 1) * (G2 + 1) }, r);
+  const vn = (arr, n, x, y) => { const X = Math.min(n - 1, Math.floor(x)), Y = Math.min(n - 1, Math.floor(y)), fx = x - X, fy = y - Y, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy), k = n + 1;
+    return (arr[Y * k + X] * (1 - sx) + arr[Y * k + X + 1] * sx) * (1 - sy) + (arr[(Y + 1) * k + X] * (1 - sx) + arr[(Y + 1) * k + X + 1] * sx) * sy; };
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = 0.65 * vn(g, G, x / N * G, y / N * G) + 0.35 * vn(g2, G2, x / N * G2, y / N * G2); BGF[y * N + x] = (cfg.bgVar ?? 1) ? 0.15 + 2.2 * v * v : 1; }
+  return BGF; }
+function arid() { const F = bgField(); for (let i = 0; i < N * N; i++) if (sim.rain[i] <= 1) sim.rain[i] = cfg.bg * F[i]; for (let i = 0; i < N * N; i++) sim.A[i] = sim.rain[i]; }
 onmessage = ({ data: m }) => {
-  if (m.type === 'init') { budget = 0; steps = 0; ms = 0; total = 0; N = m.N; cfg = Object.assign({ K: 0.02, Ac: 10, dt: 2, U: 0.05, ScH: 6, ScS: 2.0, H0: 20, bg: 0.05, chunk: 2, budget: 160, quiet: false, seed: 3, edges: 'f', blur: 2 }, m.cfg);
+  if (m.type === 'init') { BGF = null; budget = 0; steps = 0; ms = 0; total = 0; N = m.N; cfg = Object.assign({ K: 0.02, Ac: 10, dt: 2, U: 0.05, ScH: 6, ScS: 2.0, H0: 20, bg: 0.05, chunk: 2, budget: 160, quiet: false, seed: 3, edges: 'f', blur: 2 }, m.cfg);
     sim = createSPL(N, { K: cfg.K, Ac: cfg.Ac, dt: cfg.dt, U: cfg.U, ScH: cfg.ScH, ScS: cfg.ScS, lakes: 1 }); mesa(sim, { seed: cfg.seed, H0: cfg.H0, edges: cfg.edges }); arid();
     if (m.stroke && m.stroke !== 'none') { gesture(sim, strokeShape(m.stroke, N), 1.5, 2.2, GR); arid(); }
     pack(false); if (m.t) { budget = m.t; cfg.quiet = true; running = true; loop(); } }
