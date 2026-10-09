@@ -111,7 +111,7 @@ export function strokeShape(name, N) {
   const pts = [], c = [0.5 * N, 0.56 * N];
   if (name === 'heart') for (let k = 0; k <= 240; k++) { const t = k / 240 * 2 * Math.PI; const x = 16 * Math.sin(t) ** 3, y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t); pts.push([c[0] + x * N / 48, c[1] - y * N / 48]); }
   else if (name === 'spiral') for (let k = 0; k <= 300; k++) { const t = k / 300; const a = t * 2.25 * 2 * Math.PI, r = N * (0.05 + 0.30 * t); pts.push([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a) * 0.95]); }
-  else for (let k = 0; k <= 240; k++) { const t = k / 240; const a = (t * 2 - 1) * 1.15 * Math.PI; pts.push([c[0] - 0.22 * N * Math.sin(a), c[1] - (0.5 - t) * 0.62 * N]); }
+  else for (let k = 0; k <= 240; k++) { const t = k / 240; const a = (t * 2 - 1) * 1.05 * Math.PI; pts.push([c[0] - 0.24 * N * Math.sin(a), c[1] - 0.02 * N - (0.5 - t) * 0.54 * N]); }
   return pts;
 }
 // fraction of stroke length incised ≥ minDepth below the (uplifted) initial plateau
