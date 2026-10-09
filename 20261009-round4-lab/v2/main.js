@@ -1,6 +1,6 @@
 // Deep Time V1 — your stroke, a billion years later. A2 renderer; implicit stream-power solver in a Worker (worker.js / sim.js).
 import * as THREE from 'three';
-import { HARD, LAYER as SLAYER } from './sim.js';
+import { HARD, LAYER as SLAYER, strokeShape } from './sim.js';
 const Q = new URLSearchParams(location.search);
 const SHOT = Q.has('shot'), TSTEPS = +(Q.get('t') || 0);
 const N = +(Q.get('n') || 256);
@@ -121,7 +121,7 @@ void main(){ float h=Ht(vUv)*vsc; vec2 d=normalize(sun.xz); float sl=sun.y/lengt
 // ---------------------------------------------------------------- render
 const scene = new THREE.Scene(); const DETAIL = { value: 2 };   // shader detail level, driven by the quality governor
 const FOV0 = P('fov') || 50; const camera = new THREE.PerspectiveCamera(FOV0, innerWidth / innerHeight, 0.01, 20);
-const cam = { x: P('cx') || 0.0, y: P('cy') || 0.45, z: P('cz') || 0.75, tx: P('tx') || 0.0, ty: P('ty') || 0.0, tz: P('tz') || -0.6 };
+const cam = { x: P('cx') || 0.0, y: P("cy") || 0.17, z: P("cz") || 0.50, tx: P("tx") || 0.0, ty: P("ty") || 0.0, tz: P("tz") || -0.15 };
 camera.position.set(cam.x, cam.y, cam.z); camera.lookAt(cam.tx, cam.ty, cam.tz);
 const RCOMMON = SHARED + `
 uniform sampler2D T, SHT; uniform vec3 sun; uniform float vsc;
@@ -255,10 +255,10 @@ in vec2 vUv; in vec3 vW; out vec4 o;
     if (riv>0.) { float r1=fbm(vW.xz*vec2(900.,300.)+vec2(0.,vW.x*200.)), r2=fbm(vW.xz*vec2(260.,780.)+7.);   // ripples, streaked
       vec3 wn=normalize(vec3((r1-.5)*0.10,1.,(r2-.5)*0.10)); vec3 R=reflect(rd, wn); float fr=0.04+0.96*pow(1.-max(dot(V,wn),0.),5.);
       float deepW = clamp(smoothstep(.45,1.,riv)*0.6 + smoothstep(0.3,3.,ts.y)*0.6 + smoothstep(RLO+1.,RLO+4.,ts.z)*0.4, 0., 1.);
-      vec3 body = mix(vec3(.20,.38,.19), vec3(.05,.16,.09), deepW*0.7);                  // Horseshoe-Bend jade: luminous in the sun, deep green in shade
-      body *= mix(0.55, 1.05, sh);
+      vec3 body = mix(vec3(.19,.33,.15), vec3(.05,.15,.08), deepW*0.7);                  // Horseshoe-Bend jade: luminous in the sun, deep green in shade
+      body *= mix(0.50, 0.85, sh);
       float gl = max(dot(R,sun),0.);
-      vec3 w = mix(body, skyCol(R)*vec3(.70,.88,.66)*0.70, clamp(fr*1.2,.05,.35))                 // sky-reflection highlights in the ripples
+      vec3 w = mix(body, skyCol(R)*vec3(.66,.74,.52)*0.60, clamp(fr*1.0,.04,.16))                 // sky-reflection highlights in the ripples
              + vec3(1.,.85,.6)*(pow(gl,60.)*3.0 + pow(gl,8.)*0.25)*mix(0.3,1.,sh);              // sun glint path
       float bank = riv*(1.-riv)*4.; col = mix(col, col*0.62 + vec3(.05,.035,.02)*bank, bank*0.6);   // dark wet sand margin where water meets rock
       w *= 0.85+0.3*r1; col = mix(col, w, smoothstep(0.15,0.6,riv)); }
@@ -290,7 +290,7 @@ const skyMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, depthWrite: 
         float horizon = 0.0 - fl*0.0;
         if (rd.y >= 0. && rd.y < horizon + hh && hh>0.002) { float lit = d_lit(rd, az);
           vec3 m = vec3(.62,.32,.22)*lit + vec3(.20,.22,.36);
-          c = mix(m*0.7, mix(vec3(.40,.44,.64), vec3(1.0,.62,.36), pow(max(dot(rd,sun),0.),4.))*0.72, 0.35 + fl*0.2); }
+          c = mix(m*0.62, mix(vec3(.48,.44,.56), vec3(1.0,.62,.36), pow(max(dot(rd,sun),0.),4.))*0.72, 0.18 + fl*0.18); }   // crisp, warm distant mesa skyline
       }
       if (rd.y < 0.) { float hp = 0.; float tt = (cpos.y-hp)/max(-rd.y,1e-4); vec3 wp = cpos+rd*tt;
         { float tq = (cpos.y-ptopS*vsc)/max(-rd.y,1e-4); vec3 q = cpos+rd*tq; if (q.z > -0.5 - 0.22*fbm(vec2(q.x*3.,7.)) - 0.06*sin(q.x*9.+1.)) { tt = tq; wp = q; } }   // irregular rim, not a ruler edge   // the tableland continues left/right/behind you
@@ -300,16 +300,17 @@ const skyMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, depthWrite: 
         if (farPlain) {   // the lowland beyond the escarpment: dark scrub/varnish mottling, and a second, distant tableland with its own cliff line
           g *= 0.75 + 0.5*fbm(wp.xz*4.) ; g = mix(g, vec3(.30,.20,.15)*lightG*0.5, 0.45*smoothstep(.55,.7,fbm(wp.xz*9.+3.)));
           float hF = ptopS*vsc*0.98; /* the opposite rim of the great gorge: tableland to the horizon */ float tF = (cpos.y-hF)/max(-rd.y,1e-4); vec3 qF = cpos+rd*tF;
-          float edgeF = -1.70 - 0.30*fbm(vec2(qF.x*1.3, 2.)) - 0.10*sin(qF.x*5.+1.3*sin(qF.x*2.));
-          float edgeG = -1.70 - 0.30*fbm(vec2(wp.x*1.3, 2.)) - 0.10*sin(wp.x*5.+1.3*sin(wp.x*2.)) - 0.05*fbm(vec2(wp.x*14., 5.));
+          float edgeF = -1e9 - 0.30*fbm(vec2(qF.x*1.3, 2.)) - 0.10*sin(qF.x*5.+1.3*sin(qF.x*2.));
+          float edgeG = -1e9 - 0.30*fbm(vec2(wp.x*1.3, 2.)) - 0.10*sin(wp.x*5.+1.3*sin(wp.x*2.)) - 0.05*fbm(vec2(wp.x*14., 5.));
           if (qF.z < edgeF) { tt = tF; wp = qF; g = vec3(.66,.46,.31)*0.5*(0.8+0.4*fbm(qF.xz*6.))*lightG; farPlain = false; }
           else if (wp.z < edgeG) { float yc = cpos.y + rd.y*((edgeG-cpos.z)/rd.z); float zl = yc/hF;          // ray meets the cliff face
             vec3 rk = mix(vec3(.85,.38,.18), vec3(.90,.62,.40), smoothstep(.3,.7, fract(zl*2.6+0.3*fbm(vec2(wp.x*20.,zl*3.)))));
             g = rk*0.5*(vec3(2.6,1.6,.9)*1.6*max(0.,sun.z*0.6+0.25)*(0.6+0.8*fbm(vec2(wp.x*30.,zl*4.))) + vec3(.20,.22,.40)); /* the far wall stands in its own shade, gullied */ tt = (edgeG-cpos.z)/rd.z; farPlain = false; } }
         if (false) g = haze(g, rd, tt, wp.y);
-        else { float sd=max(dot(rd,sun),0.); vec3 dust = mix(vec3(.46,.52,.70), vec3(1.10,.70,.42), pow(sd,3.))*0.52;   // warm dusty distance, never a lavender 'lake'
-          g *= (0.55 + 0.5*fbm(wp.xz*2.5+9.))*vec3(1.,.92,.85); g = mix(g, vec3(.25,.16,.12)*lightG*0.5, 0.5*smoothstep(.5,.75,fbm(wp.xz*5.+1.)));   // mottled distant tableland: varnish, scrub, slickrock
-          g = mix(g, dust, clamp(1.-exp(-tt*0.16), 0., 0.80)); } c = g; if (DBGPLAIN && farPlain) c = vec3(1.,0.,1.); }
+        else { float sd=max(dot(rd,sun),0.); vec3 dust = mix(vec3(.62,.54,.56), vec3(1.10,.70,.42), pow(sd,3.))*0.52;   // warm dusty distance, never a lavender 'lake'
+          g *= (0.60 + 0.55*fbm(wp.xz*2.5+9.))*vec3(1.,.90,.80); g = mix(g, vec3(.24,.14,.10)*lightG*0.5, 0.55*smoothstep(.5,.72,fbm(wp.xz*5.+1.)));   // red soil, dark varnish/scrub
+          g = mix(g, vec3(.80,.62,.46)*lightG*0.42, 0.45*smoothstep(.58,.72,fbm(wp.xz*11.+4.)));   // pale slickrock benches   // mottled distant tableland: varnish, scrub, slickrock
+          g = mix(g, dust, clamp(1.-exp(-tt*0.11), 0., 0.70)); } c = g; if (DBGPLAIN && farPlain) c = vec3(1.,0.,1.); }
       o=vec4(c,1.); }` });
 const sky = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), skyMat); sky.frustumCulled = false; sky.renderOrder = -10; scene.add(sky);
 
@@ -337,8 +338,15 @@ const SUN0 = SUN.clone(); const AER = { p: new THREE.Vector3(cam.x, cam.y, cam.z
 const focus = { x: 0, z: SHOT ? 0.06 : 0.02, sx: 0, sz: 0, n: 0 };   // rim view frames the player's own stroke (centroid of drawn cells)
 const rimView = () => { const y = (simInfo.top || 20) * VSC; const fx = focus.x, fz = focus.z;
   return { p: new THREE.Vector3(fx * 0.6 + 0.02, y + 0.045, Math.min(0.49, fz + 0.45)), t: new THREE.Vector3(fx - 0.02, y - 0.03, fz) }; };
-const revView = () => { const y = (simInfo.top || 20) * VSC; const fx = focus.x * 0.8, fz = focus.z;   // high reveal pose: the whole drawn shape, read from above
-  return { p: new THREE.Vector3(fx * 0.5, y + (P('ry') || 0.56), fz + (P('rz') || 0.60)), t: new THREE.Vector3(fx, y, fz - (P('rt') || 0.36)), f: P('rf') || 68 }; };
+const bbox = { x0: 1, x1: -1, z0: 1, z1: -1 };   // stroke bounding box (world units), for the reveal framing
+function bboxAdd(x, z) { bbox.x0 = Math.min(bbox.x0, x); bbox.x1 = Math.max(bbox.x1, x); bbox.z0 = Math.min(bbox.z0, z); bbox.z1 = Math.max(bbox.z1, z); }
+if (SHOT && Q.get('stroke')) for (const [x, y] of strokeShape(Q.get('stroke'), N)) bboxAdd(x / N - .5, y / N - .5);
+const revView = () => { const y = (simInfo.top || 20) * VSC;   // steep high-oblique (~60 deg down), tight on the stroke: the carved shape fills ~60 % of the width
+  const ok = bbox.x1 > bbox.x0; const pad = 0.07, W = ok ? bbox.x1 - bbox.x0 + 2 * pad : 0.6, D = ok ? bbox.z1 - bbox.z0 + 2 * pad : 0.6;
+  const cx = ok ? (bbox.x0 + bbox.x1) / 2 : focus.x, cz = ok ? (bbox.z0 + bbox.z1) / 2 : focus.z;
+  const fov = 50, th = Math.tan(fov / 2 * Math.PI / 180), tw = th * Math.max(1, innerWidth / innerHeight), fill = P('rfill') || 0.62;
+  const d = Math.max(W / (fill * 2 * tw), D * 0.87 / (0.80 * 2 * th)); const a = (P('rpitch') || 60) * Math.PI / 180;
+  return { p: new THREE.Vector3(cx, y + d * Math.sin(a), cz + d * Math.cos(a)), t: new THREE.Vector3(cx, y, cz), f: fov }; };
 const choreo = { phase: 0, night: 0, mode: 'aerial', k: 0, last: performance.now(), hold: 0 };
 function setView(a, b, k) { const e = k * k * (3 - 2 * k); camera.position.lerpVectors(a.p, b.p, e); const fa = a.f || FOV0, fb = b.f || FOV0; if (camera.fov !== fa + (fb - fa) * e) { camera.fov = fa + (fb - fa) * e; camera.updateProjectionMatrix(); } camera.lookAt(new THREE.Vector3().lerpVectors(a.t, b.t, e)); }
 function tick() {
@@ -382,9 +390,9 @@ if (SHOT) {
   const toCell = e => { m2.set(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1); ray.setFromCamera(m2, camera); const p = new THREE.Vector3();
     plane.constant = -(simInfo.top || 20) * VSC; return ray.ray.intersectPlane(plane, p) ? [(p.x + .5) * N, (p.z + .5) * N] : null; };
   addEventListener('pointerdown', e => { if (choreo.mode !== 'aerial') { choreo.from = { p: camera.position.clone(), t: rimView().t, f: camera.fov }; choreo.mode = 'toAerial'; choreo.k = 0; drawing = false; return; } drawing = true; last = toCell(e); idle = Infinity; hud.textContent = ''; });
-  addEventListener('pointermove', e => { if (!drawing) return; const c = toCell(e); if (c && last) { worker.postMessage({ type: 'seg', pts: [last, c] }); drew = true; focus.sx += c[0] / N - .5; focus.sz += c[1] / N - .5; focus.n++; focus.x = focus.sx / focus.n; focus.z = focus.sz / focus.n; } last = c; });
+  addEventListener('pointermove', e => { if (!drawing) return; const c = toCell(e); if (c && last) { worker.postMessage({ type: 'seg', pts: [last, c] }); drew = true; focus.sx += c[0] / N - .5; focus.sz += c[1] / N - .5; focus.n++; focus.x = focus.sx / focus.n; focus.z = focus.sz / focus.n; bboxAdd(c[0] / N - .5, c[1] / N - .5); } last = c; });
   addEventListener('pointerup', () => { if (drawing && drew) worker.postMessage({ type: 'release' }); drawing = false; drew = false; hud.textContent = ''; idle = Infinity; });
-  addEventListener('keydown', e => { if (e.key === 'r' || e.key === 'R') { worker.postMessage({ type: 'init', N, cfg: Object.assign({}, CFG, { seed: 1 + Math.floor(Math.random() * 1000) }) }); choreo.mode = 'aerial'; choreo.phase = 0; camera.position.copy(AER.p); camera.lookAt(AER.t); focus.sx = focus.sz = focus.n = 0; focus.x = 0; focus.z = 0.02; } });   // R = new plateau
+  addEventListener('keydown', e => { if (e.key === 'r' || e.key === 'R') { worker.postMessage({ type: 'init', N, cfg: Object.assign({}, CFG, { seed: 1 + Math.floor(Math.random() * 1000) }) }); choreo.mode = 'aerial'; choreo.phase = 0; camera.position.copy(AER.p); camera.lookAt(AER.t); focus.sx = focus.sz = focus.n = 0; focus.x = 0; focus.z = 0.02; bbox.x0 = bbox.z0 = 1; bbox.x1 = bbox.z1 = -1; } });   // R = new plateau
   worker.onmessage = ({ data: m }) => { onFrame(m); };   // camera choreography (reveal -> rim) is driven from tick()
   // adaptive quality governor: measures frame time (EMA) and steps a ladder of render scale, shader detail and mesh LOD.
   // ?q=0..4 pins a level (0 = best); default is auto, starting at level 1.
