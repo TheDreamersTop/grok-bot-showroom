@@ -143,7 +143,7 @@ vec3 strataCol(float z){ float k=floor(z/LAYER); float h=hash(vec2(k,3.7)); floa
   vec3 c;
   if (hd>1.) c = mix(vec3(.80,.58,.40), vec3(.78,.32,.16), step(.4,h));        // cream Coconino / red Redwall-like cliffs
   else c = mix(vec3(.70,.28,.14), vec3(.56,.30,.32), h);                       // red-brown / mauve slope formers
-  float fine=fract(z/(LAYER*0.17)); c *= 0.80+0.20*smoothstep(0.,.25,fine); c *= 0.85+0.3*hash(vec2(k,11.));
+  c *= 0.85+0.3*hash(vec2(k,11.));
   return c; }
 `;
 const terrainMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3,
@@ -164,14 +164,24 @@ in vec2 vUv; in vec3 vW; out vec4 o;
   void main(){ float e=0.6/N; float hl=Ht(vUv-vec2(e,0.)), hr=Ht(vUv+vec2(e,0.)), hd=Ht(vUv-vec2(0.,e)), hu=Ht(vUv+vec2(0.,e));
     vec3 n=normalize(vec3((hl-hr)*vsc, 2.*e, (hd-hu)*vsc));
     vec4 t=TB(vUv); float h=Ht(vUv); float z=h+dipZ(vUv);
-    float fl = fbm(vec2((vUv.x+vUv.y)*900., z*0.4)) - .5; n = normalize(n + vec3(fl, 0., -fl)*0.6*(1.-n.y));
+    // rock grain: pseudo-3D world-space noise (no fixed-pitch flutes), irregular bedding, broken ledges
+    vec3 wq = vW*vec3(1.,1./vsc*0.004,1.);
+    float g1 = fbm(vec2(vW.x*620.+vW.y*410., vW.z*620.-vW.y*380.)), g2 = fbm(vec2(vW.z*260.-vW.y*300., vW.x*260.+vW.y*170.)+9.);
+    float wall = 1.-smoothstep(.55,.9,n.y);
+    n = normalize(n + (vec3(g1-.5, 0., g2-.5)*0.9 + vec3(g2-.5,0.,-(g1-.5))*0.5)*wall);
+    float fineZ = z/(LAYER*0.21) + 0.9*fbm(vUv*55.+z*0.02); float bed = smoothstep(0.,.18,fract(fineZ))*smoothstep(1.,.8,fract(fineZ));
     float flat_ = smoothstep(.80,.95,n.y);
     vec3 rock = strataCol(z);
     vec3 top = mix(vec3(.66,.46,.30), vec3(.46,.38,.26), smoothstep(.4,.7,fbm(vUv*60.)));           // sandy benches, sparse juniper
     top *= 0.88+0.24*fbm(vUv*90.);
     float trees = smoothstep(.66,.74,fbm(vUv*420.+3.))*flat_*smoothstep(HTOP*0.6,HTOP*0.8,h);
     vec3 alb = mix(rock, top, flat_*0.85); alb = mix(alb, vec3(.16,.17,.10), trees*0.55);
-    alb *= 0.9 + 0.2*fbm(vec2(vUv.x*400., z*3.));                                                  // vertical streaks / desert varnish
+    alb *= mix(1., 0.88+0.12*bed, wall) * (0.82+0.36*g1*wall + (1.-wall)*0.18);
+    { float hk = hardOf(floor(z/LAYER)); float below = fract(z/LAYER);                                   // desert varnish: dark streaks hanging from hard ledges, irregular pitch
+      float st = smoothstep(.55,.8, fbm(vec2(vUv.x*170.+vUv.y*130.+g2*2., z*0.06)));
+      alb *= 1. - 0.14*st*wall*(hk>1. ? (1.-below) : 0.3);
+      float scree = (hk<1. ? 1. : 0.)*smoothstep(.55,.85,n.y+0.25)*wall;                                  // talus aprons on soft slopes
+      alb = mix(alb, vec3(.62,.44,.32)*(0.8+0.4*g2), scree*0.45); }
     alb *= 0.55;
     float sh = texture(SHT, vUv).x;
     float dif = clamp(dot(n,sun),0.,1.)*sh;
