@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Deep Time · 深時</title>
+<meta name="description" content="Draw a line on a desert plateau and watch millions of years of rain carve it into a canyon.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta property="og:type" content="website"><meta property="og:title" content="Deep Time · 深時"><meta property="og:description" content="Draw a line. Watch 6 million years of rain carve it into a canyon."><meta property="og:url" content="https://thedreamerstop.github.io/grok-bot-showroom/20261009-round4-lab/v4/"><meta property="og:image" content="https://thedreamerstop.github.io/grok-bot-showroom/20261009-round4-lab/v4/og.jpg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Deep Time · 深時"><meta name="twitter:image" content="https://thedreamerstop.github.io/grok-bot-showroom/20261009-round4-lab/v4/og.jpg">
+<link rel="preload" href="fonts/CormorantGaramond-normal-500.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="fonts/fonts.css">
+<style>html,body,canvas{touch-action:none}html,body{margin:0;height:100%;overflow:hidden;background:#1b1916 linear-gradient(180deg,#2a2530 0%,#3a2a22 55%,#1b1916 100%)}canvas{display:block}
+#hud{display:none}
+.ty{position:fixed;pointer-events:none;color:#fff4e2;text-shadow:0 1px 14px rgba(70,30,5,.55),0 0 2px rgba(60,25,0,.35);transition:opacity 1.2s ease}
+#title{left:0;right:0;top:15%;text-align:center;opacity:0}
+#title .zh{font:300 clamp(40px,7vw,86px)/1 "Noto Serif TC",serif;letter-spacing:.32em;padding-left:.32em}
+#title .en{margin-top:.7em;font:500 clamp(13px,1.5vw,18px)/1 "Cormorant SC","Cormorant Garamond",serif;letter-spacing:.55em;padding-left:.55em;opacity:.92}
+#title .rule{width:64px;height:1px;margin:1.1em auto 0;background:linear-gradient(90deg,transparent,#fff4e2,transparent);opacity:.7}
+#card{left:0;right:0;top:6%;text-align:center;opacity:0}
+#card .a{font:italic 400 clamp(17px,2.1vw,26px)/1.2 "Cormorant Garamond",serif;letter-spacing:.02em}
+#card .b{margin-top:.55em;font:500 clamp(11px,1.15vw,14px)/1 "Cormorant SC","Cormorant Garamond",serif;letter-spacing:.38em;opacity:.8}
+#yrs{left:26px;bottom:20px;opacity:0;transition:opacity .8s;font:500 clamp(18px,2vw,25px)/1 "Cormorant Garamond",serif;letter-spacing:.06em;font-variant-numeric:lining-nums tabular-nums}
+#yrs small{font:500 .62em/1 "Cormorant SC","Cormorant Garamond",serif;letter-spacing:.32em;margin-left:.5em;opacity:.85}
+#load{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;transition:opacity 1s;background:radial-gradient(ellipse at 50% 62%,rgba(233,170,100,.22),rgba(27,25,22,0) 55%)}
+#load i{width:120px;height:1px;background:linear-gradient(90deg,transparent,#e9c08a,transparent);animation:g 1.6s ease-in-out infinite}
+@keyframes g{0%,100%{opacity:.2;transform:scaleX(.4)}50%{opacity:.9;transform:scaleX(1)}}
+#mob{display:none;position:fixed;inset:0;background:#1b1916 url(og.jpg) center/cover;color:#fff4e2;text-align:center}
+#mob div{position:absolute;left:0;right:0;bottom:12%;font:italic 400 20px/1.4 "Cormorant Garamond",serif;text-shadow:0 1px 10px rgba(0,0,0,.6)}
+#mob b{display:block;font:300 48px/1 "Noto Serif TC",serif;letter-spacing:.3em;padding-left:.3em;margin-bottom:.4em}
+</style>
+<script type="importmap">{"imports":{"three":"../prototypes/vendor/three.module.js"}}</script></head>
+<body><div id="load"><i></i></div><div id="hud"></div><div id="yrs" class="ty"></div>
+<div id="title" class="ty"><div class="zh">深時</div><div class="en">Deep Time</div><div class="rule"></div></div>
+<div id="card" class="ty"><div class="a" id="cardA"></div><div class="b">深時 · deep time · draw again</div></div>
+<div id="mob"><div><b>深時</b>Deep Time is drawn with a mouse.<br>Open it on a desktop.</div></div>
+<script>
+  const MOBILE = !/[?&]desktop/.test(location.search) && (matchMedia('(pointer:coarse)').matches && !matchMedia('(pointer:fine)').matches || (innerWidth < 600 && innerHeight > innerWidth));
+  if (MOBILE) { document.getElementById('mob').style.display = 'block'; document.getElementById('load').remove(); }
+  else { const s = document.createElement('script'); s.type = 'module'; s.src = './main.js'; document.body.appendChild(s);
+    const t = setInterval(() => { if (window.__ready) { clearInterval(t); const l = document.getElementById('load'); l.style.opacity = 0; setTimeout(() => l.remove(), 1100); } }, 100); }
+</script></body></html>
