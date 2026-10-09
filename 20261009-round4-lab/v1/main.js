@@ -183,6 +183,12 @@ in vec2 vUv; in vec3 vW; out vec4 o;
       alb *= 1. - 0.14*st*wall*(hk>1. ? (1.-below) : 0.3);
       float scree = (hk<1. ? 1. : 0.)*smoothstep(.55,.85,n.y+0.25)*wall;                                  // talus aprons on soft slopes
       alb = mix(alb, vec3(.62,.44,.32)*(0.8+0.4*g2), scree*0.45); }
+    { float hk = hardOf(floor(z/LAYER)); vec2 tg = normalize(vec2(-n.z, n.x)+1e-5); float s = dot(vW.xz, tg);   // vertical joints: blocky cliff faces in hard beds
+      float lay = floor(z/(LAYER*0.5)); float pitch = 26. + 22.*hash(vec2(lay,8.1)); float u = s*pitch + hash(vec2(lay,2.3))*7. + 0.6*fbm(vec2(s*40., z*0.3));
+      float cell = floor(u), fu = fract(u); float jm = wall*smoothstep(.3,.7,hk-0.5);
+      float joint = 1.-smoothstep(0.,.06,fu)*smoothstep(1.,.94,fu);
+      alb *= 1. - jm*(0.45*joint + 0.22*(hash(vec2(cell,lay))-.5));
+      n = normalize(n + jm*vec3(tg.x,0.,tg.y)*(fu-.5)*0.35); }
     alb *= 0.55;
     float sh = texture(SHT, vUv).x;
     float dif = clamp(dot(n,sun),0.,1.)*sh;
@@ -227,7 +233,7 @@ const skyMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, depthWrite: 
       if (rd.y < 0.) { float hp = 0.; float tt = (cpos.y-hp)/max(-rd.y,1e-4); vec3 wp = cpos+rd*tt;
         { float tq = (cpos.y-ptopS*vsc)/max(-rd.y,1e-4); vec3 q = cpos+rd*tq; if (q.z > -0.5) { tt = tq; wp = q; } }   // the tableland continues left/right/behind you
         vec3 g = (wp.z > -0.5 ? vec3(.60,.41,.30)*0.40 : vec3(.68,.47,.31)*0.55)*(0.85+0.3*fbm(wp.xz*30.))*(vec3(2.6,1.75,1.05)*2.0*sun.y*1.4 + vec3(.18,.24,.37));
-        g = wp.z > -0.5 ? haze(g, rd, tt, wp.y) : haze(g, rd, tt*0.8, 1.); c = g; if (DBGPLAIN && wp.z <= -0.5) c = vec3(1.,0.,1.); }
+        g = wp.z > -0.5 ? haze(g, rd, tt, wp.y) : haze(g, rd, min(tt*0.35, 1.9), 1.); c = g; if (DBGPLAIN && wp.z <= -0.5) c = vec3(1.,0.,1.); }
       o=vec4(c,1.); }` });
 const sky = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), skyMat); sky.frustumCulled = false; sky.renderOrder = -10; scene.add(sky);
 
