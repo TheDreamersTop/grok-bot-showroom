@@ -21,9 +21,9 @@ function loop() {
 }
 function arid() { for (let i = 0; i < N * N; i++) if (sim.rain[i] <= 1) sim.rain[i] = cfg.bg; for (let i = 0; i < N * N; i++) sim.A[i] = sim.rain[i]; }
 onmessage = ({ data: m }) => {
-  if (m.type === 'init') { N = m.N; cfg = Object.assign({ K: 0.02, Ac: 300, dt: 2, U: 0.05, ScH: 6, ScS: 2.0, H0: 20, bg: 0.002, chunk: 2, budget: 160, quiet: false, seed: 3 }, m.cfg);
-    sim = createSPL(N, { K: cfg.K, Ac: cfg.Ac, dt: cfg.dt, U: cfg.U, ScH: cfg.ScH, ScS: cfg.ScS, lakes: 1 }); mesa(sim, { seed: cfg.seed, H0: cfg.H0, edges: 'lrf' }); arid();
-    if (m.stroke) { gesture(sim, strokeShape(m.stroke, N), 1.5, 2.2, GR); arid(); }
+  if (m.type === 'init') { N = m.N; cfg = Object.assign({ K: 0.02, Ac: 10, dt: 2, U: 0.05, ScH: 6, ScS: 2.0, H0: 20, bg: 0.05, chunk: 2, budget: 160, quiet: false, seed: 3, edges: 'f' }, m.cfg);
+    sim = createSPL(N, { K: cfg.K, Ac: cfg.Ac, dt: cfg.dt, U: cfg.U, ScH: cfg.ScH, ScS: cfg.ScS, lakes: 1 }); mesa(sim, { seed: cfg.seed, H0: cfg.H0, edges: cfg.edges }); arid();
+    if (m.stroke && m.stroke !== 'none') { gesture(sim, strokeShape(m.stroke, N), 1.5, 2.2, GR); arid(); }
     pack(false); if (m.t) { budget = m.t; cfg.quiet = true; running = true; loop(); } }
   else if (m.type === 'seg') { gesture(sim, m.pts, 1.5, 2.2, GR); arid(); pack(false); }     // live stroke segment: same groove + rain as shots
   else if (m.type === 'release') { budget = cfg.budget; steps = 0; ms = 0; if (!running) { running = true; loop(); } }   // budget restarts on every stroke

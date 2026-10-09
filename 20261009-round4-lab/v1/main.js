@@ -16,7 +16,7 @@ const mk = () => new THREE.WebGLRenderTarget(N, N, rtOpt);
 const tdata = new Float32Array(N * N * 4); const dtex = new THREE.DataTexture(tdata, N, N, THREE.RGBAFormat, THREE.FloatType); dtex.minFilter = dtex.magFilter = THREE.NearestFilter;
 const T0 = { texture: dtex };
 let simInfo = { top: 20, steps: 0, total: 0, msPerStep: 0, budget: 0, done: false };
-function onFrame(m) { tdata.set(m.data); dtex.needsUpdate = true; terrainMat.uniforms.ptop.value = m.top - 2; terrainMat.uniforms.upl.value = m.upl; shMat.uniforms.upl && (shMat.uniforms.upl.value = m.upl); simInfo = m; }
+function onFrame(m) { tdata.set(m.data); dtex.needsUpdate = true; terrainMat.uniforms.ptop.value = m.top - 2; skyMat.uniforms.ptopS.value = m.top - 0.6; terrainMat.uniforms.upl.value = m.upl; shMat.uniforms.upl && (shMat.uniforms.upl.value = m.upl); simInfo = m; }
 const SH = new THREE.WebGLRenderTarget(N, N, { type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false });
 const simCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 const simScene = new THREE.Scene(); const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2)); simScene.add(quad);
@@ -118,8 +118,8 @@ void main(){ float h=Ht(vUv)*vsc; vec2 d=normalize(sun.xz); float sl=sun.y/lengt
 
 // ---------------------------------------------------------------- render
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(P('fov') || 38, innerWidth / innerHeight, 0.01, 20);
-const cam = { x: P('cx') || 0.0, y: P('cy') || 0.70, z: P('cz') || 0.80, tx: P('tx') || 0.0, ty: P('ty') || 0.04, tz: P('tz') || -0.06 };
+const camera = new THREE.PerspectiveCamera(P('fov') || 50, innerWidth / innerHeight, 0.01, 20);
+const cam = { x: P('cx') || 0.0, y: P('cy') || 0.56, z: P('cz') || 0.50, tx: P('tx') || 0.0, ty: P('ty') || 0.0, tz: P('tz') || -0.06 };
 camera.position.set(cam.x, cam.y, cam.z); camera.lookAt(cam.tx, cam.ty, cam.tz);
 const RCOMMON = SHARED + `
 uniform sampler2D T, SHT; uniform vec3 sun; uniform float vsc;
@@ -159,7 +159,7 @@ void main(){ vUv=uv; vec2 u=vec2(uv.x, 1.-uv.y); vUv=u; float h=terrace(HB(u),u)
       gl_Position=projectionMatrix*viewMatrix*vec4(p,1.); }`,
   fragmentShader: RCOMMON + `uniform float ptop;
 #define RIVON ${Q.has('oldriver') ? 'false' : 'true'}
-#define RLO ${(P('rlo') || 7.0).toFixed(2)}
+#define RLO ${(P('rlo') || 9.0).toFixed(2)}
 in vec2 vUv; in vec3 vW; out vec4 o;
   void main(){ float e=0.6/N; float hl=Ht(vUv-vec2(e,0.)), hr=Ht(vUv+vec2(e,0.)), hd=Ht(vUv-vec2(0.,e)), hu=Ht(vUv+vec2(0.,e));
     vec3 n=normalize(vec3((hl-hr)*vsc, 2.*e, (hd-hu)*vsc));
@@ -187,7 +187,7 @@ in vec2 vUv; in vec3 vW; out vec4 o;
     col *= 1. - 0.45*wet; { vec3 Rw=reflect(normalize(vW-cameraPosition), n); col += wet * skyCol(Rw) * 0.18 * pow(max(dot(Rw,sun),0.),24.) * 6.; }
     vec3 V=normalize(cameraPosition-vW); vec3 rd=-V;
     if (riv>0.) { vec3 R=reflect(rd, vec3(0.,1.,0.)); float fr=0.04+0.96*pow(1.-max(V.y,0.),5.);
-      vec3 w = RIVON ? mix(vec3(.16,.42,.44), skyCol(R)*1.1, max(fr,.3)) * mix(0.75,1.15,sh) : mix(vec3(.10,.22,.20)*0.6, skyCol(R)*0.9, fr) * mix(0.55,1.,sh);
+      vec3 w = RIVON ? mix(vec3(.10,.24,.24), skyCol(R)*0.85, max(fr,.2)) * mix(0.6,1.0,sh) : mix(vec3(.10,.22,.20)*0.6, skyCol(R)*0.9, fr) * mix(0.55,1.,sh);
       col = mix(col, w, riv); }
     float dist=length(vW-cameraPosition);
     col = haze(col, rd, dist, vW.y);
@@ -196,9 +196,9 @@ const terrain = new THREE.Mesh(new THREE.PlaneGeometry(1, 1, (P('mesh') || 1100)
 scene.add(terrain);
 // sky + far distance: distant mesa silhouettes in layers of haze
 const skyMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, depthWrite: false, depthTest: false,
-  uniforms: { sun: { value: SUN }, ipm: { value: new THREE.Matrix4() }, cpos: { value: camera.position }, N: { value: N }, seed: { value: 3 }, T: { value: null }, SHT: { value: null }, vsc: { value: VSC } },
+  uniforms: { ptopS: { value: 20 }, sun: { value: SUN }, ipm: { value: new THREE.Matrix4() }, cpos: { value: camera.position }, N: { value: N }, seed: { value: 3 }, T: { value: null }, SHT: { value: null }, vsc: { value: VSC } },
   vertexShader: `out vec2 vP; void main(){ vP=position.xy; gl_Position=vec4(position.xy,0.9999,1.); }`,
-  fragmentShader: RCOMMON + `uniform mat4 ipm; uniform vec3 cpos; in vec2 vP; out vec4 o;
+  fragmentShader: RCOMMON + `uniform mat4 ipm; uniform vec3 cpos; uniform float ptopS; in vec2 vP; out vec4 o;
     float d_lit(vec3 rd, float az){ return 0.5+0.5*clamp(sun.x*sign(rd.x)*0.0+0.6,0.,1.); }
     void main(){ vec4 w=ipm*vec4(vP,1.,1.); vec3 rd=normalize(w.xyz/w.w-cpos);
       vec3 c=skyCol(rd);
@@ -213,6 +213,7 @@ const skyMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, depthWrite: 
           c = mix(m*0.7, mix(vec3(.40,.44,.64), vec3(1.0,.62,.36), pow(max(dot(rd,sun),0.),4.))*0.72, 0.35 + fl*0.2); }
       }
       if (rd.y < 0.) { float hp = 0.; float tt = (cpos.y-hp)/max(-rd.y,1e-4); vec3 wp = cpos+rd*tt;
+        { float tq = (cpos.y-ptopS*vsc)/max(-rd.y,1e-4); vec3 q = cpos+rd*tq; if (q.z > -0.5) { tt = tq; wp = q; } }   // the tableland continues left/right/behind you
         vec3 g = vec3(.62,.50,.36)*0.55*(0.85+0.3*fbm(wp.xz*30.))*(vec3(2.6,1.75,1.05)*2.0*sun.y*1.4 + vec3(.18,.24,.37));
         g = haze(g, rd, tt*0.8, 1.); c = g; }
       o=vec4(c,1.); }` });
@@ -230,6 +231,24 @@ const post = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMater
       c *= 1.-0.30*dot(p,p)*1.6; c += (fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)-.5)/255.;
       o=vec4(c,1.); }` }));
 const postScene = new THREE.Scene(); postScene.add(post);
+// ---------------------------------------------------------------- hero choreography: deep-time sky clock + camera descent to the rim
+const SUN0 = SUN.clone(); const AER = { p: new THREE.Vector3(cam.x, cam.y, cam.z), t: new THREE.Vector3(cam.tx, cam.ty, cam.tz) };
+const rimView = () => { const y = (simInfo.top || 20) * VSC; return { p: new THREE.Vector3(0.02, y + 0.045, 0.47), t: new THREE.Vector3(-0.02, y - 0.03, 0.02) }; };
+const choreo = { phase: 0, night: 0, mode: 'aerial', k: 0, last: performance.now() };
+function setView(a, b, k) { const e = k * k * (3 - 2 * k); camera.position.lerpVectors(a.p, b.p, e); camera.lookAt(new THREE.Vector3().lerpVectors(a.t, b.t, e)); }
+function tick() {
+  const now = performance.now(), dt = Math.min(0.1, (now - choreo.last) / 1000); choreo.last = now;
+  const running = simInfo.budget > 0 && !simInfo.done;
+  if (running) { const prog = 1 - simInfo.budget / Math.max(1, simInfo.budget + simInfo.steps); choreo.phase += dt * (0.6 + 3.5 * prog); }   // days flicker faster as time accelerates
+  const a = choreo.phase * 2 * Math.PI; const day = new THREE.Vector3(Math.cos(a) * 0.8, Math.sin(a) * 0.6 + 0.15, Math.sin(a * 0.5) * 0.4 + 0.5).normalize();
+  choreo.night += ((running ? 1 : 0) - choreo.night) * Math.min(1, dt * 2.5);
+  SUN.copy(SUN0).lerp(day, choreo.night).normalize(); if (SUN.y < 0.04) SUN.y = 0.04; SUN.normalize(); shMat.uniforms.sun.value.copy(SUN);
+  post.material.uniforms.ex.value = (P('ex') || 1.0) * (1 - 0.55 * choreo.night * Math.max(0, 0.5 - Math.sin(a)));
+  if (choreo.mode === 'toRim' || choreo.mode === 'toAerial') { choreo.k = Math.min(1, choreo.k + dt / (choreo.mode === 'toRim' ? 4.5 : 0.8));
+    const from = choreo.mode === 'toRim' ? AER : choreo.from, to = choreo.mode === 'toRim' ? rimView() : AER; setView(from, to, choreo.k);
+    if (choreo.k >= 1) choreo.mode = choreo.mode === 'toRim' ? 'rim' : 'aerial'; }
+  if (choreo.mode === 'rim') { const r = rimView(); const s = Math.sin(now / 9000) * 0.05; r.p.x += s; r.t.x += s * 0.6; camera.position.copy(r.p); camera.lookAt(r.t); }
+}
 function render() {
   shMat.uniforms.T.value = T0.texture; run(shMat, SH);
   terrainMat.uniforms.T.value = T0.texture;
@@ -244,20 +263,20 @@ const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -5 * VSC);
 addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); rtMain.setSize(innerWidth, innerHeight); post.material.uniforms.res.value.set(innerWidth, innerHeight); });
 
 const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
-const CFG = {}; for (const k of ['K', 'Ac', 'U', 'ScH', 'ScS', 'H0', 'bg', 'budget', 'seed']) if (Q.has(k)) CFG[k] = +Q.get(k);
+const CFG = {}; for (const k of ['K', 'Ac', 'U', 'ScH', 'ScS', 'H0', 'bg', 'budget', 'seed']) if (Q.has(k)) CFG[k] = +Q.get(k); if (Q.has('edges')) CFG.edges = Q.get('edges');
 worker.postMessage({ type: 'init', N, cfg: CFG, stroke: SHOT ? (Q.get('stroke') || null) : null, t: SHOT ? TSTEPS : 0 });
 const hud = document.getElementById('hud');
 if (SHOT) {
-  worker.onmessage = ({ data: m }) => { onFrame(m); if (m.done || !TSTEPS) { render(); window.__ready = true; } };
+  worker.onmessage = ({ data: m }) => { onFrame(m); if (m.done || !TSTEPS) { if (Q.get('cam') === 'rim') { const r = rimView(); camera.position.copy(r.p); camera.lookAt(r.t); } render(); window.__ready = true; } };
 } else {
   let drawing = false, last = null, idle = performance.now(), drew = false;
   const toCell = e => { m2.set(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1); ray.setFromCamera(m2, camera); const p = new THREE.Vector3();
     plane.constant = -(simInfo.top || 20) * VSC; return ray.ray.intersectPlane(plane, p) ? [(p.x + .5) * N, (p.z + .5) * N] : null; };
-  addEventListener('pointerdown', e => { drawing = true; last = toCell(e); idle = Infinity; hud.textContent = ''; });
+  addEventListener('pointerdown', e => { if (choreo.mode !== 'aerial') { choreo.from = { p: camera.position.clone(), t: rimView().t }; choreo.mode = 'toAerial'; choreo.k = 0; drawing = false; return; } drawing = true; last = toCell(e); idle = Infinity; hud.textContent = ''; });
   addEventListener('pointermove', e => { if (!drawing) return; const c = toCell(e); if (c && last) { worker.postMessage({ type: 'seg', pts: [last, c] }); drew = true; } last = c; });
   addEventListener('pointerup', () => { if (drawing && drew) worker.postMessage({ type: 'release' }); drawing = false; drew = false; hud.textContent = ''; idle = Infinity; });
-  worker.onmessage = ({ data: m }) => onFrame(m);
-  const loop = () => { requestAnimationFrame(loop); if (performance.now() - idle > 6000) hud.textContent = 'drag across the plateau'; render(); window.__ready = true; }; loop();
+  worker.onmessage = ({ data: m }) => { const was = simInfo.done; onFrame(m); if (m.done && m.steps > 0 && !Q.has('norim')) { choreo.mode = 'toRim'; choreo.k = 0; } };
+  const loop = () => { requestAnimationFrame(loop); tick(); if (performance.now() - idle > 6000) hud.textContent = 'drag across the plateau'; render(); window.__ready = true; }; loop();
 }
 window.__timing = () => ({ steps: simInfo.steps, total: simInfo.total, msPerStep: simInfo.msPerStep, budget: simInfo.budget, done: simInfo.done });
 window.__cellToScreen = (x, y) => { const v = new THREE.Vector3(x / N - .5, (simInfo.top || 20) * VSC, y / N - .5).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; };
