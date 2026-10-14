@@ -234,9 +234,9 @@ in vec2 vUv; in vec3 vW; out vec4 o;
     float depth = clamp((ptop - h)/32., 0., 1.);
     // scrub casts a tiny shadow on the sand (offset along -sun)
     { float ts2 = smoothstep(scrubD, scrubD+0.05, fbm((vUv+normalize(sun.xz)*0.0018)*520.+3.))*flat_; dif *= 1.-0.6*ts2*(1.-trees); }
-    vec3 lin = dif*vec3(3.0,1.80,0.85)*2.5 + skyl*vec3(.24,.26,.58)*0.62*(1.-0.45*depth) + bounce*vec3(.70,.32,.13)*(0.30+1.0*depth)*(0.6+0.4*(1.-sh)) + vec3(.26,.10,.05)*depth*0.45;
-    lin *= mix(1., 0.62, depth*(1.-sh));                                                    // deep shade is deep: value structure
-    vec3 col = alb*lin;
+    vec3 lin = dif*vec3(3.0,1.80,0.85)*2.5 + skyl*vec3(.24,.26,.58)*0.62*(1.-0.45*depth) + bounce*vec3(.70,.32,.13)*(0.30+0.30*depth)*(0.6+0.4*(1.-sh)) + vec3(.26,.10,.05)*depth*0.10;   /* less glow from below: a hole must get darker with depth */
+    lin *= mix(1., 0.62, depth*(1.-sh)) * mix(1., 0.30, smoothstep(.05, .6, depth)*(1.-0.6*sh*clamp(nd,0.,1.)));   /* sky occlusion: the floor and lower walls see little sky */                                                    // deep shade is deep: value structure
+    vec3 col = alb*lin; col = mix(col, vec3(.06,.055,.075), 0.55*smoothstep(.25, .75, depth));   /* cool shadowed haze pooled at the bottom */
     // river: water where drainage area is large, reflecting the sky
     vec4 ts = TBS(vUv + (vec2(fbm(vUv*90.), fbm(vUv*90.+31.))-.5)*1.4/N);   // slight domain warp: organic banks instead of D8 cell stairs
     float riv = RIVON ? smoothstep(RLO, RLO+1.6, ts.z) * smoothstep(.45,.75,n.y+0.1) * smoothstep(ptop-3., ptop-9., h) : smoothstep(9.5, 11.0, log2(1.+t.z)) * smoothstep(.9,.97,n.y+0.1) * smoothstep(HTOP-4., HTOP-12., h);
@@ -345,16 +345,25 @@ const rimView = () => { const y = (simInfo.top || 20) * VSC; const fx = focus.x,
 const bbox = { x0: 1, x1: -1, z0: 1, z1: -1 };   // stroke bounding box (world units), for the reveal framing
 function bboxAdd(x, z) { bbox.x0 = Math.min(bbox.x0, x); bbox.x1 = Math.max(bbox.x1, x); bbox.z0 = Math.min(bbox.z0, z); bbox.z1 = Math.max(bbox.z1, z); }
 if (SHOT && Q.get('stroke')) for (const q of strokeShape(Q.get('stroke'), N)) if (q) bboxAdd(q[0] / N - .5, q[1] / N - .5);
-function frameView(cx, cz, W, D, pitchDeg, fill, yawDeg = 0) { const y = (simInfo.top || 20) * VSC;   // steep high-oblique camera solved so a W x D box fills `fill` of the width
+const FITCAM = new THREE.PerspectiveCamera(50, 1, 0.001, 100);
+function fitPose(make, d0, box, bottom = -0.78, top = 0.86, side = 0.90) {   /* pull back until all four padded bbox corners land inside the frame (tall shapes were cropped at the near edge) */
+  if (!box) return make(d0); let d = d0, v;
+  for (let k = 0; k < 24; k++) { v = make(d); FITCAM.fov = v.f; FITCAM.aspect = innerWidth / Math.max(1, innerHeight); FITCAM.position.copy(v.p); FITCAM.lookAt(v.t); FITCAM.updateProjectionMatrix(); FITCAM.updateMatrixWorld();
+    let ok = true; for (const [x, z] of [[box.x0, box.z0], [box.x1, box.z0], [box.x0, box.z1], [box.x1, box.z1]]) { const q = new THREE.Vector3(x, box.y, z).project(FITCAM); if (q.z > 1 || q.y < bottom || q.y > top || Math.abs(q.x) > side) { ok = false; break; } }
+    if (ok) return v; d *= 1.07; }
+  return v; }
+function frameView(cx, cz, W, D, pitchDeg, fill, yawDeg = 0, box = false) { const y = (simInfo.top || 20) * VSC;   // steep high-oblique camera solved so a W x D box fills `fill` of the width
   const fov = 50, th = Math.tan(fov / 2 * Math.PI / 180), tw = th * Math.max(1, innerWidth / innerHeight), a = pitchDeg * Math.PI / 180;
   const d = Math.max(W / (fill * 2 * tw), D * Math.sin(a) / (0.80 * 2 * th));
-  const yw = yawDeg * Math.PI / 180; return { p: new THREE.Vector3(cx - d * Math.cos(a) * Math.sin(yw), y + d * Math.sin(a), cz + d * Math.cos(a) * Math.cos(yw)), t: new THREE.Vector3(cx, y, cz), f: fov }; }   /* yaw > 0 swings the camera toward the sun (-x): sunlit walls face us, near walls fall into shade */
+  const yw = yawDeg * Math.PI / 180, make = dd => ({ p: new THREE.Vector3(cx - dd * Math.cos(a) * Math.sin(yw), y + dd * Math.sin(a), cz + dd * Math.cos(a) * Math.cos(yw)), t: new THREE.Vector3(cx, y, cz), f: fov });
+  return fitPose(make, d, box ? { x0: cx - W / 2, x1: cx + W / 2, z0: cz - D / 2, z1: cz + D / 2, y } : null); }   /* yaw > 0 swings the camera toward the sun (-x): sunlit walls face us, near walls fall into shade */
 const revView = () => { const ok = bbox.x1 > bbox.x0, pad = 0.12;   // reveal: ~60 deg down, tight on the stroke
-  return frameView(ok ? (bbox.x0 + bbox.x1) / 2 : focus.x, ok ? (bbox.z0 + bbox.z1) / 2 : focus.z, ok ? bbox.x1 - bbox.x0 + 2 * pad : 0.6, ok ? bbox.z1 - bbox.z0 + 2 * pad : 0.6, P('rpitch') || 50, P('rfill') || 0.66, (Q.has('ryaw') ? P('ryaw') : 14)); };
-const restView = () => { const ok = bbox.x1 > bbox.x0, pad = 0.08, y = (simInfo.top || 20) * VSC;   // postcard end frame: a low oblique, the shape still reads and the walls glow in the raking sun
+  return frameView(ok ? (bbox.x0 + bbox.x1) / 2 : focus.x, ok ? (bbox.z0 + bbox.z1) / 2 : focus.z, ok ? bbox.x1 - bbox.x0 + 2 * pad : 0.6, ok ? bbox.z1 - bbox.z0 + 2 * pad : 0.6, P('rpitch') || 50, P('rfill') || 0.66, (Q.has('ryaw') ? P('ryaw') : 14), ok && !Q.has('nofit')); };
+const restView = () => { const ok = bbox.x1 > bbox.x0, pad = 0.10, y = (simInfo.top || 20) * VSC;   // postcard end frame: a low oblique, the shape still reads and the walls glow in the raking sun
   const cx = ok ? (bbox.x0 + bbox.x1) / 2 : focus.x, cz = ok ? (bbox.z0 + bbox.z1) / 2 : focus.z, W = ok ? bbox.x1 - bbox.x0 + 2 * pad : 0.6, D = ok ? bbox.z1 - bbox.z0 + 2 * pad : 0.6;
   const a = (P('ppitch') || 32) * Math.PI / 180, d = (P('pdist') || 0.92) * Math.max(0.88 * W * Math.min(1.78, innerHeight ? 1.78 / (innerWidth / innerHeight) : 1), 1.05 * D), tz = cz - (P('plook') || 0.28) * D;   /* distance from the bbox, not a fill solve: low obliques foreshorten depth and crop the near side */
-  const yw = (Q.has('pyaw') ? P('pyaw') : 8) * Math.PI / 180; return { p: new THREE.Vector3(cx - d * Math.cos(a) * Math.sin(yw), y + d * Math.sin(a), cz + d * Math.cos(a) * Math.cos(yw)), t: new THREE.Vector3(cx + (cz - tz) * Math.sin(yw), y, tz), f: P('pfov') || 60 }; };   /* camera placed from the shape centre; the look-at sits beyond it so the horizon and sky come in */
+  const yw = (Q.has('pyaw') ? P('pyaw') : 8) * Math.PI / 180, make = dd => ({ p: new THREE.Vector3(cx - dd * Math.cos(a) * Math.sin(yw), y + dd * Math.sin(a), cz + dd * Math.cos(a) * Math.cos(yw)), t: new THREE.Vector3(cx + (cz - tz) * Math.sin(yw), y, tz), f: P('pfov') || 60 });
+  return fitPose(make, d, ok && !Q.has('nofit') ? { x0: cx - W / 2, x1: cx + W / 2, z0: cz - D / 2, z1: cz + D / 2, y } : null, -0.80, 0.55); };   /* camera placed from the shape centre; the look-at sits beyond it so the horizon and sky come in */
 window.__rested = () => !!choreo.rested;
 const drawView = () => frameView(0, 0.12, 0.78, 0.78, P('dpitch') || 74, 0.84);   // drawing pose: >=70 deg down, so what you draw on screen is what lands on the ground   // drawing pose: steep enough that what you draw on screen lands undistorted
 const choreo = { mode: SHOT ? 'draw' : 'first', k: 0, last: performance.now(), hold: 0, from: null, pending: false, prog: 0 };
@@ -368,7 +377,7 @@ function tick() {
   const prog = simInfo.steps / Math.max(1, simInfo.budget + simInfo.steps); choreo.prog += ((running || simInfo.done ? prog : 0) - choreo.prog) * Math.min(1, dt * 3);
   // calm deep-time clock: no day/night strobe; the low sun swings slowly round so shadows creep across the walls as the canyon deepens
   const az = -0.55 * choreo.prog; SUN.set(SUN0.x * Math.cos(az) - SUN0.z * Math.sin(az), SUN0.y * (1 - 0.25 * choreo.prog), SUN0.x * Math.sin(az) + SUN0.z * Math.cos(az)).normalize(); shMat.uniforms.sun.value.copy(SUN);
-  for (const k in GR) post.material.uniforms[k].value = GR[k]; choreo.exk = (choreo.exk ?? 1) + ((choreo.rested ? 0.88 : (choreo.mode === 'reveal' || choreo.mode === 'toReveal') ? 1.07 : 1) - (choreo.exk ?? 1)) * 0.03; post.material.uniforms.ex.value = GR.ex * choreo.exk;   /* the postcard is mostly sunlit plain + sky: a touch darker so the walls carry the value range */
+  for (const k in GR) post.material.uniforms[k].value = GR[k]; choreo.exk = (choreo.exk ?? 1) + ((choreo.rested ? 0.88 : (choreo.mode === 'reveal' || choreo.mode === 'toReveal') ? 1.12 : 1) - (choreo.exk ?? 1)) * 0.03; post.material.uniforms.ex.value = GR.ex * choreo.exk;   /* the postcard is mostly sunlit plain + sky: a touch darker so the walls carry the value range */
   if (yrs) { const show = (running || simInfo.done) && simInfo.steps > 0 && !['draw', 'toDraw', 'first'].includes(choreo.mode);
     yrs.style.opacity = show ? (simInfo.done ? 0.55 : 0.9) : 0; if (show) { const y = simInfo.steps * 30000; yrs.innerHTML = y >= 1e6 ? (y / 1e6).toFixed(1) + '<small>million years</small>' : Math.max(10, Math.round(y / 1e4) * 10) + '<small>thousand years</small>'; }}
   { const ti = document.getElementById('title'), ca = document.getElementById('card'), resting = choreo.rested && choreo.mode === 'reveal' && simInfo.done;
