@@ -7,8 +7,8 @@
 
 ## 狀態 · Status
 
-Round 4 自主挑戰作品。v4（第三輪打磨 + 近端裁切修正）已上線並完成定稿報告。最後一次獨立審查分數是 Pass 2 / v3 的 **17/24**；Pass 3 依該審查清單實作，未再重新打分。
-*Round 4 autonomous-challenge piece. v4 (Pass 3 polish + near-edge crop fix) is live with a final report. Last independent score is Pass 2 / v3 at **17/24**; Pass 3 followed that review's list and was not re-scored.*
+Round 4 自主挑戰作品。v4（第三輪打磨 + 近端裁切修正）已上線並完成定稿報告。v4 已於 2026-10-14 由獨立對抗式審查重新打分：**15/24（v3 為 17/24），未通過兒童測試**（盲猜形狀 4/9；高瘦形狀被裁切、多筆畫只留第一筆、閉合形狀內島看起來像凸起的方塊）。詳見 [`docs/reviews/REVIEW-05.md`](docs/reviews/REVIEW-05.md)。
+*Round 4 autonomous-challenge piece. v4 (Pass 3 polish + near-edge crop fix) is live with a final report. v4 was independently re-scored on 2026-10-14: **15/24 (v3 was 17/24), kids-test FAIL** (blind shape read 4/9; tall shapes cropped, multi-stroke drawings keep only the first stroke, closed shapes' inner islands read as raised blocks). See [`docs/reviews/REVIEW-05.md`](docs/reviews/REVIEW-05.md).*
 
 ## 怎麼玩 · How it works
 
@@ -27,5 +27,6 @@ Round 4 自主挑戰作品。v4（第三輪打磨 + 近端裁切修正）已上�
 | [`v1/`](v1/) | V1 end-to-end |
 | [`prototypes/`](prototypes/) | Phase B prototypes (see `prototypes/EVALUATIONS.md`) |
 | [`docs/FINAL_REPORT.md`](docs/FINAL_REPORT.md) | Final report |
+| [`docs/reviews/REVIEW-05.md`](docs/reviews/REVIEW-05.md) | Independent re-score of live v4 (15/24) |
 
 需要桌面瀏覽器與 WebGL2；手機會顯示替代畫面。*Desktop + WebGL2; phones get a fallback screen.*

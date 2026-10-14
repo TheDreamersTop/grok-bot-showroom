@@ -1,5 +1,7 @@
 [OPEN THE EXPERIENCE] → https://thedreamerstop.github.io/grok-bot-showroom/20261009-round4-lab/v4/
 
+> **Update 2026-10-14 21:00 TPE:** after this report was written, live v4 was independently re-scored in [`reviews/REVIEW-05.md`](reviews/REVIEW-05.md): **15/24 (down from v3's 17/24), kids-test FAIL** (blind read 4/9). That review also found the tall-shape crop still present, multi-stroke drawings losing every stroke after the first, off-plateau strokes carving a trench instead of being rejected, and few visible tributaries or benches. Claims below about the kids test and "not re-scored" are superseded by it.
+
 # 深時 Deep Time: Final Report
 
 ## What I built
