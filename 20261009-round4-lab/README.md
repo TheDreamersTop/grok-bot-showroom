@@ -3,12 +3,12 @@
 在沙漠台地上畫一條線，看六百萬年的雨把它刻成峽谷。
 *Draw a line on a desert plateau and watch six million years of rain carve it into a canyon.*
 
-▶ Live: https://thedreamerstop.github.io/grok-bot-showroom/20261009-round4-lab/v5/
+▶ Live: https://thedreamerstop.github.io/grok-bot-showroom/20261009-round4-lab/v6/
 
 ## 狀態 · Status
 
-Round 4 自主挑戰作品。v4（第三輪打磨 + 近端裁切修正）已上線並完成定稿報告。v4 已於 2026-10-14 由獨立對抗式審查重新打分：**15/24（v3 為 17/24），未通過兒童測試**（盲猜形狀 4/9；高瘦形狀被裁切、多筆畫只留第一筆、閉合形狀內島看起來像凸起的方塊）。詳見 [`docs/reviews/REVIEW-05.md`](docs/reviews/REVIEW-05.md)。2026-10-18：v5 已上線，修正 REVIEW-05 的阻擋問題（尚未經獨立審查重新打分）。
-*Round 4 autonomous-challenge piece. v4 (Pass 3 polish + near-edge crop fix) is live with a final report. v4 was independently re-scored on 2026-10-14: **15/24 (v3 was 17/24), kids-test FAIL** (blind shape read 4/9; tall shapes cropped, multi-stroke drawings keep only the first stroke, closed shapes' inner islands read as raised blocks). See [`docs/reviews/REVIEW-05.md`](docs/reviews/REVIEW-05.md). 2026-10-18: v5 is live with fixes for the REVIEW-05 blockers (not yet independently re-scored).*
+Round 4 自主挑戰作品。v4（第三輪打磨 + 近端裁切修正）已上線並完成定稿報告。v4 已於 2026-10-14 由獨立對抗式審查重新打分：**15/24（v3 為 17/24），未通過兒童測試**（盲猜形狀 4/9；高瘦形狀被裁切、多筆畫只留第一筆、閉合形狀內島看起來像凸起的方塊）。詳見 [`docs/reviews/REVIEW-05.md`](docs/reviews/REVIEW-05.md)。2026-10-18：v5 經獨立審查（REVIEW-06）得 16/24，未通過；v6 已上線，修正 REVIEW-06 問題（明信片視角依形狀長軸、凸島陰影、側谷、邊緣凍結；尚未經獨立審查重新打分）。詳見 [`docs/reviews/REVIEW-06.md`](docs/reviews/REVIEW-06.md)。
+*Round 4 autonomous-challenge piece. v4 (Pass 3 polish + near-edge crop fix) is live with a final report. v4 was independently re-scored on 2026-10-14: **15/24 (v3 was 17/24), kids-test FAIL** (blind shape read 4/9; tall shapes cropped, multi-stroke drawings keep only the first stroke, closed shapes' inner islands read as raised blocks). See [`docs/reviews/REVIEW-05.md`](docs/reviews/REVIEW-05.md). 2026-10-18: v5 was re-scored 16/24, gate FAIL ([`docs/reviews/REVIEW-06.md`](docs/reviews/REVIEW-06.md)); v6 is live with REVIEW-06 fixes (shape-aware postcard, island shading, side gullies, edge freeze; not yet independently re-scored).*
 
 ## 怎麼玩 · How it works
 
@@ -21,7 +21,8 @@ Round 4 自主挑戰作品。v4（第三輪打磨 + 近端裁切修正）已上�
 
 | Path | Pass |
 |---|---|
-| [`v5/`](v5/) | REVIEW-05 fixes: framing, multi-stroke, hole read, plateau edge, postcard (not yet independently re-scored) |
+| [`v6/`](v6/) | REVIEW-06 fixes: thin-shape postcard (long axis across, every shape >=45% wide), island shading, side gullies, edge freeze (not yet independently re-scored) |
+| [`v5/`](v5/) | REVIEW-05 fixes: framing, multi-stroke, hole read, plateau edge, postcard (REVIEW-06: 16/24, FAIL) |
 | [`v4/`](v4/) | Pass 3 polish + wrap-up crop/occlusion fix |
 | [`v3/`](v3/) | Pass 2 experience |
 | [`v2/`](v2/) | Pass 1 visual |
