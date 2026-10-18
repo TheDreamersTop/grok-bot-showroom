@@ -1,0 +1,11 @@
+REVIEW-10 strict blind guesses, written BEFORE opening BLIND_KEY_review10.json (reviewer knew the 9-name set -> upper bound)
+Grade: C = confident, F = fairly confident, M = moderate, W = weak/by elimination. Strict count = C+F only.
+1 arrow  (M) - long shaft, head at right reads like a bent hook / "Z"; barbs not clearly two
+2 fish   (C) - oval body + triangle tail
+3 bolt   (F) - zig visible, small and steep, no horizon
+4 flower (C) - five petals + stem
+5 T      (C)
+6 sun    (M) - disc with rays; first impression "bug / crab"; the disc is small and the rays dominate
+7 moon   (C) - crescent
+8 heart  (F)
+9 cloud  (C) - flat bottom, bumpy top
