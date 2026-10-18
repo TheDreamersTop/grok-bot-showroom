@@ -1,0 +1,10 @@
+REVIEW-06 blind guesses, written BEFORE opening BLIND_KEY_review06.json (reviewer knew the 9-name set -> upper bound)
+1 star (confident)
+2 crescent moon / "C" (confident)
+3 a "1" / "7" stroke; zig-zag only weakly -> bolt? (weak, by elimination)
+4 NO READ: low rim view of a raised-looking block + trench; cannot name a shape
+5 A (confident, crossbar visible, fully framed)
+6 fish (oval + tail) (fairly confident)
+7 smiley face (ring + eyes + mouth) (fairly confident)
+8 house (box + roof wedge) (ok)
+9 tree / arrow up (triangle on a stem) (moderate)
