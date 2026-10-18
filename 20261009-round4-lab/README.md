@@ -3,7 +3,7 @@
 在沙漠台地上畫一條線，看六百萬年的雨把它刻成峽谷。
 *Draw a line on a desert plateau and watch six million years of rain carve it into a canyon.*
 
-▶ Live: https://thedreamerstop.github.io/grok-bot-showroom/20261009-round4-lab/v7/
+▶ Live: https://thedreamerstop.github.io/grok-bot-showroom/20261009-round4-lab/v8/
 
 ## 狀態 · Status
 
@@ -21,7 +21,8 @@ Round 4 自主挑戰作品。v4（第三輪打磨 + 近端裁切修正）已上�
 
 | Path | Pass |
 |---|---|
-| [`v7/`](v7/) | REVIEW-07 fixes: safe-area postcard, horizon + sky + foreground ledge, upright glyphs (yaw within ±25°), branching side canyons, benches, lip cap + strata, colour script (not yet independently re-scored) |
+| [`v8/`](v8/) | REVIEW-08 fixes: postcard frames the newest carve's real rim cells with a 5% margin (automated in-frame check), gorge fill light (floors ~17%), sim side canyons, horizontal strata + benches + talus, 3/4 view for thin glyphs, clean silted carves (not yet independently re-scored) |
+| [`v7/`](v7/) | REVIEW-07 fixes: safe-area postcard, horizon + sky + foreground ledge, upright glyphs (yaw within ±25°), branching side canyons, benches, lip cap + strata, colour script (REVIEW-08: 19/24, FAIL) |
 | [`v6/`](v6/) | REVIEW-06 fixes: thin-shape postcard, island shading, side gullies, edge freeze (REVIEW-07: 17/24, FAIL) |
 | [`v5/`](v5/) | REVIEW-05 fixes: framing, multi-stroke, hole read, plateau edge, postcard (REVIEW-06: 16/24, FAIL) |
 | [`v4/`](v4/) | Pass 3 polish + wrap-up crop/occlusion fix |
