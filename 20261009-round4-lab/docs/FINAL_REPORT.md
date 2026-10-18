@@ -1,4 +1,44 @@
-[OPEN THE EXPERIENCE] → https://thedreamerstop.github.io/grok-bot-showroom/20261009-round4-lab/v4/
+[OPEN THE EXPERIENCE] → https://thedreamerstop.github.io/grok-bot-showroom/20261009-round4-lab/v9/
+
+> **Final status, 2026-10-19 (TPE):** live **v9** was independently scored in [`reviews/REVIEW-10.md`](reviews/REVIEW-10.md) at **21/24 and passed the gate**: total ≥ 20, originality 2, kids test 2. This is the first passing version.
+>
+> **Borderline caveat:** the pass is narrow.
+> - The strict blind read is **9/9** under REVIEW-09's rule (drop weak, by-elimination guesses only).
+> - Under the reviewer's stricter count (confident and fairly-confident guesses only) it is **7/9**, which is borderline. The arrow (its head reads as a hook) and the sun (first impression "bug") are the fragile reads.
+> - Both counts are upper bounds, because the reviewer knew the set of shape names.
+>
+> The history below the score table is the original v4-era report, kept for the record; the update notes inside it are superseded by this section.
+
+## Score history (independent adversarial reviews)
+| Version | Score | Gate | Review |
+|---|---|---|---|
+| v1 | 14/24 | PASS (V1 gate) | REVIEW-02 |
+| v2 | 16/24 | — | REVIEW-03 |
+| v3 | 17/24 | — | REVIEW-04 |
+| v4 | 15/24 | FAIL (kids test) | REVIEW-05 |
+| v5 | 16/24 | FAIL | REVIEW-06 |
+| v6 | 17/24 | FAIL | REVIEW-07 |
+| v7 | 19/24 | FAIL (1 point short) | REVIEW-08 |
+| v8 | 20/24 | FAIL (kids test) | REVIEW-09 |
+| **v9** | **21/24** | **PASS (narrow)** | REVIEW-10 |
+
+**What got v9 over the line:**
+- Side canyons that changed the outline are switched off, so shapes no longer grow "legs".
+- Zigzags, junctions and bumpy outlines (bolt, arrow, tree, key, cloud) get look-down postcards.
+- Canyon floors are lifted to a median luminance of 0.16–0.21 (it was 0.10–0.12).
+- The wall tick marks and the 4-carve heart smear are fixed.
+- 0 console, page or HTTP errors.
+
+**REVIEW-10 sub-scores at 1:** depth (#5), detail at 100 % (#7), emergent response (#10). All other criteria score 2.
+
+## Remaining weaknesses (REVIEW-10's top 5)
+1. **No horizon on 5 of 9 blind postcards (#5 depth, #1).** The look-down frames used for arrow, fish, bolt, flower and T lose the sky and horizon. Fix: a ~35–40° three-quarter view with a sky band of ≥ 8 %, falling back to look-down only if a blind check fails. Target: ≥ 7/9 finals with a horizon while the strict blind read stays ≥ 8/9.
+2. **Arrow head and thin connectors (#9 robustness).** The arrow's barbs still fold into a hook or "Z", with the lower barb as a separate blob. The bolt's middle link is a thin, broken neck. Fix: protect acute vertices from widening or merging, and set a minimum width on short segments.
+3. **Blocky wall edges and lips (#7).** Pixel stair-steps along the outer wall edges show in 2× crops, the lit lips carry a bristly fringe, and 1–2 isolated dark blots remain per frame. Fix: sample walls and lips with the mesh's B-spline or supersample 2×.
+4. **Little visible erosion character (#10).** With side canyons off and no benches or talus, the landform is a banded trench in the shape of the drawing. Fix: thin, dark V-crack gullies on outer rims only, plus 1–2 geometric benches and talus aprons, without changing silhouettes or the blind read.
+5. **Strata grade (#3, #6).** The bands lean saturated, like sand art in a bottle. Fix: desaturate them ~20 % and move the teal stripe toward a grey-green, so the walls read as Colorado-Plateau sandstone.
+
+---
 
 > **Update 2026-10-14 21:00 TPE:** after this report was written, live v4 was independently re-scored in [`reviews/REVIEW-05.md`](reviews/REVIEW-05.md): **15/24 (down from v3's 17/24), kids-test FAIL** (blind read 4/9). That review also found the tall-shape crop still present, multi-stroke drawings losing every stroke after the first, off-plateau strokes carving a trench instead of being rejected, and few visible tributaries or benches. Claims below about the kids test and "not re-scored" are superseded by it.
 
