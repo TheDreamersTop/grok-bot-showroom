@@ -1,0 +1,10 @@
+REVIEW-09 blind guesses, written BEFORE opening BLIND_KEY_review09.json (reviewer knew the 9-name set -> upper bound)
+1 arrow (moderate) - reads first as a hockey stick / "L"; barbs merged into one hook
+2 A (confident)
+3 tree (moderate) - triangle with a stub below; could be an arrowhead / funnel
+4 bolt (weak, by elimination) - short thick "1" / "7"; zig not legible at this size
+5 heart (moderate) - lobes + point, but the side canyons make it read as a crab/spider first
+6 moon (weak) - ring with a gap; side canyons blur the crescent; could be a fish or a donut
+7 cloud (weak) - wide bumpy blob with legs; first read "crab"
+8 fish (moderate) - oval + tail at right
+9 key (fairly confident) - small ring left + long shaft right with a tooth
