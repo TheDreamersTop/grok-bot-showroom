@@ -188,6 +188,8 @@ void main(){ vec2 u=vec2(uv.x, 1.-uv.y); vec2 u0=u;
 #define FN ${(Q.has('fn') ? P('fn') : 0).toFixed(3)}
 #define SHB ${(Q.has('shb') ? P('shb') : 2.5).toFixed(3)}
 #define ISLON ${Q.has('noisl') ? '0.' : '1.'}
+#define EF0 ${(Q.has('ef0') ? P('ef0') : 0.42).toFixed(3)}
+#define EFK ${(Q.has('efk') ? P('efk') : 1).toFixed(3)}
 #define DBGISL ${Q.has('dbgisl') ? 'true' : 'false'}
 #define RLO ${(P('rlo') || 9.0).toFixed(2)}
 in vec2 vUv; in vec3 vW; out vec4 o;
@@ -287,11 +289,17 @@ in vec2 vUv; in vec3 vW; out vec4 o;
     if (DBGTOP) { o=vec4(sh, dif, depth, 1.); return; }
     if (DBGISL) { o=vec4(clamp(-t.y,0.,1.), clamp(t.y,0.,1.), 0., 1.); return; }
     col = mix(haze(col, rd, dist, vW.y), haze(col, rd, dist*0.45, 1.), wm);     // water keeps its jade (no violet floor haze)
+#ifndef OUTER
+    if (EFK > 0.) { vec3 wp = vW; vec3 lightG = vec3(2.6,1.75,1.05)*2.0*sun.y*1.4 + vec3(.18,.24,.37);   /* REVIEW-06 #4: the far margin of the sim domain blends into the exact colour the sky pass paints for the tableland beyond it -> no hard pale band */
+      vec3 g = vec3(.60,.41,.30)*0.40*(0.85+0.3*fbm(wp.xz*30.))*lightG; float sd3=max(dot(rd,sun),0.); vec3 dust = mix(vec3(.62,.54,.56), vec3(1.10,.70,.42), pow(sd3,3.))*0.52;
+      g *= (0.60 + 0.55*fbm(wp.xz*2.5+9.))*vec3(1.,.90,.80); g = mix(g, vec3(.24,.14,.10)*lightG*0.5, 0.55*smoothstep(.5,.72,fbm(wp.xz*5.+1.))); g = mix(g, vec3(.80,.62,.46)*lightG*0.42, 0.45*smoothstep(.58,.72,fbm(wp.xz*11.+4.)));
+      g = mix(g, dust, clamp(1.-exp(-dist*0.11), 0., 0.70)); float ef = smoothstep(-EF0, -0.5, vW.z); col = mix(col, g, EFK*ef); }
+#endif
     o=vec4(col,1.); }` });
 const terrain = new THREE.Mesh(new THREE.PlaneGeometry(1, 1, (P('mesh') || 1100) - 1, (P('mesh') || 1100) - 1), terrainMat);
 scene.add(terrain);
 // the tableland runs on to the horizon: an outer skirt (same shader, clamped data, wandering escarpment), so there is no slab edge
-const outerGeo = new THREE.PlaneGeometry(1, 1, 7 * 40, 4 * 40); { const uv = outerGeo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, -3 + 7 * uv.getX(i), -3 + 4 * uv.getY(i)); }
+const SKD = P('skd') || 40, outerGeo = new THREE.PlaneGeometry(1, 1, 7 * SKD, 4 * SKD); { const uv = outerGeo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, -3 + 7 * uv.getX(i), -3 + 4 * uv.getY(i)); }
 const outerMat = new THREE.ShaderMaterial({ glslVersion: THREE.GLSL3, uniforms: terrainMat.uniforms, defines: { OUTER: 1 }, vertexShader: terrainMat.vertexShader, fragmentShader: terrainMat.fragmentShader });
 const outer = new THREE.Mesh(outerGeo, outerMat); outer.frustumCulled = false; if (!Q.has('noskirt')) scene.add(outer);
 // sky + far distance: distant mesa silhouettes in layers of haze
@@ -413,9 +421,9 @@ function restView() {
     const g = 6, c = (a, b) => [(ax.mx + a * ax.ux - b * ax.uz) / N - .5, (ax.mz + a * ax.uz + b * ax.ux) / N - .5];   // oriented box (cells, padded by the canyon half-width)
     const HC = []; for (const q of heroPts) if (q) for (const [dx, dz] of [[g, 0], [-g, 0], [0, g], [0, -g]]) HC.push([(q[0] + dx) / N - .5, (q[1] + dz) / N - .5]);   /* fit the drawn cells themselves (+pad), not the PCA box: a diagonal PCA box around an A is much taller than the A */
     box = Object.assign({}, hb, { C: Q.has('pbox') ? [c(ax.a0 - g, ax.b0 - g), c(ax.a1 + g, ax.b0 - g), c(ax.a0 - g, ax.b1 + g), c(ax.a1 + g, ax.b1 + g)] : HC, c: c((ax.a0 + ax.a1) / 2, (ax.b0 + ax.b1) / 2) });
-    if (ax.open || ax.thin < 0.45) pp = 56; }   // thin / fine-detail shapes (bolt, I, tree, A): high oblique so the zigs don't collapse
+    if (ax.open || ax.thin < 0.45) pp = 56; if (Math.abs(yaw - 10) > 45) pp = P('prot') || 64; }   // rotated (I, bolt): steeper, so the far side edge of the domain (a seam line) stays out of frame   // thin / fine-detail shapes (bolt, I, tree, A): high oblique so the zigs don't collapse
   if (Q.has('ppitch')) pp = P('ppitch');
-  let v = fit3(box, pp, yaw, P('pfov') || 50, pp > 50 ? { l: -0.88, r: 0.88, b: -0.97, t: 0.82 } : { l: -0.88, r: 0.88, b: -0.88, t: 0.44 }, Q.has('plp') ? P('plp') : pp - (pp > 50 ? 2 : 16));
+  let v = fit3(box, pp, yaw, P('pfov') || 50, pp > 50 ? { l: -0.88, r: 0.88, b: -(P('pbot') || 0.86), t: 0.82 } : { l: -0.88, r: 0.88, b: -(P('pbot') || 0.86), t: 0.44 }, Q.has('plp') ? P('plp') : pp - (pp > 50 ? 2 : 16));
   const wf = vv => { if (!heroPts.some(Boolean)) return vv.wfrac; FITCAM.fov = vv.f; FITCAM.aspect = innerWidth / Math.max(1, innerHeight); FITCAM.updateProjectionMatrix(); FITCAM.position.copy(vv.p); FITCAM.lookAt(vv.t); FITCAM.updateMatrixWorld();
     const y = (simInfo.top || 20) * VSC; let l = 9, r = -9; for (const q of heroPts) if (q) { const x = new THREE.Vector3(q[0] / N - .5, y, q[1] / N - .5).project(FITCAM).x; l = Math.min(l, x); r = Math.max(r, x); } return (r - l) / 2 + 0.03; };   /* drawn-line extent + canyon width (~3 % of frame) */
   v.wfrac = wf(v); if (v.wfrac < 0.45) { const r = revView(); r.wfrac = wf(r); r.fallback = true; if (r.wfrac > v.wfrac) v = r; }   // still narrow: end on the reveal-like view
