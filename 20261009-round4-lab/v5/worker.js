@@ -35,9 +35,9 @@ function loop() {
 }
 let BGF = null, B0 = 1, T0 = 0, fast = false, snap = null, SUP = null, allPts = [], xf = null, ref = null, uplRef = 0, carveN = 0, pauseAt = 0, edge0 = null;
 const mapXF = q => [xf.ncx + (q[0] - xf.cx) * xf.s, xf.ncy + (q[1] - xf.cy) * xf.s];
-function silt() {   /* 4th+ carve: older canyons silt in (fill 65 %, sinks and stroke rain cleared) so the new drawing stays legible (REVIEW-05 #7) */
-  const { h, h0, base } = sim, eb = sim.edgeBase, u = sim.upl; for (let i = 0; i < N * N; i++) { if (eb && eb[i] && edge0[i]) continue; if (eb) eb[i] = edge0 ? edge0[i] : 0; base[i] = 0; const top = h0[i] + u, d = top - h[i]; if (d > 0) h[i] += d * 0.65; }
-  sim.rain.fill(0); allPts = []; SUP = null; arid(); }
+function silt() {   /* every new drawing: older canyons silt in (fill 92 %, sinks and stroke rain cleared) so the new drawing stays legible (REVIEW-05 #7) */
+  const { h, h0, base } = sim, eb = sim.edgeBase, u = sim.upl; for (let i = 0; i < N * N; i++) { if (eb && eb[i] && edge0[i]) continue; if (eb) eb[i] = edge0 ? edge0[i] : 0; base[i] = 0; const top = h0[i] + u, d = top - h[i]; if (d > 0) h[i] += d * (cfg.siltF ?? 0.92); }
+  sim.rain.fill(0); allPts = []; SUP = null; arid(); if (edge0 && sim.edgeBase) sim.edgeBase.set(edge0); }
 function carvedBox() {   /* bbox of cells cut >1.2 below the pre-carve surface (rim included via a 2-cell pad) -> camera framing */
   if (!ref) return null; const h = sim.h, du = sim.upl - uplRef; let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, lo = 1e9;
   for (let y = Math.round(0.12 * N); y < N; y++)   /* skip the far escarpment band: its soft beds retreat everywhere and are not the player's canyon */ for (let x = 0; x < N; x++) { const i = y * N + x; if (ref[i] + du - h[i] > 1.2) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (h[i] < lo) lo = h[i]; } }
@@ -72,7 +72,7 @@ onmessage = ({ data: m }) => {
     sim = createSPL(N, { K: cfg.K, Ac: cfg.Ac, dt: cfg.dt, U: cfg.U, ScH: cfg.ScH, ScS: cfg.ScS, lakes: cfg.lakes ?? 1 }); mesa(sim, { seed: cfg.seed, H0: cfg.H0, edges: cfg.edges }); if (cfg.edgeUp !== 0) { sim.edgeBase = sim.base.slice(); edge0 = sim.base.slice(); } arid();
     if (m.stroke && m.stroke !== 'none') { ref = sim.h.slice(); uplRef = sim.upl; const S = strokeShape(m.stroke, N); gesture(sim, S, 1.5, cfg.gw, GR); allPts = S.concat([null]); SUP = null; arid(); sinks(allPts); }
     pack(false); if (m.t) { budget = m.t; cfg.quiet = true; running = true; loop(); } }
-  else if (m.type === 'begin') { if (!m.cont) { xf = null; if (total > 0) carveN++; if (carveN >= 3 && cfg.silt !== 0) silt(); }
+  else if (m.type === 'begin') { if (!m.cont) { xf = null; if (total > 0) carveN++; if (carveN >= 1 && cfg.silt !== 0) silt(); }   /* every new drawing: older canyons silt up to faint ghosts, their sinks and rain are cleared, so the new shape is never swallowed by the old one (REVIEW-05 #6) */
     if (m.cont && xf && running) pauseAt = performance.now();
     if (!snap && !(m.cont && xf)) snap = { h: sim.h.slice(), rain: sim.rain.slice() }; if (!m.cont || !ref) { ref = sim.h.slice(); uplRef = sim.upl; } }   // one snapshot per multi-stroke set; a stroke that continues the drawing (grace/run) reuses the set's transform
   else if (m.type === 'fast') { fast = !!m.on; }
