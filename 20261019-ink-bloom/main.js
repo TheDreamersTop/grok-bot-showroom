@@ -1,6 +1,6 @@
 'use strict';
 window.addEventListener('error', () => { window.__ready = true; });
-// 墨華 Ink Bloom — V5 engine (hero: two-tone chandelier over a default brine layer; lantern framing, pigment gamut, ink brush). Vortex-filament ink cascade + GPU tracers, rendered as a raymarched dye volume in a real tank.
+// 墨華 Ink Bloom — V6 engine (hero: two-tone chandelier over a default brine layer; lantern framing, pigment gamut, ink brush). Vortex-filament ink cascade + GPU tracers, rendered as a raymarched dye volume in a real tank.
 // Switches (for the Phase-B exploration X1/X2/X3 and V2): ?ink=vol|splat  &tank=0|1  &follow=0|1  &salt=<y>
 (() => {
 const Q = new URLSearchParams(location.search);
@@ -120,9 +120,10 @@ log('UPD compiled');
 // ---------------- volume splat (tracers -> z-slice atlas, two slices with linear weights)
 const VSPL = prog(`#version 300 es
 #define HZ ${(+(Q.get('hz') || (LOW ? 2 : 6))).toFixed(2)}
-precision highp float;precision highp sampler2D;uniform sampler2D pos,col;uniform int tw,rows;uniform float amt,fade[${SLOTS}];out vec3 ab;
+precision highp float;precision highp sampler2D;uniform sampler2D pos,col;uniform int tw,rows;uniform float amt,fade[${SLOTS}],entF[${SLOTS}];uniform vec3 entAb[${SLOTS}];out vec3 ab;
 void main(){ivec2 ij=ivec2(gl_VertexID%tw,gl_VertexID/tw);vec4 P=texelFetch(pos,ij,0);vec4 C=texelFetch(col,ij,0);
  int sl=min(ij.y/rows,${SLOTS - 1});float f=fade[sl];
+ float hsel=fract(sin(float(ij.x*131+ij.y*977)*.0137)*43758.5453);float en=hsel<entF[sl]?smoothstep(.05,.65,P.w)*smoothstep(entF[sl],entF[sl]*.6,hsel):0.;C.rgb=mix(C.rgb,entAb[sl],en);
  vec3 g=(P.xyz-vec3(${-XH},${Y0},${-ZH}))/vec3(${2 * XH},${(SURF - Y0).toFixed(4)},${2 * ZH})*vec3(${GX},${GY},${GZ});
  float gz=g.z-.5;float iz=floor(gz)+float(gl_InstanceID);float w=gl_InstanceID==0?1.-fract(gz):fract(gz);
  if(P.y<-50.||C.a<.01||f<=0.||iz<0.||iz>${GZ - 1}.){gl_Position=vec4(2,2,2,1);gl_PointSize=1.;ab=vec3(0);return;}
@@ -173,9 +174,10 @@ void main(){ivec2 P=ivec2(gl_FragCoord.xy);ivec2 tile=P/ivec2(${LX},${LY});ivec2
 log('LIGHT');
 // ---------------- screen splat (V1 style) for ink=splat and the thread layer
 const SPL = prog(`#version 300 es
-precision highp float;precision highp sampler2D;uniform sampler2D pos,col;uniform mat4 VP;uniform int tw,rows;uniform float ps,amt,fade[${SLOTS}];out vec3 ab;
+precision highp float;precision highp sampler2D;uniform sampler2D pos,col;uniform mat4 VP;uniform int tw,rows;uniform float ps,amt,fade[${SLOTS}],entF[${SLOTS}];uniform vec3 entAb[${SLOTS}];out vec3 ab;
 void main(){ivec2 ij=ivec2(gl_VertexID%tw,gl_VertexID/tw);vec4 P=texelFetch(pos,ij,0);vec4 C=texelFetch(col,ij,0);
  int sl=min(ij.y/rows,${SLOTS - 1});float f=fade[sl];
+ float hsel=fract(sin(float(ij.x*131+ij.y*977)*.0137)*43758.5453);float en=hsel<entF[sl]?smoothstep(.05,.65,P.w)*smoothstep(entF[sl],entF[sl]*.6,hsel):0.;C.rgb=mix(C.rgb,entAb[sl],en);
  if(P.y<-50.||C.a<.01||f<=0.){gl_Position=vec4(2,2,2,1);gl_PointSize=1.;ab=vec3(0);return;}
  vec4 cp=VP*vec4(P.xyz,1.);gl_Position=cp;gl_PointSize=ps;ab=C.rgb*1.6*C.a*amt*f*smoothstep(2.8,5.,P.w)*mix(1.,.4,smoothstep(8.,24.,P.w));}`, `#version 300 es
 precision highp float;in vec3 ab;out vec4 o;void main(){vec2 d=gl_PointCoord*2.-1.;float r=dot(d,d);if(r>1.)discard;o=vec4(ab*exp(-r*2.6),1);}`);
@@ -192,6 +194,7 @@ ${SAMPLE_GLSL}
 #define INK_VOL ${OPT.ink === 'vol' ? 1 : 0}
 #define TANK ${OPT.tank ? 1 : 0}
 #define WVE ${(+(Q.get('wve') || .45)).toFixed(2)}
+#define CROWNWALL ${Q.has('crownwall') ? 1 : 0}
 #define AAW ${LOW ? '.028' : '.010'}
 float h1(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
 float n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h1(i),h1(i+vec2(1,0)),f.x),mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),f.x),f.y);}
@@ -319,7 +322,7 @@ void main(){vec2 fc=gl_FragCoord.xy;vec2 q=(fc-.5*res)/res.y*2.;
  for(int i=0;i<4;i++){vec4 Rr=rip[i];if(Rr.z<=0.)continue;float a=t-Rr.y;if(a<0.||a>.55)continue;
    float ac=min(a,.28);float rc=.025+.20*sqrt(ac)*Rr.z;float hc=.10*Rr.z*sin(3.1416*min(a/.28,1.));
    vec2 o2=ro.xz-Rr.xw;vec2 d2=rd.xz;float A=dot(d2,d2),Bq=dot(o2,d2),C=dot(o2,o2)-rc*rc;float h=Bq*Bq-A*C;
-   if(h>0.&&a<.28)for(int s=0;s<2;s++){float tt=(-Bq+(s==0?-1.:1.)*sqrt(h))/A;vec3 p=ro+rd*tt;float th=atan(p.z-Rr.w,p.x-Rr.x);
+   if(CROWNWALL==1&&h>0.&&a<.28)for(int s=0;s<2;s++){float tt=(-Bq+(s==0?-1.:1.)*sqrt(h))/A;vec3 p=ro+rd*tt;float th=atan(p.z-Rr.w,p.x-Rr.x);
      float tp=${SURF}+hc*(.78+.22*cos(th*11.+Rr.y*7.));
      if(p.y>${SURF - .003}&&p.y<tp){float k=(1.-a/.28)*(s==0?1.:.5);
        float rim=exp(-pow((tp-p.y)/.0035,2.));float wall=smoothstep(${SURF.toFixed(3)},tp,p.y);
@@ -455,7 +458,7 @@ function uploadRings() { const live = rings.filter(r => r.alive).slice(-MAXR); r
   gl.bindTexture(gl.TEXTURE_2D, segT); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, MAXR * SEGS, 1, gl.RGBA, gl.FLOAT, segBuf); return live.length; }
 
 // ---------------- drops
-const recentDrops = [], ENTRAIN = +(Q.get('entrain') || .45);
+const recentDrops = [], ENTRAIN = +(Q.get('entrain') || .75); const entF = new Float32Array(SLOTS), entAb = new Float32Array(SLOTS * 3);
 let dropCount = 0; const slotFade = new Float32Array(SLOTS); const slotTarget = new Float32Array(SLOTS);
 const ripples = [];
 function spawn(x, z, inkIdx, size, slot, sp) {
@@ -468,8 +471,9 @@ function spawn(x, z, inkIdx, size, slot, sp) {
   const ink = INKS[inkIdx];
   // entrainment: a drop that falls through an earlier drop's dyed column (same x within ~.2, < 20 s ago) sweeps that stained
   // wake fluid into its own ring, so part of its tracers carry the earlier pigment; the mix is then rendered subtractively
-  const prev = recentDrops.filter(d => d.ink !== inkIdx && Math.abs(d.x - x) < .2 && Math.abs(d.z - z) < .2 && time - d.t < 20).pop();
-  const ent = prev ? ENTRAIN * (1 - Math.abs(prev.x - x) / .2) : 0, inkE = prev ? INKS[prev.ink] : ink;
+  let prev = null, ent = 0; for (const d of recentDrops) { if (d.ink === inkIdx) continue; const a = time - d.t, dl = Math.hypot(d.x - x, d.z - z);
+    const w = ENTRAIN * Math.max(0, 1 - dl / .22) * (1 - .62 * smooth(3, 22, a)) * Math.exp(-a / 45) * smooth(.3, 2.5, a); if (w > ent) { ent = w; prev = d; } }
+  entF[slot] = ent; if (prev) entAb.set(INKS[prev.ink].ab.map(v => v / 1.6), slot * 3);
   recentDrops.push({ x, z, ink: inkIdx, t: time }); if (recentDrops.length > 8) recentDrops.shift();
   const kk = 4 + Math.min(3, Math.floor(rnd() * 3.2 + (size - 1) * 2.2)); const tn = nrm([gauss() * .13, -1, gauss() * .09]);
   const r0 = newRing(c, tn, R0, G, 0, kk, slot); r0.amp *= 1 + rnd() * 3; r0.sig *= .85 + .3 * rnd(); rings.push(r0);
@@ -483,7 +487,7 @@ function spawn(x, z, inkIdx, size, slot, sp) {
       p = [x + A * Math.sin(u * fil.kx + fil.px) + gauss() * sp, yy, z + A * .7 * Math.cos(u * fil.kz + fil.pz) + gauss() * sp]; }
     else { const r = Math.cbrt(rnd()) * R0 * 1.05, th = rnd() * 6.283, ph = Math.acos(2 * rnd() - 1); p = [x + r * Math.sin(ph) * Math.cos(th), c[1] + r * Math.cos(ph) * .6, z + r * Math.sin(ph) * Math.sin(th)]; }
     P[i * 4] = p[0]; P[i * 4 + 1] = p[1]; P[i * 4 + 2] = p[2]; P[i * 4 + 3] = 0;
-    const k = .5 + .5 * rnd(); const ik = rnd() < ent ? inkE : ink; C[i * 4] = ik.ab[0] / 1.6 * 255; C[i * 4 + 1] = ik.ab[1] / 1.6 * 255; C[i * 4 + 2] = ik.ab[2] / 1.6 * 255; C[i * 4 + 3] = k * 255 | 0; }
+    const k = .5 + .5 * rnd(); C[i * 4] = ink.ab[0] / 1.6 * 255; C[i * 4 + 1] = ink.ab[1] / 1.6 * 255; C[i * 4 + 2] = ink.ab[2] / 1.6 * 255; C[i * 4 + 3] = k * 255 | 0; }
   for (const t of posT) { gl.bindTexture(gl.TEXTURE_2D, t); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, slot * rows, TW, rows, gl.RGBA, gl.FLOAT, P); }
   gl.bindTexture(gl.TEXTURE_2D, colT); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, slot * rows, TW, rows, gl.RGBA, gl.UNSIGNED_BYTE, C);
   slotFade[slot] = 1; slotTarget[slot] = 1;
@@ -502,7 +506,7 @@ function bakeSlot(slot) {
   const f = new Float32Array(SLOTS); f[slot] = slotFade[slot];
   gl.bindFramebuffer(gl.FRAMEBUFFER, memF[mc]); gl.viewport(0, 0, AW, AH); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
   gl.useProgram(VSPL); gl.bindVertexArray(emptyVao); bindTex(VSPL, 'pos', 0, posT[cur]); bindTex(VSPL, 'col', 1, colT);
-  gl.uniform1i(VSPL.u.tw, TW); gl.uniform1i(VSPL.u.rows, ROWS()); gl.uniform1fv(VSPL.u.fade, f); gl.uniform1f(VSPL.u.amt, MASS / (ROWS() * TW) / VOX);
+  gl.uniform1i(VSPL.u.tw, TW); gl.uniform1i(VSPL.u.rows, ROWS()); gl.uniform1fv(VSPL.u.fade, f); gl.uniform1fv(VSPL.u.entF, entF); gl.uniform3fv(VSPL.u.entAb, entAb); gl.uniform1f(VSPL.u.amt, MASS / (ROWS() * TW) / VOX);
   gl.drawArraysInstanced(gl.POINTS, 0, TW * TW, 2); gl.disable(gl.BLEND); slotFade[slot] = 0;
 }
 function memTick(dt) {
@@ -525,7 +529,7 @@ function brushLift() { const L = brush.last; const k = [.8, .55, .3].slice(3 - L
 function brushAdd(a, b, speed) {
   const rows = ROWS(); if (!TW) return;
   if (brush.slot < 0 || brush.row >= rows) { const slot = releaseCount++ % SLOTS; if (slotFade[slot] > .001) bakeSlot(slot); rings.forEach(r => { if (r.slot === slot) r.alive = false; });
-    brush.slot = slot; brush.row = 0; const P = new Float32Array(rows * TW * 4).fill(-99), C = new Uint8Array(rows * TW * 4);
+    brush.slot = slot; brush.row = 0; entF[slot] = 0; const P = new Float32Array(rows * TW * 4).fill(-99), C = new Uint8Array(rows * TW * 4);
     for (const t of posT) { gl.bindTexture(gl.TEXTURE_2D, t); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, slot * rows, TW, rows, gl.RGBA, gl.FLOAT, P); }
     gl.bindTexture(gl.TEXTURE_2D, colT); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, slot * rows, TW, rows, gl.RGBA, gl.UNSIGNED_BYTE, C); slotFade[slot] = 1; slotTarget[slot] = 1; }
   const nr = Math.min(rows - brush.row, 2), n = nr * TW, P = new Float32Array(n * 4), C = new Uint8Array(n * 4); const ink = INKS[pointer.ink];
@@ -574,7 +578,7 @@ function renderVolume() {
   gl.bindFramebuffer(gl.FRAMEBUFFER, volF[0]); gl.viewport(0, 0, AW, AH); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
   gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.useProgram(VSPL); gl.bindVertexArray(emptyVao);
   bindTex(VSPL, 'pos', 0, posT[cur]); bindTex(VSPL, 'col', 1, colT);
-  gl.uniform1i(VSPL.u.tw, TW); gl.uniform1i(VSPL.u.rows, ROWS()); gl.uniform1fv(VSPL.u.fade, slotFade);
+  gl.uniform1i(VSPL.u.tw, TW); gl.uniform1i(VSPL.u.rows, ROWS()); gl.uniform1fv(VSPL.u.fade, slotFade); gl.uniform1fv(VSPL.u.entF, entF); gl.uniform3fv(VSPL.u.entAb, entAb);
   gl.uniform1f(VSPL.u.amt, MASS / (ROWS() * TW) / VOX);
   gl.drawArraysInstanced(gl.POINTS, 0, TW * TW, 2);
   gl.useProgram(COPYK); bindTex(COPYK, 's', 0, memT[mc]); gl.uniform1f(COPYK.u.k, 1); drawQuad(COPYK); gl.disable(gl.BLEND);
@@ -589,7 +593,7 @@ function renderSplat() {
   gl.bindFramebuffer(gl.FRAMEBUFFER, sdF); gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
   gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.useProgram(SPL); gl.bindVertexArray(emptyVao);
   bindTex(SPL, 'pos', 0, posT[cur]); bindTex(SPL, 'col', 1, colT);
-  gl.uniformMatrix4fv(SPL.u.VP, false, VP); gl.uniform1i(SPL.u.tw, TW); gl.uniform1i(SPL.u.rows, ROWS()); gl.uniform1fv(SPL.u.fade, slotFade);
+  gl.uniformMatrix4fv(SPL.u.VP, false, VP); gl.uniform1i(SPL.u.tw, TW); gl.uniform1i(SPL.u.rows, ROWS()); gl.uniform1fv(SPL.u.fade, slotFade); gl.uniform1fv(SPL.u.entF, entF); gl.uniform3fv(SPL.u.entAb, entAb);
   const ps = Math.max(1.3, 1.9 * H / 1080); gl.uniform1f(SPL.u.ps, ps);
   gl.uniform1f(SPL.u.amt, (65536 / (ROWS() * TW)) * Math.pow(H / 720 * 3.9 / Math.max(1, cam.d), 2) / Math.pow(ps / 1.37, 2) * .55);
   gl.drawArrays(gl.POINTS, 0, TW * TW); gl.disable(gl.BLEND);
