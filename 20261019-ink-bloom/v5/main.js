@@ -689,8 +689,8 @@ const titleEl = document.getElementById('title');
 function layoutUI() { if (!VP) return; const zf = ZH + GT; const cs = [[-XH - GT, Y0 - SLAB, zf], [XH + GT, Y0 - SLAB, zf], [-XH - GT, RIM, zf], [XH + GT, RIM, zf]].map(proj);
   const L = Math.min(...cs.map(c => c[0])) * innerWidth, Rr = Math.max(...cs.map(c => c[0])) * innerWidth, T = (1 - Math.max(...cs.map(c => c[1]))) * innerHeight, B = (1 - Math.min(...cs.map(c => c[1]))) * innerHeight;
   window.__tank = { L: Math.round(L), R: Math.round(Rr), T: Math.round(T), B: Math.round(B), W: innerWidth, H: innerHeight };
-  const side = L > 96; inksEl.classList.toggle('col', side);
-  if (side) { inksEl.style.left = Math.max(10, L * .5 - 40) + 'px'; inksEl.style.bottom = Math.max(14, innerHeight - B + 6) + 'px'; }
+  const side = L > 56; inksEl.classList.toggle('col', side); inksEl.classList.toggle('narrow', side && L < 170);
+  if (side) { inksEl.style.left = Math.max(8, L * .5 - (L < 170 ? 16 : 40)) + 'px'; inksEl.style.bottom = Math.max(14, innerHeight - B + 6) + 'px'; }
   else { inksEl.style.left = '50%'; inksEl.style.bottom = '8px'; }
   // title: top-left of the studio; shrink until it clears the tank
   let fs = 28; titleEl.style.left = Math.max(12, Math.min(innerWidth * .03, L * .14)) + 'px'; titleEl.style.top = Math.max(10, Math.min(innerHeight * .042, T * .25)) + 'px';
