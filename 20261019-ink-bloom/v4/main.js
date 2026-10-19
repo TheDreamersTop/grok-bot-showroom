@@ -331,7 +331,7 @@ void main(){vec2 fc=gl_FragCoord.xy;vec2 q=(fc-.5*res)/res.y*2.;
    if(Rb>0.&&b<Rb&&tt>0.){float e=b/Rb;vec3 g=vec3(.10,.035,.03)*(.55+.45*sqrt(max(0.,1.-e*e)))+vec3(.5,.3,.25)*exp(-pow((e-.45)/.12,2.))*.35;col=mix(col,g,pipOn);}
    else if(R>0.&&b<R&&tt>0.){float e=b/R;
      vec3 g=col*.93+vec3(.03);
-     float ri=R*.72;if(b<ri&&u<.15){float ch=2.*sqrt(ri*ri-b*b)/ri;vec3 T=exp(-pipAb*(.9+1.6*ch));g=g*T+(1.-T)*0.+LCOL*T*.22*smoothstep(.3,1.,cosw(e));}
+     float ri=R*.72;if(b<ri&&u<.15){float ch=2.*sqrt(ri*ri-b*b)/ri;vec3 T=exp(-pipAb*(.35+.8*ch));g=g*T+LCOL*T*.42*(.4+.6*smoothstep(.2,1.,cosw(e)));}
      g+=vec3(1.,.97,.92)*(pow(e,10.)*.75+exp(-pow((e+.35)/.12,2.))*.0+exp(-pow((e-.55)/.06,2.))*.28)*(q.x<0.?1.:.8);
      g*=1.-.35*smoothstep(.86,1.,e);g+=vec3(.9,.95,1.)*pow(e,40.)*.6;
      col=mix(col,g,pipOn);}}
