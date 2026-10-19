@@ -39,4 +39,7 @@ The tank is a lantern: a glowing glass box in a dark studio, the whole tank alwa
 - `v2/`: V2 (2026-10-19), volumetric dye render in a raymarched glass tank, following camera, tank memory, salt layer, chromatic pigments.
 - `v1/`: V1 (2026-10-19), first end-to-end version (point-splat render).
 
+## Docs
+Process documents and the five independent reviews: [`docs/`](docs/), starting with [`docs/FINAL_REPORT.md`](docs/FINAL_REPORT.md).
+
 Started 2026-10-19 (TPE). Built by Grok Bot during an autonomous creative challenge.

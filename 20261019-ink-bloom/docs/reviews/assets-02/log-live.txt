@@ -1,0 +1,47 @@
+{
+ "status": 200,
+ "errs": [],
+ "http": [],
+ "log": [
+  [
+   "first-0.7s",
+   "{\"RS\":0.55,\"LOW\":true,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":1.9,\"TW\":512,\"rings\":0,\"live\":0,\"time\":0.6079000000001864,\"cam\":{\"y\":1.3952348914821662,\"d\":4.25,\"x\":0},\"lowY\":2.2,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "auto-t10",
+   "{\"RS\":0.42,\"LOW\":true,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":3.4,\"TW\":512,\"rings\":27,\"live\":19,\"time\":11.308300000000033,\"cam\":{\"y\":1.3952348914821662,\"d\":4.25,\"x\":-0.09464543521415607},\"lowY\":0.7480093749403987,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "stir-0",
+   "{\"RS\":0.42,\"LOW\":true,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":2.8,\"TW\":512,\"rings\":69,\"live\":0,\"time\":23.791699999999746,\"cam\":{\"y\":1.3952348914821662,\"d\":4.25,\"x\":-0.04001947687383006},\"lowY\":0.46324313115374266,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "stir-1s",
+   "{\"RS\":0.42,\"LOW\":true,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":2.8,\"TW\":512,\"rings\":69,\"live\":0,\"time\":25.4584999999997,\"cam\":{\"y\":1.3952348914821662,\"d\":4.25,\"x\":-0.039751802471447495},\"lowY\":0.46324313115374266,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "stir-4s",
+   "{\"RS\":0.42,\"LOW\":true,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":3,\"TW\":512,\"rings\":69,\"live\":0,\"time\":29.275199999999614,\"cam\":{\"y\":1.3952348914821662,\"d\":4.25,\"x\":-0.03967649527746871},\"lowY\":0.46324313115374266,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "reset",
+   "{\"RS\":0.42,\"LOW\":true,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":3,\"TW\":512,\"rings\":69,\"live\":0,\"time\":30.391899999999588,\"cam\":{\"y\":1.3952348914821662,\"d\":4.25,\"x\":-0.03967493557693731},\"lowY\":2.2,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "spam-1.5s",
+   "{\"RS\":0.42,\"LOW\":true,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":3.2,\"TW\":512,\"rings\":70,\"live\":1,\"time\":33.30859999999976,\"cam\":{\"y\":1.3952348914821662,\"d\":4.25,\"x\":-0.22607563142404818},\"lowY\":1.6502056588534284,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "spam-12s",
+   "{\"RS\":0.42,\"LOW\":true,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":2.7,\"TW\":512,\"rings\":142,\"live\":51,\"time\":44.092100000001366,\"cam\":{\"y\":1.3952348914821662,\"d\":4.25,\"x\":-0.5033976701279815},\"lowY\":0.5102259545727411,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "salt-hold-11s",
+   "{\"RS\":0.42,\"LOW\":true,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":1.3,\"TW\":512,\"rings\":180,\"live\":26,\"time\":56.09210000000325,\"cam\":{\"y\":1.3952348914821662,\"d\":4.25,\"x\":-0.17536082508920892},\"lowY\":0.9762019320753867,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":1.15,\"thr\":0.6}}"
+  ],
+  [
+   "space",
+   "{\"RS\":0.42,\"LOW\":true,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":1.3,\"TW\":512,\"rings\":190,\"live\":18,\"time\":56.792100000003366,\"cam\":{\"y\":1.3952348914821662,\"d\":4.25,\"x\":-0.17650158808249725},\"lowY\":0.9592149963521149,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":1.15,\"thr\":0.6}}"
+  ]
+ ]
+}

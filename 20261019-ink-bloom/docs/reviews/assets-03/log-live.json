@@ -1,0 +1,51 @@
+{
+ "status": 200,
+ "errs": [],
+ "http": [],
+ "log": [
+  [
+   "first-0.3s",
+   "{\"drops\":0,\"released\":1,\"falling\":1,\"RS\":0.55,\"TIER\":\"low\",\"PROBE_MS\":37.4,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":2.3,\"TW\":512,\"rings\":0,\"live\":0,\"time\":0.2620000000003728,\"cam\":{\"y\":1.3926600663221813,\"d\":5.2,\"x\":0},\"lowY\":2.2,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "first-1.2s",
+   "{\"drops\":1,\"released\":1,\"falling\":0,\"RS\":0.55,\"TIER\":\"low\",\"PROBE_MS\":37.4,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":2.4,\"TW\":512,\"rings\":1,\"live\":1,\"time\":1.2620000000003737,\"cam\":{\"y\":1.3926602609503915,\"d\":5.199928190541869,\"x\":-0.00403163293049644},\"lowY\":1.9021167633214748,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "pipette-hover",
+   "{\"drops\":1,\"released\":1,\"falling\":0,\"RS\":0.45,\"TIER\":\"low\",\"PROBE_MS\":37.4,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":2.6,\"TW\":512,\"rings\":1,\"live\":1,\"time\":2.2786000000003748,\"cam\":{\"y\":1.392704750809784,\"d\":5.183513341456359,\"x\":-0.020961008214384073},\"lowY\":1.7365813915232036,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "auto-t10",
+   "{\"drops\":1,\"released\":1,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":37.4,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":3.2,\"TW\":512,\"rings\":80,\"live\":57,\"time\":11.961800000000208,\"cam\":{\"y\":1.3952252553842457,\"d\":4.253555306653976,\"x\":-0.12463040924920823},\"lowY\":0.7026219450202709,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "rapid-1s",
+   "{\"drops\":8,\"released\":8,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":37.4,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":2.2,\"TW\":512,\"rings\":87,\"live\":7,\"time\":14.428500000000154,\"cam\":{\"y\":1.393392693600375,\"d\":4.929691970895691,\"x\":-0.15006989935472992},\"lowY\":1.737500549274852,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "rapid-10s",
+   "{\"drops\":8,\"released\":8,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":37.4,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":0.8,\"TW\":512,\"rings\":557,\"live\":335,\"time\":24.02869999999995,\"cam\":{\"y\":1.3952245828867724,\"d\":4.253803429365556,\"x\":-0.14791193811366452},\"lowY\":0.623663320728095,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "stir-0",
+   "{\"drops\":8,\"released\":10,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":37.4,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":0.6,\"TW\":512,\"rings\":597,\"live\":0,\"time\":30.562099999999806,\"cam\":{\"y\":1.395234863111461,\"d\":4.250010467572928,\"x\":0.08541656758296422},\"lowY\":0.450579037460912,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "stir-3s",
+   "{\"drops\":8,\"released\":10,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":37.4,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":1.7,\"TW\":512,\"rings\":597,\"live\":0,\"time\":34.22880000000007,\"cam\":{\"y\":1.3952348904866707,\"d\":4.250000367294986,\"x\":0.27240039380129216},\"lowY\":0.450579037460912,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "salt-tool",
+   "{\"drops\":8,\"released\":10,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":37.4,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":2,\"TW\":512,\"rings\":597,\"live\":0,\"time\":35.145500000000226,\"cam\":{\"y\":1.3945746246414017,\"d\":4.49361013263111,\"x\":0.2784939775287735},\"lowY\":2.2,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0,\"thr\":0.6}}"
+  ],
+  [
+   "salt-pour-1s",
+   "{\"drops\":8,\"released\":10,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":37.4,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":2.1,\"TW\":512,\"rings\":597,\"live\":0,\"time\":37.1954000000005,\"cam\":{\"y\":1.3931283444416223,\"d\":5.027225467428935,\"x\":0.2826868704517155},\"lowY\":2.2,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0.41067144564484376,\"thr\":0.6}}"
+  ],
+  [
+   "salt-drop-11s",
+   "{\"drops\":9,\"released\":11,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":37.4,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":2.4,\"TW\":512,\"rings\":58,\"live\":42,\"time\":50.92840000000261,\"cam\":{\"y\":1.3952141562567437,\"d\":4.257650408446159,\"x\":0.16008522659121904},\"lowY\":0.9149660409164372,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0.9316495032909395,\"thr\":0.6}}"
+  ]
+ ]
+}
