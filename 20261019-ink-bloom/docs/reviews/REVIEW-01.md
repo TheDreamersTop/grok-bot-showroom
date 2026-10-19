@@ -38,7 +38,7 @@ Performance: SwiftShader probe chose TW=512 and ran at **5 fps**. Real-GPU fps i
 | 10 | Emergent response | **1** | Branching is genuinely emergent and two drops interact. But the response is slow: bead fall plus ~3 s to the first split. Stir is weak. The 4-slot cap silently erases your 1st bloom on the 5th click, and new drops can wait in a queue for a slot to fade. |
 | 11 | Motion quality | **1** | Sinking is smooth and weighted, and the cascade gives a slow travelling front. But it is one uniform tempo: no entry beat, no splash, no acceleration or "pop" at a split, and the trail is rigid. Not verified on a real GPU (5 fps in SwiftShader). |
 | 12 | Polish / UI in world | **1** | The minimal UI is clean and sound exists. But the palette strip and key legend are HTML overlays the bloom crashes into. The legend is debug-ish text. There is no intro or title moment. The surface band looks like page chrome. |
-| | **Total** | **10 / 24** | Below the brief's own V1 gate of 12. The builder's P1 self-estimate of 13 was optimistic, and V1 is visually almost the same frame as P1 (`shots/p1-sheet.jpg`) scaled up. |
+| | **Total** | **10 / 24** | Below the brief's own V1 gate of 12. The builder's P1 self-estimate of 13 was optimistic, and V1 is visually almost the same frame as P1 (`assets-01/p1-sheet.jpg`) scaled up. |
 
 ## Was exploration genuine? Mostly no.
 - Phase A took 4 min and Phase B 10 min for 5 concepts and 3 prototypes. That is not visual exploration; it is confirmation.

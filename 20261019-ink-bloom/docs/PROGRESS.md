@@ -130,3 +130,7 @@
 - Live: HTTP 200 for /, v1–v6, og, shots; served main.js = v6/main.js (md5). live.js 0 errors; rapid (7 clicks 100 ms apart) 8/8 drops incl. auto; salt 0.72→1.005→1.02, 0 errors; black frames 0/40 under ?rstest (34 RS changes) and 0/40 natural. Logs in shots/v6/live-url/.
 - FINAL_REPORT.md written. Docs (PLAN, RESEARCH, REVIEW, PROGRESS, FINAL_REPORT, CHALLENGE, reviews + assets as JPG) copied to showroom 20261019-ink-bloom/docs/.
 - End of run: 16:16 TPE, elapsed 6h45.
+
+## 2026-10-19 16:33 TPE — final docs cleanup after REVIEW-06 (23/24, gate met, no must-fix) (elapsed 422 min)
+- Docs only, no code changes: 404 links (docs/README reviews/, project README docs/) now point to the GitHub tree or to files; FINAL_REPORT uses the published showroom paths, has 6 reviews (10/15/17/21/23/23), an OPEN THE EXPERIENCE line, and the final end time; REVIEW-01 prototype sheets and REVIEW-06 + assets-06 (JPG) published in docs/reviews.
+- End of run: 16:33 TPE, elapsed 7 h 02 min.

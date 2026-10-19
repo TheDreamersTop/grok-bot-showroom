@@ -1,0 +1,107 @@
+{
+ "status": 200,
+ "errs": [],
+ "http": [],
+ "log": [
+  [
+   "first-0.3s",
+   "{\"tank\":{\"L\":222,\"R\":1698,\"T\":130,\"B\":995,\"W\":1920,\"H\":1080},\"rsChanges\":0,\"salt\":0.72,\"drops\":1,\"released\":1,\"falling\":0,\"RS\":0.55,\"TIER\":\"low\",\"PROBE_MS\":40.97,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":1.2,\"TW\":512,\"rings\":1,\"live\":1,\"time\":0.3095000000007451,\"cam\":{\"y\":1.3675,\"d\":5.724502095206591,\"x\":0},\"lowY\":2.021112741462047,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0.72,\"thr\":0.6}}"
+  ],
+  [
+   "first-1.2s",
+   "{\"tank\":{\"L\":222,\"R\":1698,\"T\":130,\"B\":995,\"W\":1920,\"H\":1080},\"rsChanges\":0,\"salt\":0.72,\"drops\":1,\"released\":1,\"falling\":0,\"RS\":0.55,\"TIER\":\"low\",\"PROBE_MS\":40.97,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":1.4,\"TW\":512,\"rings\":1,\"live\":1,\"time\":1.059600000000746,\"cam\":{\"y\":1.3675,\"d\":5.724502095206591,\"x\":0},\"lowY\":1.8561978247277087,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0.72,\"thr\":0.6}}"
+  ],
+  [
+   "bf0",
+   "61788"
+  ],
+  [
+   "bf1",
+   "59208"
+  ],
+  [
+   "bf2",
+   "62124"
+  ],
+  [
+   "bf3",
+   "60428"
+  ],
+  [
+   "bf4",
+   "62224"
+  ],
+  [
+   "bf5",
+   "64340"
+  ],
+  [
+   "bf6",
+   "64200"
+  ],
+  [
+   "bf7",
+   "67320"
+  ],
+  [
+   "bf8",
+   "69240"
+  ],
+  [
+   "bf9",
+   "70572"
+  ],
+  [
+   "bf10",
+   "69960"
+  ],
+  [
+   "bf11",
+   "70460"
+  ],
+  [
+   "passive-t9",
+   "{\"tank\":{\"L\":125,\"R\":1795,\"T\":78,\"B\":1054,\"W\":1920,\"H\":1080},\"rsChanges\":2,\"salt\":0.72,\"drops\":2,\"released\":2,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":40.97,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":1.3,\"TW\":512,\"rings\":35,\"live\":26,\"time\":12.226100000000574,\"cam\":{\"y\":1.3675,\"d\":5.13891507451465,\"x\":0},\"lowY\":0.518743620668567,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0.72,\"thr\":0.6}}"
+  ],
+  [
+   "passive-t17",
+   "{\"tank\":{\"L\":125,\"R\":1796,\"T\":78,\"B\":1054,\"W\":1920,\"H\":1080},\"rsChanges\":2,\"salt\":0.72,\"drops\":2,\"released\":2,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":40.97,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":0.9,\"TW\":512,\"rings\":98,\"live\":37,\"time\":17.226100000000486,\"cam\":{\"y\":1.3675,\"d\":5.138708465032956,\"x\":0},\"lowY\":0.35516016343132456,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0.72,\"thr\":0.6}}"
+  ],
+  [
+   "pipette-hover",
+   "{\"tank\":{\"L\":125,\"R\":1796,\"T\":79,\"B\":1054,\"W\":1920,\"H\":1080},\"rsChanges\":2,\"salt\":0.72,\"drops\":2,\"released\":2,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":40.97,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":0.9,\"TW\":512,\"rings\":129,\"live\":54,\"time\":18.126100000000466,\"cam\":{\"y\":1.3675,\"d\":5.138706711232889,\"x\":0},\"lowY\":0.35516016343132456,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0.72,\"thr\":0.6}}"
+  ],
+  [
+   "auto-t10",
+   "{\"tank\":{\"L\":125,\"R\":1796,\"T\":79,\"B\":1054,\"W\":1920,\"H\":1080},\"rsChanges\":2,\"salt\":0.72,\"drops\":2,\"released\":2,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":40.97,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":0.9,\"TW\":512,\"rings\":139,\"live\":0,\"time\":27.87610000000026,\"cam\":{\"y\":1.3675,\"d\":5.138705137160777,\"x\":0},\"lowY\":0.35516016343132456,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0.72,\"thr\":0.6}}"
+  ],
+  [
+   "rapid-1s",
+   "{\"tank\":{\"L\":125,\"R\":1796,\"T\":78,\"B\":1054,\"W\":1920,\"H\":1080},\"rsChanges\":2,\"salt\":0.72,\"drops\":9,\"released\":9,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":40.97,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":0.9,\"TW\":512,\"rings\":146,\"live\":7,\"time\":30.192800000000222,\"cam\":{\"y\":1.3675,\"d\":5.13870513676139,\"x\":0},\"lowY\":1.72372786288913,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0.72,\"thr\":0.6}}"
+  ],
+  [
+   "rapid-10s",
+   "{\"tank\":{\"L\":125,\"R\":1796,\"T\":78,\"B\":1054,\"W\":1920,\"H\":1080},\"rsChanges\":2,\"salt\":0.72,\"drops\":9,\"released\":9,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":40.97,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":0.7,\"TW\":512,\"rings\":548,\"live\":91,\"time\":39.85930000000138,\"cam\":{\"y\":1.3675,\"d\":5.138705136693682,\"x\":0},\"lowY\":0.7259837064699852,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0.72,\"thr\":0.6}}"
+  ],
+  [
+   "stir-0",
+   "{\"tank\":{\"L\":125,\"R\":1796,\"T\":78,\"B\":1054,\"W\":1920,\"H\":1080},\"rsChanges\":2,\"salt\":0.72,\"drops\":9,\"released\":11,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":40.97,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":0.9,\"TW\":512,\"rings\":554,\"live\":6,\"time\":46.35940000000229,\"cam\":{\"y\":1.3675,\"d\":5.138705136693682,\"x\":0},\"lowY\":0.7057273711042269,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0.72,\"thr\":0.6}}"
+  ],
+  [
+   "stir-3s",
+   "{\"tank\":{\"L\":125,\"R\":1796,\"T\":78,\"B\":1054,\"W\":1920,\"H\":1080},\"rsChanges\":2,\"salt\":0.72,\"drops\":9,\"released\":11,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":40.97,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":1.1,\"TW\":512,\"rings\":554,\"live\":2,\"time\":50.126100000002815,\"cam\":{\"y\":1.3675,\"d\":5.138705136693682,\"x\":0},\"lowY\":0.7057273711042269,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0.72,\"thr\":0.6}}"
+  ],
+  [
+   "salt-tool",
+   "{\"tank\":{\"L\":125,\"R\":1796,\"T\":79,\"B\":1054,\"W\":1920,\"H\":1080},\"rsChanges\":2,\"salt\":0.72,\"drops\":9,\"released\":11,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":40.97,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":1.1,\"TW\":512,\"rings\":554,\"live\":0,\"time\":50.80950000000293,\"cam\":{\"y\":1.3675,\"d\":5.138705136693682,\"x\":0},\"lowY\":2.2,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0.72,\"thr\":0.6}}"
+  ],
+  [
+   "salt-pour-1s",
+   "{\"tank\":{\"L\":125,\"R\":1795,\"T\":79,\"B\":1054,\"W\":1920,\"H\":1080},\"rsChanges\":2,\"salt\":0.929,\"drops\":9,\"released\":11,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":40.97,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":1.4,\"TW\":512,\"rings\":554,\"live\":0,\"time\":52.92620000000333,\"cam\":{\"y\":1.3675,\"d\":5.138705136693682,\"x\":0},\"lowY\":2.2,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":0.9292218866617473,\"thr\":0.6}}"
+  ],
+  [
+   "salt-drop-11s",
+   "{\"tank\":{\"L\":124,\"R\":1796,\"T\":79,\"B\":1054,\"W\":1920,\"H\":1080},\"rsChanges\":2,\"salt\":1.165,\"drops\":10,\"released\":12,\"falling\":0,\"RS\":0.42,\"TIER\":\"low\",\"PROBE_MS\":40.97,\"IGPU\":false,\"RENDERER\":\"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\",\"fps\":2.6,\"TW\":512,\"rings\":560,\"live\":5,\"time\":66.82620000000452,\"cam\":{\"y\":1.3675,\"d\":5.138705136693682,\"x\":0},\"lowY\":1.107162784660368,\"OPT\":{\"ink\":\"vol\",\"tank\":true,\"follow\":true,\"salt\":1.164720724585326,\"thr\":0.6}}"
+  ]
+ ]
+}

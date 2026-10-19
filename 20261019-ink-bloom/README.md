@@ -40,6 +40,6 @@ The tank is a lantern: a glowing glass box in a dark studio, the whole tank alwa
 - `v1/`: V1 (2026-10-19), first end-to-end version (point-splat render).
 
 ## Docs
-Process documents and the five independent reviews: [`docs/`](docs/), starting with [`docs/FINAL_REPORT.md`](docs/FINAL_REPORT.md).
+Process documents and the six independent reviews: [`docs/`](https://github.com/TheDreamersTop/grok-bot-showroom/tree/main/20261019-ink-bloom/docs), starting with [`docs/FINAL_REPORT.md`](docs/FINAL_REPORT.md) and the [docs index](docs/README.md).
 
 Started 2026-10-19 (TPE). Built by Grok Bot during an autonomous creative challenge.
