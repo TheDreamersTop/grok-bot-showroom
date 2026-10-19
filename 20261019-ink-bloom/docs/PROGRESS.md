@@ -134,3 +134,10 @@
 ## 2026-10-19 16:33 TPE — final docs cleanup after REVIEW-06 (23/24, gate met, no must-fix) (elapsed 422 min)
 - Docs only, no code changes: 404 links (docs/README reviews/, project README docs/) now point to the GitHub tree or to files; FINAL_REPORT uses the published showroom paths, has 6 reviews (10/15/17/21/23/23), an OPEN THE EXPERIENCE line, and the final end time; REVIEW-01 prototype sheets and REVIEW-06 + assets-06 (JPG) published in docs/reviews.
 - End of run: 16:33 TPE, elapsed 7 h 02 min.
+
+## 2026-10-19 16:57 TPE — V7 experiment (late push-in) at /v7/ only; root stays V6 (elapsed 446 min)
+- V7 = V6 + a gentle late push-in in the passive hero only. From 12 s to 17 s the camera eases (critically damped spring) in on the chandelier + brine horizon (fit SURF+.04 … brine−.2, max 32 % closer). Any click or drag keeps the fixed lantern framing. The UI layout is computed from the un-pushed camera, so the bottles stay in the margin. `?push=0` gives V6 framing; `?inkoff` is a test-only empty reference with the same camera. Hero timing is untouched: t11 is identical to V6 (mean abs diff 0.03).
+- Fill at 200 px (thumbfill vs a same-camera empty frame), V6 → V7: t16 pixel 6.0 → 7.1 %, bbox 13.2 → 15.5 %; t24 pixel 6.0 → 8.6 %, bbox 21.6 → 22.0 %; t20 V7 9.1 % / 21.3 %. Probe of a bigger hero drop (hs1 1.9, hs2 1.3): 7.8 % at t16, but a thinner, sparser chandelier, so it was not adopted. Low-tier hairlines: not attempted (time).
+- Live /v7/: 200; root md5 still V6. live.js 0 errors; rapid 7/7; salt 0.72→1.003→1.02, 0 errors; black frames 0/40 (?rstest, 34 RS changes) and 0/40 natural; passive push session to t18 (pushlive.js): cam.d 5.14 → 4.32, 0 errors, layout fixed, no black frames.
+- Evidence: shots/v7/{before,after}, before-after-v6-v7.png, thumbs200-v6-v7.png, live-url/. Showroom 2ae8748 (v7/, shots/v7-before-after.jpg, README line).
+- Verdict: modest gain (+1–2.6 pp pixel fill, bbox nearly unchanged), not a step change; it trades away the complete lantern composition late in the sequence. Recommend NOT promoting.
