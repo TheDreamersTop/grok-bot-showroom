@@ -26,11 +26,11 @@ function probeGPU() { try {
   const pr = gl.createProgram(); gl.attachShader(pr, mk(gl.VERTEX_SHADER, vs)); gl.attachShader(pr, mk(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr);
   const tx = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tx); gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, 512, 512);
   const fb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tx, 0);
-  gl.viewport(0, 0, 512, 512); gl.useProgram(pr); gl.drawArrays(gl.TRIANGLES, 0, 3); gl.finish();
-  const t0 = performance.now(); for (let i = 0; i < 4; i++) gl.drawArrays(gl.TRIANGLES, 0, 3); gl.finish(); const ms = (performance.now() - t0) / 4;
+  const px = new Uint8Array(4); gl.viewport(0, 0, 512, 512); gl.useProgram(pr); gl.drawArrays(gl.TRIANGLES, 0, 3); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  const t0 = performance.now(); for (let i = 0; i < 4; i++) gl.drawArrays(gl.TRIANGLES, 0, 3); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); const ms = (performance.now() - t0) / 4; // readPixels forces the GPU to finish
   gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(fb); gl.deleteTexture(tx); gl.deleteProgram(pr); return ms; } catch (e) { return 99; } }
 const PROBE_MS = SHOT ? 0 : probeGPU();
-const TIER = Q.get('tier') || (Q.has('low') ? (Q.get('low') === '1' ? 'low' : 'high') : SHOT ? 'high' : (SOFT || PROBE_MS > 40) ? 'low' : (IGPU || PROBE_MS > 5) ? 'mid' : 'high');
+const TIER = Q.get('tier') || (Q.has('low') ? (Q.get('low') === '1' ? 'low' : 'high') : SHOT ? 'high' : (SOFT || PROBE_MS > 20) ? 'low' : (IGPU || PROBE_MS > 2.5) ? 'mid' : 'high');
 const LOW = TIER === 'low', SMALLGRID = TIER !== 'high';
 let RS = LOW ? .55 : TIER === 'mid' ? .85 : 1; // render scale, adapted to frame rate in live mode
 gl.getExtension('EXT_float_blend'); gl.getExtension('OES_texture_float_linear');
