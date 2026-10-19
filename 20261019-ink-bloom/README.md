@@ -32,6 +32,7 @@ The tank is a lantern: a glowing glass box in a dark studio, the whole tank alwa
 - Plain WebGL2 and JavaScript, no libraries and no build step.
 
 ## Versions
+- `v7/` (experiment, not promoted; the root stays V6): V6 plus a gentle late push-in on the chandelier and brine horizon from ~12–17 s in the passive hero (any click keeps the fixed lantern framing).
 - `v6/` (current, also at the project root): V6 (2026-10-19), final polish: crimson head over a plum/indigo skirt (gradual, dye-weighted entrainment), crown as beads + ripple, share image cropped on the chandelier.
 - `v5/`: V5 (2026-10-19), hero = plum/indigo two-tone chandelier over a default brine layer (umbrella canopy), no auto stroke, short bright crown, soft caustics, low-tier brush/pane/ring-cap fixes.
 - `v4/`: V4 (2026-10-19), lantern composition as the default hero framing, pigment gamut + mixing + dilution, calligraphy brush, auto brush stroke in the hero sequence, bigger crown, clear glass pipette, salt that works in one pour (jar lid + glint), no black flash on render-scale change.
