@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>墨華 Ink Bloom</title>
+<link rel="icon" href="data:,">
+<meta name="description" content="Drop ink into a still tank and watch it branch into a vortex-ring cascade. Desktop WebGL2.">
+<meta property="og:title" content="墨華 Ink Bloom"><meta property="og:image" content="og.jpg">
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#1c1a18;font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Songti TC","Noto Serif TC","PMingLiU",serif;color:#efe9df;user-select:none}
+canvas{display:block;position:fixed;inset:0;width:100vw;height:100vh;cursor:crosshair}
+#title{position:fixed;left:3vw;top:4.2vh;pointer-events:none;transition:opacity 2.5s;--fs:28px}
+#title h1{margin:0;font-weight:400;font-size:var(--fs);letter-spacing:.34em;color:#e8dfd2;white-space:nowrap}
+#title h1 span{font-size:.46em;letter-spacing:.3em;margin-left:.8em;opacity:.6;font-style:italic}
+#title p{margin:.7em 0 0;font-size:calc(var(--fs)*.43);white-space:nowrap;letter-spacing:.14em;color:#d9cfc1;opacity:.55;transition:opacity 2s}
+/* ink bottles standing on the table, bottom left */
+#inks{position:fixed;left:50%;bottom:8px;display:flex;flex-direction:row;align-items:flex-end;gap:20px;cursor:default;transform:translateX(-50%);padding-top:12px}
+#inks.col{flex-direction:column;align-items:flex-start;gap:16px;transform:none}
+#inks.col .ink b,#inks.col #salt b{top:14px;left:44px}
+#inks.col #salt{margin-left:0;margin-top:8px}
+.ink,#salt{position:relative;display:flex;flex-direction:column;align-items:center;cursor:pointer;opacity:.8;transition:opacity .3s,transform .3s;color:#e9e3d8}
+.ink:hover,#salt:hover{opacity:1;transform:translateY(-3px)}.ink.on,#salt.on{opacity:1;transform:translateY(-6px)}
+.ink i,#salt i{display:block;width:32px;height:42px;border-radius:7px 7px 10px 10px;transition:transform .5s;position:relative;box-shadow:inset -3px -4px 6px rgba(0,0,0,.45),inset 3px 2px 4px rgba(255,255,255,.28),0 0 0 1px rgba(255,255,255,.18),0 6px 8px -4px rgba(0,0,0,.7)}
+.ink i::before,#salt i::before{content:"";position:absolute;left:8px;top:-9px;width:16px;height:9px;border-radius:3px 3px 0 0;background:#2a2420;box-shadow:inset 0 1px 0 rgba(255,255,255,.2);transition:transform .45s cubic-bezier(.3,1.6,.5,1);transform-origin:0 100%}
+#salt:hover i::before,#salt.on i::before{transform:translate(-3px,-6px) rotate(-18deg)}
+#salt.pouring i{transform:rotate(-38deg) translateY(-6px)}#salt.pouring i::before{transform:translate(-8px,-16px) rotate(-50deg)}
+.ink i::after,#salt i::after{content:"";position:absolute;left:6px;top:7px;width:4px;height:22px;border-radius:2px;background:rgba(255,255,255,.35)}
+#salt.glint{opacity:1}#salt.glint b{opacity:.95}#salt.glint i{animation:glint 1.6s ease-in-out 2}#salt.glint i::before{animation:lid 1.6s ease-in-out 2}
+@keyframes glint{0%,100%{box-shadow:inset -3px -4px 6px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.2)}50%{box-shadow:inset -3px -4px 6px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.8),0 0 22px 4px rgba(255,250,235,.55)}}
+@keyframes lid{0%,100%{transform:none}45%{transform:translate(-3px,-7px) rotate(-18deg)}}
+.ink b,#salt b{position:absolute;top:50px;font-weight:400;font-size:10.5px;letter-spacing:.14em;white-space:nowrap;opacity:0;transition:opacity .3s}
+.ink.on b,#salt.on b,.ink:hover b,#salt:hover b{opacity:.85}
+#salt{margin-left:10px}
+#salt i{background:linear-gradient(transparent 38%,rgba(245,247,250,.92) 38%),radial-gradient(circle at 40% 60%,rgba(255,255,255,.5),rgba(200,210,220,.25));}
+.ink.on i,#salt.on i{box-shadow:inset -3px -4px 6px rgba(0,0,0,.45),inset 3px 2px 4px rgba(255,255,255,.28),0 0 0 1px rgba(255,255,255,.55),0 0 14px rgba(255,240,220,.25),0 6px 8px -4px rgba(0,0,0,.7)}
+#nogl{display:none;position:fixed;inset:0;align-items:center;justify-content:center;text-align:center;font-size:16px;letter-spacing:.1em}
+</style></head>
+<body>
+<canvas id="c"></canvas>
+<div id="title"><h1>墨華<span>Ink Bloom</span></h1><p>click the water · 輕點水面</p></div>
+<div id="inks"><div id="salt" title="S"><i></i><b>鹽 salt · pour brine</b></div></div>
+<div id="nogl">墨華 Ink Bloom needs desktop Chrome with WebGL2.</div>
+<script src="main.js"></script>
+</body></html>

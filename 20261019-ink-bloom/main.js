@@ -1,15 +1,16 @@
 'use strict';
 window.addEventListener('error', () => { window.__ready = true; });
-// 墨華 Ink Bloom — V4 engine (lantern framing, pigment gamut, ink brush). Vortex-filament ink cascade + GPU tracers, rendered as a raymarched dye volume in a real tank.
+// 墨華 Ink Bloom — V5 engine (hero: two-tone chandelier over a default brine layer; lantern framing, pigment gamut, ink brush). Vortex-filament ink cascade + GPU tracers, rendered as a raymarched dye volume in a real tank.
 // Switches (for the Phase-B exploration X1/X2/X3 and V2): ?ink=vol|splat  &tank=0|1  &follow=0|1  &salt=<y>
 (() => {
 const Q = new URLSearchParams(location.search);
+const SALT0 = +(Q.get('salt0') || .72);
 const SHOT = Q.has('shot');
 const OPT = {
   ink: Q.get('ink') || 'vol',            // vol: 3D dye grid raymarch (X1); splat: V1 screen splats (X2-only test)
   tank: Q.get('tank') !== '0',           // raymarched glass tank, floor, TIR surface (X2)
   follow: Q.get('follow') !== '0',       // camera fits the cascade (X2)
-  salt: +(Q.get('salt') || 0),           // salt layer height, 0 = none (X3)
+  salt: Q.has('salt') ? +Q.get('salt') : SALT0,  // brine layer height; V5 default = a faint layer partway down, ?salt=0 = none
   thr: Q.has('thr') ? +Q.get('thr') : .6,             // fine-thread detail layer from tracers (0..1)
 };
 const cv = document.getElementById('c');
@@ -39,7 +40,7 @@ const DPR = Math.min(window.devicePixelRatio || 1, SHOT || TIER !== 'high' ? 1 :
 let W = 0, H = 0;
 
 // ---------------- helpers
-let seed = +(Q.get('seed') || 11);
+let seed = +(Q.get('seed') || 5);
 const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
 const gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-9)) * Math.cos(6.2831853 * rnd());
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -63,7 +64,7 @@ function bindTex(p, name, unit, t) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bi
 // ---------------- world
 const SURF = 2.2, Y0 = .32, XH = 1.75, ZH = .55, GT = .028, SLAB = .075, RIM = 2.36;
 const FOV = .50;
-const MAXR = 224, SEGS = 24, SLOTS = 8, MAXSTIR = 10;
+const MAXR = LOW ? 128 : 224, SEGS = 24, SLOTS = 8, MAXSTIR = 10;
 // volume grid (atlas of z-slices)
 const GX = SMALLGRID ? 256 : 384, GY = SMALLGRID ? 176 : 256, GZ = SMALLGRID ? 40 : 48, TX = 8, TY = SMALLGRID ? 5 : 6, AW = GX * TX, AH = GY * TY;
 const LX = 128, LY = 88, LZ = 32, LTX = 8, LTY = 4, LAW = LX * LTX, LAH = LY * LTY;
@@ -190,6 +191,8 @@ uniform vec4 rip[4];uniform vec4 pour[2];uniform vec3 ib0,ib1;uniform vec4 pip;u
 ${SAMPLE_GLSL}
 #define INK_VOL ${OPT.ink === 'vol' ? 1 : 0}
 #define TANK ${OPT.tank ? 1 : 0}
+#define WVE ${(+(Q.get('wve') || .45)).toFixed(2)}
+#define AAW ${LOW ? '.028' : '.010'}
 float h1(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
 float n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h1(i),h1(i+vec2(1,0)),f.x),mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),f.x),f.y);}
 vec2 box(vec3 ro,vec3 rd,vec3 a,vec3 b){vec3 i=1./rd;vec3 t0=(a-ro)*i,t1=(b-ro)*i;vec3 mn=min(t0,t1),mx=max(t0,t1);return vec2(max(max(mn.x,mn.y),mn.z),min(min(mx.x,mx.y),mx.z));}
@@ -206,8 +209,9 @@ vec3 tableCol(vec3 p,vec3 ro){float g=n2(vec2(p.x*1.4,p.z*9.)+n2(p.xz*vec2(.6,3.
  float pool=exp(-pow(p.x*.42,4.))*smoothstep(2.6,${ZH.toFixed(3)},p.z);c*=.35+1.5*pool;
  // caustic light thrown through the water onto the table in front of the tank
  float cz=smoothstep(${ZH.toFixed(3)},${(ZH + .15).toFixed(3)},p.z)*smoothstep(${(ZH + 1.3).toFixed(3)},${(ZH + .3).toFixed(3)},p.z)*smoothstep(${(XH + .1).toFixed(3)},${(XH - .3).toFixed(3)},abs(p.x));
- float c2=n2(p.xz*vec2(7.,11.)+vec2(t*.25,t*.1))+n2(p.xz*vec2(11.,8.)-vec2(t*.18,-t*.2));float caus=pow(max(0.,1.-abs(c2-1.)*1.6),5.);
- c+=vec3(1.,.93,.80)*caus*cz*.22;
+ vec2 wq=p.xz+.35*vec2(n2(p.xz*1.7+t*.05),n2(p.xz*1.7+5.3-t*.04))-.17;float c2=n2(wq*vec2(5.,8.)+vec2(t*.2,t*.08))+n2(wq*vec2(8.,5.5)-vec2(t*.14,-t*.16));
+ float caus=pow(max(0.,1.-abs(c2-1.)*1.15),2.5)*smoothstep(.25,.75,n2(p.xz*vec2(1.3,2.4)+3.1));
+ c+=vec3(1.,.82,.58)*caus*cz*.10;
  float shd=smoothstep(.0,.45,abs(p.x)-${XH})+smoothstep(${ZH},${ZH + 1.6},p.z)*.6;c*=mix(.62,1.,clamp(shd,0.,1.));return c;}
 vec3 floorCol(vec3 p){vec3 Lt=sampleL(LT,p+vec3(0,.012,0));float g=n2(p.xz*vec2(14.,14.))*.04;vec3 base=vec3(.40,.385,.36)-g;
  float lit=.55+.45*exp(-pow(p.x*.32,2.));return base*(LCOL*.95*Lt*lit+vec3(.12,.12,.13));}
@@ -267,8 +271,9 @@ void main(){vec2 fc=gl_FragCoord.xy;vec2 q=(fc-.5*res)/res.y*2.;
 #else
        else if(flo){bgc=sweep(pe2,d2);break;}
 #endif
-       else if(bk){bgc=sweep(pe2,d2);break;}
-       else if(sd){bgc=room(d2)*1.3+sweep(pe2,d2)*.07;break;}
+       else if(bk){float vx=abs(pe2.x)/${XH.toFixed(3)},vy=(pe2.y-${((SURF + Y0) / 2).toFixed(3)})/${((SURF - Y0) / 2).toFixed(3)};float wv=mix(WVE,1.,exp(-pow(vx/.66,2.4)-pow(abs(vy)/.88,3.)));
+         float ce=smoothstep(0.,AAW,${XH.toFixed(3)}-abs(pe2.x));bgc=mix(room(d2)*1.3+sweep(pe2,d2)*.07,sweep(pe2,d2)*wv*vec3(1.,.975,.94),ce);break;}
+       else if(sd){float ce=smoothstep(AAW,0.,pe2.z+${ZH.toFixed(3)});bgc=mix(room(d2)*1.3+sweep(pe2,d2)*.07,sweep(pe2,d2)*.58*vec3(1.,.975,.94),ce);break;}
        else {bgc=room(d2);break;}
        if(tir){refl*=.9;o2=pe2;d2=nd;vec2 h2=box(o2-d2*.002,d2,wa,wb);tEnd=max(h2.y-.002,0.);if(sg==2)bgc=room(d2)*.7;}
      }
@@ -310,28 +315,30 @@ void main(){vec2 fc=gl_FragCoord.xy;vec2 q=(fc-.5*res)/res.y*2.;
  { vec4 Ds=texture(SD,uv)*.42+texture(SB,uv)*.58; vec3 T=exp(-tmOD(Ds.rgb));col=col*T+(1.-T)*vec3(.10,.10,.115)*.4; }
 #endif
  if(thr>0.){vec4 a=texture(SD,uv),b=texture(SB,uv);vec3 hp=max(a.rgb-b.rgb,vec3(0))*thr;col*=exp(-tmOD(hp));}
- // crown splash: a thin rising water wall with a scalloped rim at each impact
- for(int i=0;i<4;i++){vec4 Rr=rip[i];if(Rr.z<=0.)continue;float a=t-Rr.y;if(a<0.||a>.8)continue;
-   float rc=.04+.50*sqrt(a)*Rr.z;float hc=.24*Rr.z*sin(3.1416*min(a/.8,1.));
-   vec2 o2=ro.xz-Rr.xw;vec2 d2=rd.xz;float A=dot(d2,d2),Bq=dot(o2,d2),C=dot(o2,o2)-rc*rc;float h=Bq*Bq-A*C;if(h<0.)continue;
-   for(int s=0;s<2;s++){float tt=(-Bq+(s==0?-1.:1.)*sqrt(h))/A;vec3 p=ro+rd*tt;float th=atan(p.z-Rr.w,p.x-Rr.x);
-     float tp=${SURF}+hc*(.72+.28*cos(th*11.+Rr.y*7.));
-     if(p.y>${SURF - .004}&&p.y<tp){float f=smoothstep(tp,tp-.014,p.y)*(1.-a/.8)*(s==0?1.:.6)*(.55+.45*smoothstep(${SURF.toFixed(3)},tp,p.y+.02));
-       col=mix(col,col*.78+vec3(1.,.98,.95)*.42*(.6+.4*sin(th*11.+1.)),f*.9);}}
-   // spray beads at the scallop tips
-   for(int j=0;j<11;j++){float th=float(j)*.5712+Rr.y*7.+.3*sin(float(j)*3.7);float rr=rc*(1.+a*1.1);vec3 c=vec3(Rr.x+cos(th)*rr,${SURF}+hc*1.1+(.5+.25*fract(float(j)*.618))*a-2.2*a*a,Rr.w+sin(th)*rr);
-     vec3 oc=ro-c;float bb=dot(oc,rd);float r=.013*Rr.z;float hh=bb*bb-dot(oc,oc)+r*r;if(hh>0.&&c.y>${SURF}){float e=sqrt(hh)/r;col=mix(col,col*.6+vec3(1.,.98,.95)*(.35+.5*e*e),.85*(1.-a/.8));}}
+ // crown splash (V5): short-lived (<0.3 s), narrow, mostly clear water wall with a bright specular rim; beads fly a little longer
+ for(int i=0;i<4;i++){vec4 Rr=rip[i];if(Rr.z<=0.)continue;float a=t-Rr.y;if(a<0.||a>.55)continue;
+   float ac=min(a,.28);float rc=.025+.20*sqrt(ac)*Rr.z;float hc=.10*Rr.z*sin(3.1416*min(a/.28,1.));
+   vec2 o2=ro.xz-Rr.xw;vec2 d2=rd.xz;float A=dot(d2,d2),Bq=dot(o2,d2),C=dot(o2,o2)-rc*rc;float h=Bq*Bq-A*C;
+   if(h>0.&&a<.28)for(int s=0;s<2;s++){float tt=(-Bq+(s==0?-1.:1.)*sqrt(h))/A;vec3 p=ro+rd*tt;float th=atan(p.z-Rr.w,p.x-Rr.x);
+     float tp=${SURF}+hc*(.78+.22*cos(th*11.+Rr.y*7.));
+     if(p.y>${SURF - .003}&&p.y<tp){float k=(1.-a/.28)*(s==0?1.:.5);
+       float rim=exp(-pow((tp-p.y)/.0035,2.));float wall=smoothstep(${SURF.toFixed(3)},tp,p.y);
+       col=mix(col,col*.9,k*.25*wall);col+=vec3(1.,.99,.96)*rim*k*.9*(.7+.3*sin(th*11.+1.));}}
+   // spray beads at the scallop tips: small bright specular droplets
+   float hb=.10*Rr.z;float rb=.025+.20*sqrt(.28)*Rr.z;
+   for(int j=0;j<11;j++){float th=float(j)*.5712+Rr.y*7.+.3*sin(float(j)*3.7);float rr=rb*(1.+a*1.1);vec3 c=vec3(Rr.x+cos(th)*rr,${SURF}+hb*1.1+(.5+.25*fract(float(j)*.618))*a-2.2*a*a,Rr.w+sin(th)*rr);
+     vec3 oc=ro-c;float bb=dot(oc,rd);float r=.009*Rr.z;float hh=bb*bb-dot(oc,oc)+r*r;if(hh>0.&&c.y>${SURF}){float e=sqrt(hh)/r;col=mix(col,col*.55,.6*(1.-a/.55));col+=vec3(1.,.98,.95)*pow(e,6.)*.9*(1.-a/.55);}}
  }
  // glass pipette (analytic, closest approach to its vertical axis): clear glass with bright rims, a coloured ink column
  // lit from the softbox, a short rubber bulb on top. Short enough to stay inside the frame at every camera distance.
  if(pipOn>0.){vec2 o2=ro.xz-pip.xy;vec2 d2=rd.xz;float tt=-dot(o2,d2)/max(dot(d2,d2),1e-6);
    float b=length(o2+d2*tt);float y=ro.y+rd.y*tt;float ty=pip.z;float u=y-ty;
-   float R=u<0.?0.:(u<.085?mix(.005,.026,smoothstep(0.,1.,u/.085)):(u<.215?.026:0.));
-   float Rb=(u>.205&&u<.30)?.031*sqrt(max(0.,1.-pow((u-.252)/.048,2.))):0.;
+   float R=u<0.?0.:(u<.07?mix(.005,.024,smoothstep(0.,1.,u/.07)):(u<.175?.024:0.));
+   float Rb=(u>.165&&u<.24)?.029*sqrt(max(0.,1.-pow((u-.2025)/.0375,2.))):0.;
    if(Rb>0.&&b<Rb&&tt>0.){float e=b/Rb;vec3 g=vec3(.10,.035,.03)*(.55+.45*sqrt(max(0.,1.-e*e)))+vec3(.5,.3,.25)*exp(-pow((e-.45)/.12,2.))*.35;col=mix(col,g,pipOn);}
    else if(R>0.&&b<R&&tt>0.){float e=b/R;
      vec3 g=col*.93+vec3(.03);
-     float ri=R*.72;if(b<ri&&u<.15){float ch=2.*sqrt(ri*ri-b*b)/ri;vec3 T=exp(-pipAb*(.35+.8*ch));g=g*T+LCOL*T*.42*(.4+.6*smoothstep(.2,1.,cosw(e)));}
+     float ri=R*.72;if(b<ri&&u<.125){float ch=2.*sqrt(ri*ri-b*b)/ri;vec3 T=exp(-pipAb*(.35+.8*ch));g=g*T+LCOL*T*.42*(.4+.6*smoothstep(.2,1.,cosw(e)));}
      g+=vec3(1.,.97,.92)*(pow(e,10.)*.75+exp(-pow((e+.35)/.12,2.))*.0+exp(-pow((e-.55)/.06,2.))*.28)*(q.x<0.?1.:.8);
      g*=1.-.35*smoothstep(.86,1.,e);g+=vec3(.9,.95,1.)*pow(e,40.)*.6;
      col=mix(col,g,pipOn);}}
@@ -374,7 +381,7 @@ const ibReset = () => { IB[0] = IB[1] = IB[2] = 9; IB[3] = IB[4] = IB[5] = -9; }
 // V4 lantern framing: the whole tank is the hero object, a glowing box in a dark studio.
 // The camera never follows the ink (so it can't drift or cut a bloom): it fits the tank + pipette headroom + table pool,
 // symmetric, tank ≈ 75–78 % of the frame width on 16:9, and eases in from a slightly wider opening.
-const FRAME = { bot: Y0 - SLAB - .07, top: RIM + .27, wfrac: +(Q.get('wfrac') || .77), hfrac: .95 };
+const FRAME = { bot: Y0 - SLAB - +(Q.get('fb') || .02), top: RIM + +(Q.get('ft') || .15), wfrac: +(Q.get('wfrac') || .86), hfrac: +(Q.get('hf') || .985) };
 function camTarget(wide) {
   const tf = Math.tan(FOV / 2), asp = W / H, zf = ZH + GT;
   const Dw = (XH + GT) / (FRAME.wfrac * tf * asp), Dh = (FRAME.top - FRAME.bot) * .5 / (FRAME.hfrac * tf);
@@ -448,6 +455,7 @@ function uploadRings() { const live = rings.filter(r => r.alive).slice(-MAXR); r
   gl.bindTexture(gl.TEXTURE_2D, segT); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, MAXR * SEGS, 1, gl.RGBA, gl.FLOAT, segBuf); return live.length; }
 
 // ---------------- drops
+const recentDrops = [], ENTRAIN = +(Q.get('entrain') || .45);
 let dropCount = 0; const slotFade = new Float32Array(SLOTS); const slotTarget = new Float32Array(SLOTS);
 const ripples = [];
 function spawn(x, z, inkIdx, size, slot, sp) {
@@ -458,6 +466,11 @@ function spawn(x, z, inkIdx, size, slot, sp) {
   // per-drop variation: entry speed (drop height) -> tighter, stronger ring; random lobe count, tilt and asymmetry
   const R0 = .080 * size * (1.18 - .18 * sp) * (.92 + .16 * rnd()), G = .062 * size * Math.pow(sp, .85) * (.9 + .2 * rnd()); const c = [x, SURF - .10, z];
   const ink = INKS[inkIdx];
+  // entrainment: a drop that falls through an earlier drop's dyed column (same x within ~.2, < 20 s ago) sweeps that stained
+  // wake fluid into its own ring, so part of its tracers carry the earlier pigment; the mix is then rendered subtractively
+  const prev = recentDrops.filter(d => d.ink !== inkIdx && Math.abs(d.x - x) < .2 && Math.abs(d.z - z) < .2 && time - d.t < 20).pop();
+  const ent = prev ? ENTRAIN * (1 - Math.abs(prev.x - x) / .2) : 0, inkE = prev ? INKS[prev.ink] : ink;
+  recentDrops.push({ x, z, ink: inkIdx, t: time }); if (recentDrops.length > 8) recentDrops.shift();
   const kk = 4 + Math.min(3, Math.floor(rnd() * 3.2 + (size - 1) * 2.2)); const tn = nrm([gauss() * .13, -1, gauss() * .09]);
   const r0 = newRing(c, tn, R0, G, 0, kk, slot); r0.amp *= 1 + rnd() * 3; r0.sig *= .85 + .3 * rnd(); rings.push(r0);
   const rows = ROWS(), n = rows * TW, P = new Float32Array(n * 4), C = new Uint8Array(n * 4);
@@ -470,14 +483,14 @@ function spawn(x, z, inkIdx, size, slot, sp) {
       p = [x + A * Math.sin(u * fil.kx + fil.px) + gauss() * sp, yy, z + A * .7 * Math.cos(u * fil.kz + fil.pz) + gauss() * sp]; }
     else { const r = Math.cbrt(rnd()) * R0 * 1.05, th = rnd() * 6.283, ph = Math.acos(2 * rnd() - 1); p = [x + r * Math.sin(ph) * Math.cos(th), c[1] + r * Math.cos(ph) * .6, z + r * Math.sin(ph) * Math.sin(th)]; }
     P[i * 4] = p[0]; P[i * 4 + 1] = p[1]; P[i * 4 + 2] = p[2]; P[i * 4 + 3] = 0;
-    const k = .5 + .5 * rnd(); C[i * 4] = ink.ab[0] / 1.6 * 255; C[i * 4 + 1] = ink.ab[1] / 1.6 * 255; C[i * 4 + 2] = ink.ab[2] / 1.6 * 255; C[i * 4 + 3] = k * 255 | 0; }
+    const k = .5 + .5 * rnd(); const ik = rnd() < ent ? inkE : ink; C[i * 4] = ik.ab[0] / 1.6 * 255; C[i * 4 + 1] = ik.ab[1] / 1.6 * 255; C[i * 4 + 2] = ik.ab[2] / 1.6 * 255; C[i * 4 + 3] = k * 255 | 0; }
   for (const t of posT) { gl.bindTexture(gl.TEXTURE_2D, t); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, slot * rows, TW, rows, gl.RGBA, gl.FLOAT, P); }
   gl.bindTexture(gl.TEXTURE_2D, colT); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, slot * rows, TW, rows, gl.RGBA, gl.UNSIGNED_BYTE, C);
   slotFade[slot] = 1; slotTarget[slot] = 1;
   ripples.push({ x, z, t: time, a: .9 * size }); if (ripples.length > 4) ripples.shift();
   if (!haveInk) { haveInk = true; } sfx.drip(size);
 }
-const falling = []; const TIPY = SURF + .12;
+const falling = []; const TIPY = SURF + .10; const AUTO2 = +(Q.get('auto2') || 8), HS1 = +(Q.get('hs1') || 1.6), HS2 = +(Q.get('hs2') || 1.1);
 // the pipette: follows the cursor above the water; its height (from the cursor height) sets the drop's entry speed
 const BEADR = .024; const pip = { x: -.12, z: 0, tip: TIPY, tipT: TIPY, on: 1, bead: .7, xT: -.12 };
 const pipInk = () => pointer.ink; const pipClear = () => pointer.tool === 'salt';
@@ -505,7 +518,10 @@ function stepSalt(dt) { if (salt.queue) for (let i = 0; i < salt.queue.length; i
   salt.h += (salt.target - salt.h) * Math.min(1, dt * .9); OPT.salt = salt.h > Y0 + .05 ? salt.h : 0; }
 let releaseCount = 0;
 // brush: a drag lays a thin ribbon of the current ink along the stroke (calligraphy). Tracers are written row by row into a slot.
-const brush = { slot: -1, row: 0, n: 0, w: .002 };
+const brush = { slot: -1, row: 0, n: 0, w: .002, last: [] };
+// exit taper: when the stroke lifts, the last segments thin out (alpha 30 / 55 / 80 %) like a brush leaving the paper
+function brushLift() { const L = brush.last; const k = [.8, .55, .3].slice(3 - L.length);
+  L.forEach((sg, i) => { const C = sg.C; for (let j = 3; j < C.length; j += 4) C[j] = C[j] * k[i] | 0; gl.bindTexture(gl.TEXTURE_2D, colT); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, sg.row0, TW, sg.nr, gl.RGBA, gl.UNSIGNED_BYTE, C); }); brush.last = []; }
 function brushAdd(a, b, speed) {
   const rows = ROWS(); if (!TW) return;
   if (brush.slot < 0 || brush.row >= rows) { const slot = releaseCount++ % SLOTS; if (slotFade[slot] > .001) bakeSlot(slot); rings.forEach(r => { if (r.slot === slot) r.alive = false; });
@@ -515,17 +531,20 @@ function brushAdd(a, b, speed) {
   const nr = Math.min(rows - brush.row, 2), n = nr * TW, P = new Float32Array(n * 4), C = new Uint8Array(n * 4); const ink = INKS[pointer.ink];
   const ya = clamp(a[1], Y0 + .05, SURF - .02), yb = clamp(b[1], Y0 + .05, SURF - .02);
   // calligraphy: slow = wide and wet, fast = thin and dry; the stroke starts thin (entry taper); soft gaussian core + faint halo
-  const spd = clamp(+(speed || .6), .05, 3), w0 = brush.w, w1 = (.004 + .032 / (1 + spd * 3)) * smooth(0, 3, brush.n + 1);
+  const spd = clamp(+(speed || .6), .05, 3), w0 = brush.w, w1 = (.004 + .032 / (1 + spd * 3)) * (SMALLGRID ? 1.6 : 1) * smooth(0, SMALLGRID ? 4 : 3, brush.n + 1);
+  // dry-brush break along the stroke: on fast strokes some segments run dry (gaps that read at any grid resolution)
+  const segDry = spd > .6 ? clamp(.15 + .85 * Math.pow(rnd(), .6 + spd * .5), 0, 1) : 1;
   if (!brush.br || brush.n === 0) brush.br = Array.from({ length: 16 }, () => .15 + .85 * rnd()); const dryness = smooth(.7, 2.4, spd) * .9; brush.w = w1; brush.n++;
   const wet = clamp(.9 / (.3 + spd), .6, 1.5); const dx = b[0] - a[0], dy = yb - ya, dl = Math.hypot(dx, dy) + 1e-6, nx = -dy / dl, ny = dx / dl;
   for (let i = 0; i < n; i++) { const f = rnd(); const x = a[0] + dx * f, y = ya + dy * f; const wdt = w0 + (w1 - w0) * f; const halo = rnd() < .3;
     const off = gauss() * wdt * (halo ? 2.6 : 1), al = gauss() * .002; const bk = brush.br[clamp(Math.floor((off / (wdt + 1e-6) + 3) * 2.5), 0, 15)]; // bristle streaks: fast strokes break into flying-white 飛白
     const dry = (halo ? .25 : (.55 + .45 * rnd()) * (1 - .5 * Math.max(0, Math.abs(off) / (wdt * 2.2) - .3))) * (1 - dryness + dryness * bk * bk);
     P.set([clamp(x + nx * off + dx / dl * al, -XH + .02, XH - .02), y + ny * off + dy / dl * al, gauss() * (halo ? .02 : .009), 0], i * 4);
-    C.set([ink.ab[0] / 1.6 * 255, ink.ab[1] / 1.6 * 255, ink.ab[2] / 1.6 * 255, clamp(dry * wet * 1.05, .03, 1) * 255 | 0], i * 4); }
+    const gap = dryness > .2 && Math.sin(f * 6.283 * (1.5 + 2 * brush.br[0]) + brush.n * 1.7) > .55 ? .12 : 1;
+    C.set([ink.ab[0] / 1.6 * 255, ink.ab[1] / 1.6 * 255, ink.ab[2] / 1.6 * 255, clamp(dry * wet * 1.05 * segDry * gap, .02, 1) * 255 | 0], i * 4); }
   const row0 = brush.slot * rows + brush.row;
   for (const t of posT) { gl.bindTexture(gl.TEXTURE_2D, t); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, row0, TW, nr, gl.RGBA, gl.FLOAT, P); }
-  gl.bindTexture(gl.TEXTURE_2D, colT); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, row0, TW, nr, gl.RGBA, gl.UNSIGNED_BYTE, C); brush.row += nr;
+  gl.bindTexture(gl.TEXTURE_2D, colT); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, row0, TW, nr, gl.RGBA, gl.UNSIGNED_BYTE, C); brush.row += nr; brush.last.push({ row0, nr, C }); if (brush.last.length > 3) brush.last.shift();
   ibAdd([a[0], a[1], 0], .3); ibAdd([b[0], b[1], 0], .3); haveInk = true;
 }
 // the slot is assigned at release time, so rapid clicks never wait on each other
@@ -629,6 +648,7 @@ const saltEl = document.getElementById('salt');
 function setSalt(on) { pointer.tool = on ? 'salt' : 'ink'; saltEl.classList.toggle('on', on); [...inksEl.querySelectorAll('.ink')].forEach((c, j) => c.classList.toggle('on', !on && j === pointer.ink)); }
 saltEl.addEventListener('pointerdown', e => { e.stopPropagation(); setSalt(pointer.tool !== 'salt'); });
 if (OPT.salt > 0) { salt.h = salt.target = OPT.salt; }
+const SALT_DEFAULT = OPT.salt > 0 ? OPT.salt : 0;
 function setInk(i) { pointer.ink = i; pointer.tool = 'ink'; saltEl.classList.remove('on'); [...inksEl.querySelectorAll('.ink')].forEach((c, j) => c.classList.toggle('on', j === i)); }
 let lastVort = 0, curlSide = 1;
 function stirStep(w, now) { if (!lastMove) { lastMove = { t: now, w }; return; } const dtm = Math.max(8, now - lastMove.t) / 1000;
@@ -641,27 +661,27 @@ function stirStep(w, now) { if (!lastMove) { lastMove = { t: now, w }; return; }
           if (!Q.has("nocurl")) { curlSide = -curlSide; const pn = nrm([-vv[1] * curlSide, vv[0] * curlSide, .25 * curlSide]); const cr = newRing([w[0] - pn[0] * .03, w[1] - pn[1] * .03, 0], pn, .035 + .02 * rnd(), clamp(len(vv) * .03, .004, .011), 3, 0, -1); cr.amp = 0; rings.push(cr); } }
         lastMove = { t: now, w }; } }
 // hero sequence: after the first bloom settles, an unseen brush writes one carmine stroke through the stem (press, fast, lift)
-const AUTO = { t0: 6.2, dur: 1.5, on: !Q.has('noauto') && !(SHOT && (Q.has('drops') || Q.has('stir'))), done: false, started: false };
+const AUTO = { t0: 6.2, dur: 1.5, on: Q.has('autostroke'), done: false, started: false };
 function autoStroke() { if (!AUTO.on || AUTO.done || time < AUTO.t0) return; if (interacted && !SHOT) { AUTO.done = true; if (AUTO.started) pointer.ink = AUTO.ink; return; }
   const f = clamp((time - AUTO.t0) / AUTO.dur, 0, 1); const e = f * f * (3 - 2 * f); // ease: slow press, fast middle, slow lift
   if (!AUTO.started) { AUTO.started = true; lastMove = null; brush.slot = -1; brush.n = 0; brush.w = .002; AUTO.ink = pointer.ink; pointer.ink = 1; }
   stirStep([-.85 + 1.7 * e, 1.50 - .22 * e + .06 * Math.sin(e * 3.1416), 0], time * 1000);
-  if (f >= 1) { AUTO.done = true; pointer.ink = AUTO.ink; lastMove = null; } }
+  if (f >= 1) { brushLift(); AUTO.done = true; pointer.ink = AUTO.ink; lastMove = null; } }
 let slow = false, holdStart = 0, downXY = null, stirMode = false, lastMove = null, interacted = false;
 cv.addEventListener('pointermove', e => { pointer.x = e.clientX / innerWidth; pointer.y = 1 - e.clientY / innerHeight; pointer.in = true;
   cam.tx = (pointer.x - .5) * 2; cam.ty = (pointer.y - .5) * 2;
-  if (!pointer.down || !stirMode) { const wp = screenToWater(pointer.x, pointer.y); pip.xT = clamp(wp[0], -XH + .3, XH - .3); pip.tipT = SURF + .05 + .09 * clamp((wp[1] - (SURF - 1.4)) / 1.4, 0, 1); }
+  if (!pointer.down || !stirMode) { const wp = screenToWater(pointer.x, pointer.y); pip.xT = clamp(wp[0], -XH + .3, XH - .3); pip.tipT = SURF + .04 + .07 * clamp((wp[1] - (SURF - 1.4)) / 1.4, 0, 1); }
   if (pointer.down && downXY) { const dx = e.clientX - downXY[0], dy = e.clientY - downXY[1]; if (!stirMode && Math.hypot(dx, dy) > 14) stirMode = true;
     if (stirMode && lastMove) stirStep(screenToWater(pointer.x, pointer.y), performance.now()); } });
 cv.addEventListener('pointerdown', e => { sfx.init(); interacted = true; pointer.down = true; holdStart = performance.now(); downXY = [e.clientX, e.clientY]; stirMode = false;
-  lastMove = { t: performance.now(), w: screenToWater(e.clientX / innerWidth, 1 - e.clientY / innerHeight) }; brush.slot = -1; brush.n = 0; brush.w = .002; cv.setPointerCapture(e.pointerId); });
-cv.addEventListener('pointerup', () => { if (!pointer.down) return; pointer.down = false;
+  lastMove = { t: performance.now(), w: screenToWater(e.clientX / innerWidth, 1 - e.clientY / innerHeight) }; brush.slot = -1; brush.n = 0; brush.w = .002; brush.last = []; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointerup', () => { if (!pointer.down) return; pointer.down = false; if (stirMode) brushLift();
   if (!stirMode) { const size = 1 + Math.min(pointer.hold, 1.3) * .55; const w = screenToWater(pointer.x, pointer.y); if (pointer.tool === 'salt') pour(clamp(w[0], -XH + .3, XH - .3), 0, size); else release(clamp(w[0], -XH + .3, XH - .3), (rnd() - .5) * .2, pointer.ink, size); fadeTitle(); }
   pointer.hold = 0; stirMode = false; });
 addEventListener('keydown', e => { if (e.code === 'Space') { slow = true; e.preventDefault(); } if (e.key === 'r' || e.key === 'R') resetWater(); if (e.key === 'm' || e.key === 'M') sfx.toggle(); if (e.key === 's' || e.key === 'S') setSalt(pointer.tool !== 'salt'); const n = +e.key; if (n >= 1 && n <= INKS.length) setInk(n - 1); });
 addEventListener('keyup', e => { if (e.code === 'Space') slow = false; });
 addEventListener('resize', () => { allocRT(); if (!SHOT && TW) render(); });
-function resetWater() { clearMem(); ibReset(); falling.length = 0; salt.h = salt.target = 0; salt.pours.length = 0; if (salt.queue) salt.queue.length = 0; OPT.salt = 0; for (let i = 0; i < SLOTS; i++) slotTarget[i] = 0; rings.forEach(r => r.alive = false); lowY = SURF; inkW = .3; }
+function resetWater() { recentDrops.length = 0; clearMem(); ibReset(); falling.length = 0; salt.h = salt.target = SALT_DEFAULT; salt.pours.length = 0; if (salt.queue) salt.queue.length = 0; OPT.salt = 0; for (let i = 0; i < SLOTS; i++) slotTarget[i] = 0; rings.forEach(r => r.alive = false); lowY = SURF; inkW = .3; }
 let titleFaded = false; function fadeTitle() { if (titleFaded) return; titleFaded = true; setTimeout(() => { document.querySelector('#title p').style.opacity = 0; }, 2500); }
 
 // ---------------- UI layout: keep the title and the ink bottles in the dark studio, clear of the tank at any aspect
@@ -682,19 +702,20 @@ allocRT(); { const T0c = camTarget(true); cam.x = T0c.x; cam.y = T0c.y; cam.d = 
 if (SHOT) {
   TW = TW || 512; allocTracers();
   const T = +Q.get('shot'); const DT = 1 / 60;
-  const script = (Q.get('drops') || '-0.12,0,0,1,0').split(';').map(s => s.split(',').map(Number));
+  const script = (Q.get('drops') || (Q.has('noauto') ? '-0.12,0,0,1,0' : '-0.12,0,0,' + HS1 + ',0;-0.12,0.015,1,' + HS2 + ',' + AUTO2)).split(';').map(s => s.split(',').map(Number));
   let si = 0; const N = Math.round(T / DT); const stirScript = Q.get('stir') ? Q.get('stir').split(';').map(s => s.split(',').map(Number)) : [];
   (async () => { for (let i = 0; i < N; i++) { while (si < script.length && script[si][4] <= time + 1e-6) { const s = script[si++]; if (s[2] === 9) pour(s[0], s[1], s[3]); else { pointer.ink = s[2]; release(s[0], s[1], s[2], s[3], s[5]); } }
-      for (const st of stirScript) { if (time >= st[0] && time <= st[0] + st[5]) { const f = (time - st[0]) / st[5]; pointer.ink = st[6] | 0; if (!st.on) { st.on = 1; lastMove = null; brush.slot = -1; brush.n = 0; brush.w = .002; } stirStep([st[1] + (st[3] - st[1]) * f, st[2] + (st[4] - st[2]) * f + .12 * Math.sin(f * 9.4), 0], time * 1000); } }
+      for (const st of stirScript) { if (st.on && !st.off && time > st[0] + st[5]) { st.off = 1; brushLift(); } if (time >= st[0] && time <= st[0] + st[5]) { const f = (time - st[0]) / st[5]; pointer.ink = st[6] | 0; if (!st.on) { st.on = 1; lastMove = null; brush.slot = -1; brush.n = 0; brush.w = .002; brush.last = []; } stirStep([st[1] + (st[3] - st[1]) * f, st[2] + (st[4] - st[2]) * f + .12 * Math.sin(f * 9.4), 0], time * 1000); } }
       step(DT); if (i % 20 === 0) await new Promise(r => setTimeout(r, 0)); }
     log('sim done'); render(); layoutUI(); if (Q.has('glint')) { saltEl.classList.add('glint'); } gl.finish(); log('render done'); window.__ready = true; })();
 } else {
   TW = TW || (TIER === 'high' ? 768 : 512); allocTracers(); let fpsClock = 0;
-  let last = performance.now(), autoT = 0, autoDone = false;
+  let last = performance.now(), autoT = 0, autoDone = false, auto2Done = false;
   const loop = now => { let d = Math.min(LOW ? .1 : .05, (now - last) / 1000); last = now;
     cam.px += (cam.tx * .5 - cam.px) * Math.min(1, d * 1.5); cam.py += (cam.ty * .5 - cam.py) * Math.min(1, d * 1.5);
     if (pointer.down) pointer.hold = (now - holdStart) / 1000;
-    autoT += d; if (!autoDone && autoT > .12 && !interacted) { autoDone = true; release(-.12, 0, 0, 1); }
+    autoT += d; if (!autoDone && autoT > .12 && !interacted) { autoDone = true; release(-.12, 0, 0, HS1); }
+    if (!auto2Done && autoDone && time > AUTO2 - .35 && !interacted && !Q.has('noauto')) { auto2Done = true; release(-.12, .015, 1, HS2); }
     const sd = d * (slow ? .25 : 1); const k = Math.max(1, Math.ceil(sd / (1 / 50))); for (let i = 0; i < k; i++) step(sd / k);
     fpsClock += d; if (fpsClock > (Q.has('rstest') ? .8 : 2) && FR.length > 8) { fpsClock = 0; const f = window.__fps(); const r0 = RS; if (Q.has('rstest')) RS = RS > .5 ? .45 : .6; else if (f < 24 && RS > (LOW ? .42 : .5)) RS = Math.max(LOW ? .42 : .5, RS * .82); else if (f > 52 && RS < 1) RS = Math.min(1, RS * 1.12); if (RS !== r0) { allocRT(); window.__rsChanges = (window.__rsChanges || 0) + 1; } }
     render(); FR.push(performance.now()); if (FR.length > 60) FR.shift(); requestAnimationFrame(loop); };
