@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>墨華 Ink Bloom</title>
+<link rel="icon" href="data:,">
+<meta name="description" content="Drop ink into a still tank and watch it branch into a vortex-ring cascade. Desktop WebGL2.">
+<meta property="og:title" content="墨華 Ink Bloom"><meta property="og:image" content="og.jpg">
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#1c1a18;font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Songti TC","Noto Serif TC","PMingLiU",serif;color:#efe9df;user-select:none}
+canvas{display:block;position:fixed;inset:0;width:100vw;height:100vh;cursor:crosshair}
+#title{position:fixed;left:3.2vw;top:4vh;pointer-events:none;transition:opacity 2.5s;text-shadow:0 1px 8px rgba(0,0,0,.25)}
+#title h1{margin:0;font-weight:400;font-size:30px;letter-spacing:.34em;color:#2b2722}
+#title h1 span{font-size:14px;letter-spacing:.3em;margin-left:.8em;opacity:.7;font-style:italic}
+#title p{margin:.6em 0 0;font-size:12.5px;letter-spacing:.14em;color:#2b2722;opacity:.6;transition:opacity 2s}
+#inks{position:fixed;left:2.4vw;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:16px;cursor:default;padding:18px 18px 18px 16px;border-radius:14px;background:rgba(26,24,22,.52);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#salt{margin-top:6px;padding-top:14px;border-top:1px solid rgba(255,255,255,.12);display:flex;align-items:center;gap:10px;cursor:pointer;opacity:.55;color:#e9e3d8;transition:opacity .3s}#salt:hover{opacity:.85}#salt.on{opacity:1}
+#salt i{display:block;width:13px;height:13px;border-radius:3px;border:1px solid rgba(255,255,255,.5);background:linear-gradient(transparent 55%,rgba(255,255,255,.45) 55%)}#salt.on i{background:linear-gradient(transparent 55%,#efe9df 55%)}#salt b{font-weight:400;font-size:11px;letter-spacing:.16em;white-space:nowrap}
+.ink{display:flex;align-items:center;gap:10px;cursor:pointer;opacity:.55;transition:opacity .3s,transform .3s;color:#e9e3d8}
+.ink:hover{opacity:.85}.ink.on{opacity:1;transform:translateX(4px)}
+.ink i{display:block;width:13px;height:13px;border-radius:50%;box-shadow:inset -2px -3px 4px rgba(0,0,0,.4),inset 2px 2px 3px rgba(255,255,255,.25),0 0 0 1px rgba(255,255,255,.12)}
+.ink b{font-weight:400;font-size:11px;letter-spacing:.16em;white-space:nowrap}
+#nogl{display:none;position:fixed;inset:0;align-items:center;justify-content:center;text-align:center;font-size:16px;letter-spacing:.1em}
+</style></head>
+<body>
+<canvas id="c"></canvas>
+<div id="title"><h1>墨華<span>Ink Bloom</span></h1><p>click the water · 輕點水面</p></div>
+<div id="inks"><div id="salt" title="S"><i></i><b>鹽層 salt layer</b></div></div>
+<div id="nogl">墨華 Ink Bloom needs desktop Chrome with WebGL2.</div>
+<script src="main.js"></script>
+</body></html>
