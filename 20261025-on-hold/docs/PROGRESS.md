@@ -96,3 +96,22 @@
 - Audio: AAC overshoot on the landing transient (82.612) gave -0.4 dBTP with the standard master -> audio re-encoded with limiter 0.75 (video stream copied): -16.2 LUFS, -1.0 dBTP, LRA 8.1.
 - QA: 0 click candidates, no digital silence >20 ms, whisper all 7 lines exact, every ding within 1 frame of its toast's first frame, sand start/thud at 82.24/82.60 vs S21 82.224 / impact frame 82.625, cuts within 1 frame (S8 transition 2 frames; S17 is a continuation), A/V end diff 14 ms (0.34 frame).
 - cuts/rough-v12.mp4 90.76 s, 31537951 bytes. Sheets tests/v12/.
+
+## rough-v13 (not published) — 15:50 TPE
+- Clone melt at 66.58 s: NOT a defect in the film. Dense per-frame sheets with separators (frames 1584-1619 = 66.00-67.46 s, near rows y 280-620; whole floor shot 1551-1618 every 4th frame; full-res frame 1598) show no doubled/merged head. The 'doubled head' in the v12 2x2 sheet was the junction between two borderless cells (right-edge agent of frame 1598 next to left-edge agent of frame 1617). Picture left untouched; v13 video stream is bit-identical to v12 (stream md5 070f9971...).
+- True peak: landing transient was the codec-overshoot culprit. sound13: thud/boom attack 1 ms -> 6 ms + tanh soft-knee on the fx stem only in w2(LAND) -0.45..+0.35 s (fx peak 1.133 -> 0.649). Landing max momentary -9.8 LUFS (v12 -9.7). Master limiter 0.80 (src/build13.sh).
+- QA: -16.1 LUFS, LRA 8.1, true peak -1.6 dBTP (ebur128; 4x-oversampled -1.56); 0 clicks; no digital silence; whisper 7/7 exact (+ 'is for four minutes' stutter); dings within 1 frame of toasts; sand 82.24 / thud 82.60 vs impact frame 82.625; cuts identical to v12; A/V 90.750 / 90.764 (14 ms).
+- cuts/rough-v13.mp4 31540470 bytes. Sheets tests/v13/.
+
+## rough-v14 (not published) — 16:10 TPE — lip-sync pass (base v13; v12 is live, showroom d8fef24)
+- Takes (GenerateVideo 720p 6 s, quoted lines; whisper word-exact on all 7):
+  - Old man, new mouth-visible CU start frame assets/stills/v14_om_cu.jpg (crop of v3_cu.jpg, eyes upper third, mouth lower third): v14_om_a/b/c.
+    Native sync (nose-tracked mouth frame-diff vs own audio): a 0.58 @0 (peak 0.70 at +6, unreliable), b 0.49 @0 (0.61 at +6), c 0.62 @0 (0.68 at +2). Old v7_ecu_a: mouth out of frame (ECU crop).
+    Picked c. Mouth-openness (dark-interior px) vs its own audio: 0.57 at -1/-2 fr (mouth opens just before voicing = natural).
+    Used its own audio (our v4_line_3 VO cadence has a long mid-line pause no take matches), same chain (hp/lp, level-match, tanh, small room), take and picture both at 0.92 tempo, starting at S16. In film: openness vs VO 0.52 at -1/-2 fr. Line 69.42-73.02 (v13 69.34-73.70) -> ~1.6 s beat before 'Absolutely' (v13 ~1.1 s).
+  - Alex punchline: v14_hold_a/b/c from agent.jpg (full line), v14_hold_d from the v7_hold_b frame at 2.9 (punchline only).
+    Punchline native (tracked): v7_hold_b 0.45 (fixed-ROI 0.70), a 0.46, b 0.37, c 0.47, d 0.37 (0.46 at +1). d's delivery is 2.5 s vs 1.46 s (doesn't fit the cut).
+    Voices F0: agent_hi 152 Hz, v7_hold_b 151, a 127, b 176, c 134 -> only v7_hold_b matches the 'Hi, thanks for holding' voice. Tried a word-onset-warped onto the v7 voice: in-film 0.53 vs v7_hold_b 0.80 (lag 0) -> KEPT v7_hold_b.
+- Edit identical to v13 (all cut times, J-cut, phone filter). Picture differs from v13 only 68.92-74.52 (+ x264 variance at 35.96-36.21).
+- QA: -16.2 LUFS, LRA 8.1, true peak -1.7 dBTP (4x oversampled -1.65), 0 clicks, no digital silence, whisper 7/7, dings/landing/cuts as v13, A/V 90.750/90.764.
+- cuts/rough-v14.mp4 31845066 bytes. Sheets tests/v14/ (film_om_mouth_1-3 every frame 68.96-74.58, om_shot_v14, take mouth sheets).

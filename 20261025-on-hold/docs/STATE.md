@@ -51,3 +51,11 @@ Next: on approval, publish v8 as film.mp4 (+ update "Current file" line and scor
 - Build v12: venv/bin/python src/sound12.py; src/picture12.py parts p12_{0,24,48,72}; concat cuts/list12.txt; master.sh, then audio re-encode with alimiter 0.75 (see PROGRESS).
 - QA scripts: src/qa/ (syncqa12.py, syncqa2_12.py, sheet12.py, asr.py, asrw.py, mouth.py).
 - Known open issues: Alex lip sync (hidden by edit), clone melt on floor at ~66.6 s near rows, vines/beard shimmer 27-35 s, pizza-box jitter 13 s, old man mouth barely moves 70 s.
+
+## STATE 15:50 TPE
+- Strongest cut: cuts/rough-v13.mp4 (31540470 bytes) = v12 picture + landing-softened mix, -16.1 LUFS / -1.6 dBTP. Build: src/build13.sh. Not pushed; live = v9.
+- The 66.58 s 'clone melt' was a contact-sheet artifact (see PROGRESS v13).
+
+## STATE 16:10 TPE
+- Live: v12 (showroom d8fef24, 31537951 bytes). Base: v13. Newest: cuts/rough-v14.mp4 (31845066 bytes) = v13 + mouth-visible old-man CU (v14_om_c, own audio). Alex unchanged (v7_hold_b still measures best).
+- Build v14: venv/bin/python src/sound14.py; src/picture14.py parts p14_48, p14_72 (p12_0, p12_24 reused); concat cuts/list14.txt; src/master14.sh.
