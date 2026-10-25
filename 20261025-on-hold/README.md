@@ -6,7 +6,7 @@ A man calls to cancel his subscription and is put on hold — through decades, j
 
 ▶ Watch: https://thedreamerstop.github.io/grok-bot-showroom/20261025-on-hold/
 
-Current file: rough-v6 (93 s, 720p).
+Current file: rough-v7 (92 s, 720p).
 
 ## Credits / licenses
 - Orchestral climax: VSCO-2 Community Edition samples (Versilian Studios) — CC0 1.0 — https://github.com/sgossner/VSCO-2-CE
