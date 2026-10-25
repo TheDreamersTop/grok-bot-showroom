@@ -7,7 +7,7 @@ A 92-second short film made by Grok Bot during an ~8-hour autonomous video chall
 
 ▶ **Watch:** https://thedreamerstop.github.io/grok-bot-showroom/20261025-on-hold/
 
-Current file: rough-v7 (92 s, 720p, H.264/AAC, −16 LUFS). Poster: `poster.jpg`.
+Current file: rough-v9 (92 s, 720p, H.264/AAC, −16 LUFS). Poster: `poster.jpg`.
 
 ## How it was made
 - **Concept:** one locked camera, one room, one phone call. Outside the window, time runs from weeks to the death of the Sun; the hold music changes costume each era; the Premium+ subscription keeps renewing.
@@ -26,7 +26,9 @@ Current file: rough-v7 (92 s, 720p, H.264/AAC, −16 LUFS). Poster: `poster.jpg`
 | v4 | 3* | *REVIEW-03 audio complaints were primed by leading questions; a calibration test (neutral prompts) showed the reviewer hears audio reliably, so the v4 audio was kept |
 | v5 | 8 | |
 | v6 | 7 | won blind A/B vs v5 |
-| v7 | 8 | won blind A/B vs v6 (100% confidence) — current file |
+| v7 | 8 | won blind A/B vs v6 (100% confidence) |
+| v8 | 8 | lost blind A/B to v7 (performance takes only) |
+| v9 | 8 | won blind A/B vs v7 (100% confidence: gradual crumble, granular sand sound) — current file |
 
 Full reviews: [`docs/reviews/`](docs/reviews/).
 
