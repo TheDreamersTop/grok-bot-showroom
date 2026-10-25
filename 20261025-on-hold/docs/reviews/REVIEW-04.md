@@ -1,0 +1,6 @@
+# REVIEW-04 (rough-v5, neutral first-time "festival programmer" prompt) — summary as relayed 2026-10-25 13:49 TPE
+
+Score 8/10. Engagement very high; no attention drops; laughed at 3 goats and the mammoth tusk; the back-on-hold punchline and turning to dust land. Sound, mix and intelligibility: none noticed; the mix is strong. Flaws: 00:02 fingers morph while dialing (minor); 00:13 pizza boxes phase in glitchily (noticeable); 00:20 the old man's hands melt into the phone (noticeable); 00:36–43 mammoth tusks/trunk warp and the bear's face distorts (severe); 01:10 the old man's lip sync and jaw are floaty and don't match (noticeable); 01:21 the disintegration looks like a 2D particle dissolve (minor). Ranked changes: 1 mammoth/bear artifacts, 2 lip sync on the final line, 3 pizza stop-motion, 4 hands melting, 5 ash VFX volume and phone impact. It heard 51–64 as 'low fiery rumbling' and didn't mention the orchestra.
+
+## Director plan (13:49)
+Publish v5 to showroom now. rough-v6 by ~15:45 (polish only, ~90–94 s, don't push): 1 ice hold animals far/small/simple, keep mammoth gag; 2 old man's line — cut away sooner / hide mouth; 3 pizza boxes as stop-motion hard-cut steps; 4 hands melting 20–27; 5 crumble weight (thud + sand puff, 2-frame shake, code grains with depth); 6 measure orchestra presence vs rumble at 51–64, make orchestra the star.

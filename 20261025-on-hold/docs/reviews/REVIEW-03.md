@@ -1,0 +1,11 @@
+# REVIEW-03 (rough-v4) — summary as relayed 2026-10-25 13:32 TPE
+
+Score 3/10. Concept, the escalating notifications and the deep-time gag are brilliant; execution reads as a stitched AI experiment. Claims: the strobe at 43.8–45.6 warps the man's eyes, beard and chair; the orchestra at 55–63 is dissonant and out of tune; the hit at 63.2 is chopped with no ring-out, with pops before the silence; 'Hi' at 73.4–74.7 shows no mouth movement; the headset line at 74.9–78 is unintelligible, bit-crushed robot static, much deeper than 'Hi'; office tone cuts in with Alex and drops to dead silence on the old man; the crumble looks like a rigid 2D linear wipe over a sand image (the final notification and ding land); red giant 50–63 drags with no escalation; room continuity is broken (window, lamp, pictures, chair). Top moments: the mammoth in the window at 0:36, 'The Sun' at 0:56, the hard cut to Alex's pristine cubicle at 1:08. Single biggest fix: the audio mix and sound design.
+
+## Director notes (13:32)
+Several audio claims contradict measurements (orchestra tuning, ring-out, office tone, 'Hi' mouth). Blind calibration of the reviewer pending. Do NOT redo audio except: (a) milder, more intelligible headset chain (whisper exact on clean + mild noise); (b) frame-difference check of mouth motion during 'Hi' 73.4–74.7 in the final picture.
+Visual fixes for rough-v5: 1 strobe with fixed man+chair layer; 2 physical crumble (new take or 3–4 shot cut, code grains/dust); 3 red giant cut to ~8–9 s + escalation (accelerating timer, second notification, last gesture); 4 continuity where cheap. Length 88–95 s; cuts/rough-v5.mp4 by ~15:15; do not push.
+
+## Calibration result (parent, 13:33)
+Blind test: a fresh reviewer heard v4 50–80 s clean next to a damaged copy (+70-cent detuned layer, clicks at 5–15 s). It caught the damage precisely and judged clean v4 as in tune, no clicks, clear natural dialogue. => The reviewer hears audio reliably; REVIEW-03's audio complaints (out of tune, chopped hit, pops) were likely primed by leading questions. v4 audio fixes are kept.
+Real finding: the blind listener described the red-giant music as "electronic synthesizers resembling 8-bit/chiptune hold music", not an orchestra -> try a properly licensed real orchestral sample set (VSCO-2 CE, CC0) if time allows.

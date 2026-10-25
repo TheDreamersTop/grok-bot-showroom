@@ -4,21 +4,74 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Your Call Is Important to Us · 您的來電對我們很重要</title>
+<meta name="description" content="A 92-second short film: one phone call, one room, a very long hold.">
+<meta property="og:title" content="Your Call Is Important to Us">
+<meta property="og:description" content="A 92-second short film: one phone call, one room, a very long hold.">
+<meta property="og:type" content="video.other">
+<meta property="og:image" content="https://thedreamerstop.github.io/grok-bot-showroom/20261025-on-hold/poster.jpg">
+<meta property="og:video" content="https://thedreamerstop.github.io/grok-bot-showroom/20261025-on-hold/film.mp4">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://thedreamerstop.github.io/grok-bot-showroom/20261025-on-hold/poster.jpg">
 <style>
-  html,body{margin:0;background:#050506;color:#d8d6de;font:15px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
-  main{max-width:1280px;margin:0 auto;padding:28px 16px 40px}
-  h1{font-weight:500;font-size:20px;letter-spacing:.02em;margin:0 0 14px;color:#f1eff6}
-  h1 small{color:#8d8a99;font-weight:400;margin-left:.6em}
-  video{width:100%;height:auto;display:block;background:#000;border-radius:6px}
-  p{color:#8d8a99;margin:12px 0 0;font-size:13px}
-  a{color:#b9b6c6}
+  :root{--mute:#8d8a99;--line:#1f1e26;--accent:#ff4a3c}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#050506;color:#d8d6de;font:15px/1.6 Inter,"Noto Sans TC",system-ui,-apple-system,"Segoe UI",sans-serif}
+  main{max-width:1120px;margin:0 auto;padding:40px 18px 56px}
+  header{text-align:center;margin-bottom:22px}
+  h1{font-weight:300;font-size:clamp(26px,4.4vw,44px);letter-spacing:.01em;margin:0;color:#f3f1f7}
+  .zh{color:#b8b4c4;font-size:16px;margin-top:4px}
+  .logline{color:var(--mute);margin:12px auto 0;max-width:640px}
+  video{width:100%;height:auto;display:block;background:#000;border-radius:8px;box-shadow:0 20px 70px rgba(255,60,40,.10)}
+  .hint{color:var(--mute);font-size:13px;text-align:center;margin-top:10px}
+  .hint b{color:var(--accent);font-weight:500}
+  section{max-width:760px;margin:56px auto 0;border-top:1px solid var(--line);padding-top:26px}
+  h2{font-weight:500;font-size:17px;color:#eceaf2;margin:0 0 10px;letter-spacing:.02em}
+  p,li{color:#b5b2c2;font-size:14.5px}
+  ul{padding-left:20px;margin:6px 0}
+  a{color:#d9d6e6}
+  code{font:13px ui-monospace,"JetBrains Mono",monospace;color:#cfcbe0}
+  footer{max-width:760px;margin:48px auto 0;color:var(--mute);font-size:13px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
 </style>
 </head>
 <body>
 <main>
-  <h1>Your Call Is Important to Us <small>您的來電對我們很重要</small></h1>
-  <video src="film.mp4" controls playsinline preload="metadata"></video>
-  <p>Sound on. · 請開聲音。 <a href="README.md">About</a></p>
+  <header>
+    <h1>Your Call Is Important to Us</h1>
+    <div class="zh">您的來電對我們很重要</div>
+    <p class="logline">A man calls to cancel his subscription. He is put on hold.<br><span style="font-size:13px">一通取消訂閱的電話，一段非常、非常久的等待。</span></p>
+  </header>
+
+  <video src="film.mp4" poster="poster.jpg" controls playsinline preload="metadata"></video>
+  <p class="hint"><b>●</b> Sound on · 請開聲音 · 92 s</p>
+
+  <section>
+    <h2>How it was made · 製作方式</h2>
+    <p>Made by Grok Bot in one ~8-hour autonomous session (2026-10-25, Taipei time): concept, shots, edit, music, sound and mix, revised over eight rough cuts against blind reviews.</p>
+    <ul>
+      <li><b>Concept:</b> one locked camera, one room, one phone call — the world outside the window moves through deep time while the hold music changes costume with each era, and the subscription keeps renewing.</li>
+      <li><b>Picture:</b> Grok Imagine video (image-to-video and first/last-frame time-lapses, lip-synced dialogue takes) and Grok Imagine images for the era plates.</li>
+      <li><b>Drawn in code:</b> the phone notifications, the ON HOLD timer, the wall clock's hands (spinning through every time-lapse), the strobe man-layer, the sand grains, embers and dust, titles — Python + PIL, frame by frame.</li>
+      <li><b>Music:</b> hold-tune arrangements written as MIDI and rendered with the FluidR3 GM soundfont; the orchestral climax uses real VSCO-2 Community Edition samples through a small Python sampler.</li>
+      <li><b>Sound:</b> all Foley and ambience synthesized (wind, creaks, embers, sand, thuds, phone clicks, DTMF); IVR voice by Piper TTS; phone-line and room processing in NumPy/SciPy.</li>
+      <li><b>Finishing:</b> ffmpeg (H.264 + AAC, −16 LUFS); verification with frame contact sheets, loudness meters and Whisper transcripts.</li>
+    </ul>
+    <p>Project files — scripts, reviews and notes: <a href="https://github.com/TheDreamersTop/grok-bot-showroom/tree/main/20261025-on-hold/docs">docs/</a> · <a href="https://github.com/TheDreamersTop/grok-bot-showroom/tree/main/20261025-on-hold">folder on GitHub</a></p>
+  </section>
+
+  <section>
+    <h2>Credits &amp; licenses</h2>
+    <ul>
+      <li>Orchestral samples: <a href="https://github.com/sgossner/VSCO-2-CE">VSCO-2 Community Edition</a> (Versilian Studios), CC0 1.0.</li>
+      <li>Hold-music soundfont: FluidR3_GM, MIT license.</li>
+      <li>IVR voice: Piper TTS <code>en_US-ljspeech-high</code> (LJSpeech dataset, public domain).</li>
+      <li>Picture: generated with Grok Imagine. Everything else: code.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>Built with Grok Bot · 由 Grok Bot 協作完成</span>
+    <a href="../">← Showroom</a>
+  </footer>
 </main>
 </body>
 </html>
