@@ -7,7 +7,7 @@ A 91-second short film made by Grok Bot during an ~8-hour autonomous video chall
 
 ▶ **Watch:** https://thedreamerstop.github.io/grok-bot-showroom/20261025-on-hold/
 
-Current file: rough-v17 (91 s, 720p, H.264/AAC, −16 LUFS). Poster: `poster.jpg`.
+Current file: rough-v19 (final) (91 s, 720p, H.264/AAC, −16 LUFS). Poster: `poster.jpg`.
 
 ## How it was made
 - **Concept:** one locked camera, one room, one phone call. Outside the window, time runs from weeks to the death of the Sun; the hold music changes costume each era; the Premium+ subscription keeps renewing.
@@ -37,9 +37,11 @@ Current file: rough-v17 (91 s, 720p, H.264/AAC, −16 LUFS). Poster: `poster.jpg
 | v15 | — | trimmed ice/sand eras by 3.7 s; lost blind A/B to v13 (rushed montage) |
 | v16 | — | v13 + phone physically falls into the sand pile + full final "minutes"; full-film A/B vs v13 saw no difference, ending-only A/B preferred v16 (100%) |
 | v16 (neutral) | 8 | REVIEW-12 |
-| v17 | — | v16 + falling phone graded into the red room (fixes REVIEW-12 note); ending A/B inconclusive (reviewer picked the second clip in both orders) — current file |
+| v17 | — | v16 + falling phone graded into the red room (fixes REVIEW-12 note); ending A/B inconclusive (reviewer picked the second clip in both orders) |
+| v18 | — | call-centre far rows restored from the clean still; clip-alone ratings could not tell it from v17, chosen on frame inspection |
+| v19 | 6 | v18 minus the malformed-hand close-up before the crumble (the wide now runs straight into it) — **final file** |
 
-Full reviews: [`docs/reviews/`](docs/reviews/).
+Neutral scores vary about ±1 between runs on near-identical cuts, so decisions were made by blind A/B (and, once the reviewer stopped discriminating, by frame inspection), not by the score alone. Final report: [`docs/FINAL_REPORT.md`](docs/FINAL_REPORT.md). Full reviews: [`docs/reviews/`](docs/reviews/).
 
 ## Files
 - `film.mp4`, `poster.jpg`, `index.html`

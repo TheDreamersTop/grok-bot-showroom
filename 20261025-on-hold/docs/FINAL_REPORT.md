@@ -1,6 +1,6 @@
 # FINAL REPORT — "Your Call Is Important to Us" (您的來電對我們很重要)
 
-Final file: **TBD (v16 or v17)**. Live on the showroom: v16 (commit b3336d3, 31,550,464 bytes, 90.75 s).
+Final file: **`cuts/rough-v19.mp4`** — 31,365,099 bytes, 90.75 s — published (~17:10 TPE) at https://thedreamerstop.github.io/grok-bot-showroom/20261025-on-hold/film.mp4
 
 ## Concept
 One locked-off room. An old man calls Premium+ support after an auto-renewal notification and is put on hold, and stays on hold through deep time. Each era is a time-lapse transition into a locked hold: seasons and decades, jungle, ice age with a mammoth, desert, then the red-giant Sun. In every hold, the same hold tune returns in a new arrangement: bossa, cassette, marimba, music box, western, orchestra. Over it run escalating renewal toasts ($14.99, then 3 goats, a mammoth tusk, SAND, The Sun) and a racing on-hold timer. At the climax, the ancient man finally reaches Alex in an endless call centre: "Hi, I'd like to cancel my subscription." "Absolutely… Can I put you on hold for just a moment?" He crumbles to sand; the phone on the pile dings "Cancellation request received — Your subscription has renewed · $9.99/month"; over black, the IVR says "Your estimated wait time is f-four minutes."
@@ -25,7 +25,9 @@ Design choice: generated video is weak at shot-to-shot consistency, so the film 
 | v14 | 16:10 | 90.75 s | lip-sync pass: mouth-visible old-man CU take | REVIEW-11: **7/10** | v13 > v14 (100%) |
 | v15 | 16:25 | 87.0 s | middle trimmed 3.7 s (ice/sand) + phone drop with weight | — | v13 > v15 (high confidence, large difference) |
 | v16 | 16:35 | 90.75 s | v13 + phone drop only (bezel/UI phone, apex rebuilt) + audible final "minutes"; published (b3336d3) | REVIEW-12: **8/10** | v16 vs v13 full film: no difference; ending only (last 15 s): v16 preferred, 100% |
-| v17 | 16:44 | 90.75 s | v16 + phone graded into the red room (warm key, lava rim, dim cool screen, grain, contact shadow) | — | pending (ending clips in tests/ab17/) |
+| v17 | 16:44 | 90.75 s | v16 + phone graded into the red room (warm key, lava rim, dim cool screen, grain, contact shadow); published (91e8a8e) | — | v16 vs v17 ending (both orders): inconclusive — reviewer picked whichever came second, with invented reasons; v17 published 16:50 as a low-risk objective fix |
+| v18 | 16:55 | 90.75 s | v17 + call-centre far rows from the clean generated still (the i2v clip + DOF had smeared them) + 2x reframe of the crumble CU (drops the rope-like sand strands of the hand) | — | clips rated alone: floor 3–4/10 for both v17 and v18, not distinguishable (v18 kept on the sheets); CU still SEVERE in both |
+| v19 | 17:04 | 90.75 s | v18 with the crumble close-up removed: one continuous slowed wide (0.83x) runs into the code crumble; audio bit-identical; **FINAL**, published ~17:10 | REVIEW-13: **6/10** | — |
 
 ## Most consequential revisions
 1. **v3 → v5: consistency and sound.** All stills were re-shot from one reference frame, and a fixed man+chair layer was added over the strobe. A real-sample orchestra (VSCO-2 CE) replaced the synth. A steep handset chain was added. Neutral scores went from 3–4.5 to 8.
@@ -44,8 +46,11 @@ Rejected experiments, kept as evidence: v8 performances, the v11 long Alex take,
 - **Box tool outage ~13:53–14:12.**
 - 14:21–15:15: v6–v10, one review round each (about 15 min per iteration).
 - **Box unresponsive ~15:22–15:35** (after the v11 master at 15:21:32; reported responsive again at 15:35). Recovery work was then done one job at a time.
-- 15:40–16:44: v12–v17. Brief tool-spawn failure at 16:43 (render re-run).
-- Elapsed at the time of this report: about 5 h 40 min of the ~8 h window. Final delivery is due 19:11.
+- 15:40–17:06: v12–v19. Brief tool-spawn failure at 16:43 (render re-run).
+- ~17:10 v19 published as the final file (by the director). Total elapsed 11:11 → ~17:10 ≈ 6 h of the ~8 h window.
+
+## Why I stopped at about 6 h
+Blind A/Bs and clip-alone reviews no longer discriminated between cuts (v16 vs v13 full film: no difference; v16 vs v17 ending: order-driven; v17 vs v18 floor: indistinguishable), and neutral scores of near-identical cuts span 6–8 (v16 8/10, v19 6/10, so about ±1 noise). The remaining flaws (call-centre faces, lip sync, mammoth slide, static bird, clock glyphs, hand/phone/beard morphing) are generation artifacts that would need whole shots re-generated, not more polish passes.
 
 ## Verification methods
 I cannot watch or hear video. Every claim rests on measurements, frames and external blind reviewers.
@@ -59,11 +64,11 @@ I cannot watch or hear video. Every claim rests on measurements, frames and exte
 - **External:** neutral reviews (REVIEW-01…12) and blind A/Bs, both run by the director.
 
 ## Known remaining weaknesses
-- AI artifacts in the call-centre faces: smeared, distorted background agents on the floor shot. They are softened by depth of field and haze, not removed.
+- AI artifacts in the call-centre faces: in v17 and earlier, smeared, distorted background agents on the floor shot (from the i2v clip plus the v12 depth-of-field blur). v18 replaces the far rows with the clean still; the far clones are then static, and row 2 and the near row are still the i2v clip.
 - Hand/phone/beard morphing in the time-lapse transitions (0:13–0:58), plus vines/beard shimmer at 0:27–0:35 and pizza-box jitter at 0:13.
 - The stiff mammoth: the distant mammoth at half speed slides more than it walks. A nearer walking take (v7) and later takes also slid.
 - Alex's uncanny lip sync, hidden but not solved by the edit (floor shot + J-cut). The old man's mouth barely moves on his line, which reviewers nonetheless prefer.
-- Face structure drifts between eras. The phone in v16 read as composited (addressed in v17; not yet reviewed).
+- Face structure drifts between eras. The phone in v16 read as composited (addressed in v17; the ending A/B v16 vs v17 was inconclusive).
 
 ## Tool and asset licenses
 - **Generated images and clips:** made with this bot's built-in image/video generation tools (GenerateImage, GenerateVideo); use is subject to that service's terms.

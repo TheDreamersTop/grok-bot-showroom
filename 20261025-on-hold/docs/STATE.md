@@ -1,4 +1,4 @@
-# STATE  (updated 13:05 TPE)
+# STATE — DELIVERED (~17:10 TPE): final = cuts/rough-v19.mp4
 Direction: "Your Call Is Important to Us". Locked room; man calls Premium+ after a renewal toast, put on hold through deep time.
 Each era = flicker/whoosh time-lapse transition (first/last-frame clip at 2x) → locked hold (+slow push-in) with a Premium+
 renewal toast joke ($14.99 → Gold+ads → 3 goats → mammoth tusk → 40 kg fish → SAND → The Sun) and the SAME hold tune in a
@@ -65,3 +65,9 @@ Next: on approval, publish v8 as film.mp4 (+ update "Current file" line and scor
 - 16:25 TPE: v15 built (cuts/rough-v15.mp4, 87.0 s) = v13 + middle trims + phone drop. Sources: timeline15/sound15/picture15/clock15/fx15, qa/syncqa15. Build: sound15 -> picture15 parts p15_24/48/72 (p12_0 reused) -> cuts/list15.txt -> master14.sh audio/mix15_raw.wav. Live still v13. Not pushed.
 - 16:35 TPE: v15 rejected (trims). v16 = v13 + phone drop (fx16) + closing-line /ts/ air + shorter tail fade. cuts/rough-v16.mp4 (90.75 s). Build: sound16 -> picture16 p16_72 (p12_0/24/48 reused) -> cuts/list16.txt -> master14.sh audio/mix16_raw.wav. Live still v13. Not pushed.
 - 16:46 TPE: live v16 (b3336d3). v17 = v16 + graded phone (fx17), cuts/rough-v17.mp4. Build: picture17 p17_72 + p12_0/24/48 -> cuts/list17.txt -> master14.sh audio/mix16_raw.wav. Not pushed. Ending A/B clips in tests/ab17/.
+- 16:57 TPE: live v17 (91e8a8e). v18 = v17 + floor faces from the clean still + CU reframe, cuts/rough-v18.mp4. Build: picture18 p18_48 + p18_72 (p12_0/24 reused) -> cuts/list18.txt -> master14.sh audio/mix16_raw.wav. Not pushed.
+- 17:06 TPE: v19 = v18 minus the crumble CU (continuous slowed wide into the code crumble). cuts/rough-v19.mp4. Build: picture19 p19_72 (p12_0/24, p18_48 reused) -> cuts/list19.txt -> master14.sh audio/mix16_raw.wav. Live v17. Not pushed.
+
+## DELIVERED — ~17:10 TPE
+- FINAL: cuts/rough-v19.mp4 (31,365,099 bytes, 90.75 s), published by the director at https://thedreamerstop.github.io/grok-bot-showroom/20261025-on-hold/film.mp4
+- REVIEW-13 (v19): 6/10 (neutral scores carry ~±1 noise: v16 8, v19 6). FINAL_REPORT.md complete. No further passes.

@@ -161,3 +161,44 @@
 - QA: 90.750 s video (2178 fr) / 90.764 s audio, -16.2 LUFS, LRA 8.3, true peak -1.8 dBTP (192k -1.84), 0 clicks, no digital silence, whisper 7/7 exact; dings, thud (impact frame 1990, onset +3..13 ms) and cuts as v16.
 - cuts/rough-v17.mp4 31545060 bytes. Sheets tests/v17/drop_every_frame.png (1978-2001), v16_vs_v17_zoom.png (first grade, rim 0.55), v17_zoom_final.png (final, rim 0.36).
 - Ending A/B clips (76 s to end, 14.75 s, same re-encode crf 18): tests/ab17/ending_v16.mp4, ending_v17.mp4 (not committed; mp4).
+
+## 16:50 TPE — v17 published by the director (showroom commit 91e8a8e)
+- Ending A/B v16 vs v17 (last ~15 s, both orders): inconclusive — the reviewer picked whichever clip came second each time, with invented reasons (a cut / a missing fall that neither file has).
+- v17 published anyway as a low-risk objective fix (phone grade). v17 = current final unless v18 clearly improves.
+
+## 16:57 TPE — v18 = v17 + call-centre floor faces fixed + crumble CU reframed (not pushed)
+- (a) Floor shot (64.62-68.92 s) diagnosis (tests/v18/floor_src_cmp, floor_far_zoom, floor_zoom_v17_v18): the clones are NOT tiled — the shot is one i2v clip
+  (v10_floor.mp4) of one generated still (v10_floor.jpg). The still's faces are well-formed in every row. The i2v clip degrades the small mid/far faces over
+  time (heads tilt down, features smear), and v12's DOF (1.3-3 px blur on y<300) turned them into half-formed mush. Push-in (<=1.10x Lanczos) is not the cause.
+  Fix (src/floor18.py): rows above the row-2 partition top (y<=211, a strong horizontal edge) come from the still — clip and still are aligned there to <0.2 px,
+  colour within ~1 level over src 0.3-3.1 — with a 3 px feather along the edge; row 2 and the near row stay the clip (typing in unison). DOF replaced by a light
+  0.5-1.1 px blur above the seam only + haze up to 30% on the far rows. Shot length, push-in and reveal unchanged. Far clones are now static (still) and look at camera.
+- (b) CU 81.02-82.22 s (every-frame sheet tests/v18/cu_v17_every_frame.png): face fine; the hand's sand pours as rope-like orange strands (the 'twisted towel / noodles').
+  Fix: 2x reframe on face + eyes + phone at the ear (box 640x360 centred (750,220)), slow push 1.00->1.04, light unsharp; strands out of frame, cracked fingertips
+  remain at the lower-left edge. Timing unchanged.
+- Only parts p18_48 and p18_72 re-rendered; audio = audio/mix16_raw.wav (samples identical to v17). Pre-master picture: 0-48 s md5-identical to v17; changes in
+  the floor shot (mean 1.96/255 at 320x180) and CU (28.7/255); elsewhere in the re-rendered parts <=0.42/255 (encoder).
+- QA: 90.750 s / 90.764 s, -16.2 LUFS, LRA 8.3, true peak -1.8 dBTP (192k -1.84), 0 clicks, no digital silence, whisper 7/7 exact, cuts and thud (impact 1990, +13 ms) as v17.
+- cuts/rough-v18.mp4 31596053 bytes. Sheets (v17|v18 side by side, gaps): tests/v18/floor_full_v17_v18.png, floor_faces_v17_v18.png (every 4th frame of the shot),
+  floor_zoom_v17_v18.png (3 times, zoomed), cu_every_frame_v17_v18.png (every frame 1944-1975), cu_v18_frames.png.
+- A/B clips (crf 18, same settings): tests/ab18/floor_63-70_v17/v18.mp4, cu_79-84_v17/v18.mp4 (not committed; mp4).
+
+## 16:59 TPE — clip-alone ratings v17 vs v18 (relayed)
+- Floor shot: both 3-4/10, same 'mid/background faces smeared' note; reviewer cannot tell them apart -> keep the v18 floor fix on the strength of the sheets.
+- CU (81.0-82.2): both still SEVERE — hand 'yellow sponge or mop-head mass', 'phone melts into the cheek'; continuity break (jagged rock opening instead of the room's window). The v18 crop did not solve it.
+
+## 17:06 TPE — v19 = v18 with the crumble close-up removed (not pushed)
+- Shot 20 (CU, 81.024-82.224) removed. Shots 19+20 are now one continuous wide of v5_crumble_b src 0.0-2.9 over 3.5 s (0.83x; src 0.0-0.6 is the same seated pose,
+  clean); the old src 0.6 start could not be extended at real speed without reaching the clip's generated 'burst' after src 3.0, and shot 21's figure frame is src 2.85,
+  so the wide now runs straight into the code crumble (near-match: src ~2.9 -> 2.85).
+- Decode fix for these two shots: picture.decode passed -t (b-a+0.1) as an OUTPUT limit, which truncated slowed shots (48 of 55 frames -> 8-frame freeze); now
+  -t covers the slowed length and 'framerate' frame-blends instead of duplicating. Every frame 78.72-82.22 moves (frame diff 0.19-1.17, no frozen frames, no repeat);
+  the S20 seam is invisible (0.43). Shot 21's own decode is unchanged (crumble/drop identical).
+- Timing: every cut time, S20/S21, crumble, release 1982, impact 1990 unchanged (timeline19 = timeline16 except SEQ 19/20 sources). S(20) Foley (CC) stays, now over the slump.
+- Audio: same mix (audio/mix16_raw.wav); the AAC stream of rough-v19 is bit-identical to v18 (packet md5 f7afb22b...).
+- Picture vs v18: 0-72 s md5-identical pre-master; 72-78.7 encoder only (<=0.22/255); shot 19 re-timed (mean 2.0); shot 20 replaced; after S21 encoder only (<=0.36/255).
+- QA: 90.750/90.764 s, -16.2 LUFS, LRA 8.3, true peak -1.8 dBTP (192k -1.84), 0 clicks, no digital silence, whisper 7/7 exact, thud +13 ms vs impact frame 1990, cuts as v18.
+- cuts/rough-v19.mp4 31365099 bytes. Sheets: tests/v19/every_frame_79-84.png (every frame 1896-2016, gaps), s21_join_zoom.png (1966-1981 zoomed). Clip: tests/ab19/end_76_v19.mp4 (not committed).
+
+## ~17:10 TPE — DELIVERED
+- v19 is the FINAL file (director decision; published by the director). REVIEW-13 (neutral, v19): 6/10 — same AI-artifact flaws; again suggested trimming the middle (tested in v15, lost). Neutral scores span 6–8 across near-identical cuts (~±1 noise).
