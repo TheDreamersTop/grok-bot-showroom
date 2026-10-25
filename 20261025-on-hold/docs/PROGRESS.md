@@ -64,3 +64,35 @@
 - Era beds: ice +4 dB (+ thin whistle, 5 creaks), desert +4 dB + soft tumbleweed rustle L->R, red/lava +4 dB with a few more soft embers. Measured stems vs v7 (relative): ice +3.5, desert +5 (with rustle), red +4.3 dB; still 12–16 dB under music.
 - Phone landing: frame-by-frame the phone stops at src 3.667 (not 3.70): thud, clack, shake, puff moved to LAND=3.667; added 48→38 Hz sub boom + low sand slump.
 - cuts/rough-v8.mp4 91.96 s, -16.1 LUFS, -1.3 dBTP; whisper all lines exact.
+
+## rough-v9 (merge, not published) — 15:06 TPE
+- Dialogue picture + sync back to v7: agent_hi (0-4.3, native audio, no offset), v7_ecu_a, v7_hold_b (native, no offset). Whisper: "...How can I help you today?" complete (64.86-68.64). Mouth-ROI vs speech: hi lag 0 corr 0.54, hold +1 frame corr 0.55 (same as v7).
+- ECU crop y 0-560 (v7 600, v8 480): eyes incl. the closes/opens fully in frame, nose tip at bottom, no lips.
+- Kept v8 audio: era beds +4 dB, rustle, thud/boom on the landing. Boom check: max momentary loudness in the landing window -9.6 LUFS, identical to v7/v8 and to the film's other peaks (8.7 s, 48.1 s) -> not excessive.
+- Crumble: fx9.py. Shot 21 now = pile plate (v5_crumble_b 5.9-8.04 slowed to 4.94 s) under a 1.0 s code transformation of the slumped figure (frame src 2.85): ragged sand front from the hood (y 340) down to the floor, figure goes dusty ahead of the front, 50 px sand band with crumbling holes, robe sags 18% toward the seat, 2600 lit grains (back-lit, 1.2% embers) stream off the front, dust curtain trails it; phone lands when the front passes it (tau 0.38) with puff + 2-frame shake + thud (Foley times mapped onto the new timing). The clip's 'hood with wings' burst is no longer used. 24 fps sheet: head sanding 83.2-83.4, body dissolving 83.4-83.75, pile settled ~83.9.
+- Mammoth: two more takes (v9_h4a/b) again brought a near mammoth that slides -> back to the distant v6_h4a at half speed (src 0-2.5 over 5 s).
+- Optional fixed phone/hand layer in the time-lapses: skipped.
+- cuts/rough-v9.mp4 91.56 s, -16.2 LUFS, -1.4 dBTP.
+
+## rough-v10 (not published) — 15:15 TPE
+- v9 published 15:10: film.mp4 200 video/mp4 31531049 = local, Range 206; README 'Current file' + score table (v8, v9 rows) updated (showroom c9481be).
+- Alex sync hidden by editing, voice untouched (same agent_hi / v7_hold_b audio, same offsets):
+  - 'Hi, thanks for holding, this is Alex,' over a new wide shot of an endless call-centre floor of identical Alexes (GenerateImage from agent.jpg -> i2v v10_floor, typing in unison, muted; slow code push-in to the centre Alex), cut at src 2.8 (after 'Alex.', 0.3 s before 'How') to the medium take for 'How can I help you today?'.
+  - Reply: 'Absolutely, I can help with that.' plays over the old man's hopeful eyes (v7_ecu_b 0.2-2.3, same ECU framing), cut to Alex at src 2.9 landing on 'Can I put you on hold for just a moment?' (mouth opens on the cut). Lip-visible dialogue: ~1.0 s + ~1.9 s (was 4.3 + 5.0).
+- Environment events (envfx10.py, synthesized), each level-set relative to the music around it, music ducked 3.5 dB (1.5-2 dB under the long beds): doorbell (12.65) + cardboard slap on each pizza box step; decades gust (22.55) + window rattle (22.95); jungle caws (30.95, 34.55) + cicadas & a fly pass (30.75-35.05); ice crack on the cut (38.25) + distant mammoth trumpet (40.4); desert gust (45.0) + sand hiss (45.25); red era lava gloops (50.55, 53.65-59.25) + deep groan (53.75).
+- cuts/rough-v10.mp4 90.76 s, -16.2 LUFS, -1.3 dBTP, LRA 8.2; whisper: every line exact.
+
+## rough-v11 (not published, lost blind A/B to v10) — 15:21 TPE
+- Hold line played whole (v7_hold_b 0-5.0 at S18), old man only through 'Absolutely,' (cut to Alex at src 0.875, mouth open). +0.8 s.
+- Final IVR = audio/vo/ivr2_stutter.wav: 118 ms bit-crushed half-rate 'f-' fragment + 30 ms gap + 'four' (whisper: 'is for four minutes').
+- Floor shot depth of field: rows y<300 blurred 1.3->3 px + light haze up to 22%; Alex/near rows sharp.
+- Room-tone floor -60 dBFS under the whole mix (removed 0.27 s head / 65 ms tail digital silence).
+- On-disk rough-v11 = 31,534,350 bytes, the room-tone master (15:21:32); the 31,577,940 figure was the first master before the room-tone pass, overwritten. Audio stream md5 matches a fresh master; video differs only by x264 run-to-run variance (PSNR vs pic11 45 dB).
+- REVIEW-10: neutral 7/10; blind A/B v10 > v11 (climax J-cut). Stutter heard and liked in A/B.
+
+## rough-v12 (not published) — 15:40 TPE
+- = v10 edit and timing exactly (timeline12 = timeline10 + stutter for the final IVR) + v11 stutter + room-tone floor + floor DOF + '1 YEAR' / '1 DAY' singular fix in fmt().
+- Picture vs v10 differs only at 15.04-15.12 s (1 DAY), 21.33-21.50 (1 YEAR), 35.96-36.21 (pill text) and 64.62-67.42 (floor DOF); elsewhere encode-level PSNR.
+- Audio: AAC overshoot on the landing transient (82.612) gave -0.4 dBTP with the standard master -> audio re-encoded with limiter 0.75 (video stream copied): -16.2 LUFS, -1.0 dBTP, LRA 8.1.
+- QA: 0 click candidates, no digital silence >20 ms, whisper all 7 lines exact, every ding within 1 frame of its toast's first frame, sand start/thud at 82.24/82.60 vs S21 82.224 / impact frame 82.625, cuts within 1 frame (S8 transition 2 frames; S17 is a continuation), A/V end diff 14 ms (0.34 frame).
+- cuts/rough-v12.mp4 90.76 s, 31537951 bytes. Sheets tests/v12/.

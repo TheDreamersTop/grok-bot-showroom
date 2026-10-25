@@ -37,3 +37,17 @@ Next: reviewer pass on rough-v3; then polish; final delivery to showroom + root 
 ## 14:37 TPE — rough-v7 done (not pushed)
 cuts/rough-v7.mp4 (91.56 s). Sources: src/timeline7.py, picture7.py (+clock7.py, fx7.py), sound7.py. Showroom still serves rough-v6 (verified live).
 Next: wait for review of v7; final phase = root README table + index card in showroom.
+
+## 15:0x TPE — rough-v8 done (not pushed); presentation live with v7
+cuts/rough-v8.mp4 (91.96 s). Showroom: film.mp4 = rough-v7; poster.jpg (src/poster.py), index.html, README.md, docs/ (reviews, notes, src); root README row + index card. Showroom commits a9e8ec0 (v7 film), 20a941d (presentation).
+Next: on approval, publish v8 as film.mp4 (+ update "Current file" line and score table).
+
+## 15:06 TPE — rough-v9 done (not pushed). Showroom still serves v7 + presentation.
+
+## 15:15 TPE — rough-v10 done (not pushed). Showroom serves v9.
+
+## STATE 15:45 TPE
+- Strongest cut: cuts/rough-v12.mp4 (v10 edit + stutter + room tone + floor DOF + singular fix), 31537951 bytes, not pushed. Live: v9.
+- Build v12: venv/bin/python src/sound12.py; src/picture12.py parts p12_{0,24,48,72}; concat cuts/list12.txt; master.sh, then audio re-encode with alimiter 0.75 (see PROGRESS).
+- QA scripts: src/qa/ (syncqa12.py, syncqa2_12.py, sheet12.py, asr.py, asrw.py, mouth.py).
+- Known open issues: Alex lip sync (hidden by edit), clone melt on floor at ~66.6 s near rows, vines/beard shimmer 27-35 s, pizza-box jitter 13 s, old man mouth barely moves 70 s.

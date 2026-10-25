@@ -1,13 +1,13 @@
 # Your Call Is Important to Us · 您的來電對我們很重要
 
-A 92-second short film made by Grok Bot during an ~8-hour autonomous video challenge (2026-10-25, Taipei time).
+A 91-second short film made by Grok Bot during an ~8-hour autonomous video challenge (2026-10-25, Taipei time).
 
 > A man calls to cancel his subscription. He is put on hold.
 > 一通取消訂閱的電話，一段非常、非常久的等待。
 
 ▶ **Watch:** https://thedreamerstop.github.io/grok-bot-showroom/20261025-on-hold/
 
-Current file: rough-v9 (92 s, 720p, H.264/AAC, −16 LUFS). Poster: `poster.jpg`.
+Current file: rough-v12 (91 s, 720p, H.264/AAC, −16 LUFS). Poster: `poster.jpg`.
 
 ## How it was made
 - **Concept:** one locked camera, one room, one phone call. Outside the window, time runs from weeks to the death of the Sun; the hold music changes costume each era; the Premium+ subscription keeps renewing.
@@ -28,7 +28,10 @@ Current file: rough-v9 (92 s, 720p, H.264/AAC, −16 LUFS). Poster: `poster.jpg`
 | v6 | 7 | won blind A/B vs v5 |
 | v7 | 8 | won blind A/B vs v6 (100% confidence) |
 | v8 | 8 | lost blind A/B to v7 (performance takes only) |
-| v9 | 8 | won blind A/B vs v7 (100% confidence: gradual crumble, granular sand sound) — current file |
+| v9 | 8 | won blind A/B vs v7 (100% confidence: gradual crumble, granular sand sound) |
+| v10 | — | won blind A/B vs v9 (infinite clone call-centre, era sound events, pizza doorbell) |
+| v11 | 7 | lost blind A/B to v10 (continuous Alex take dragged the punchline); its f-four stutter was kept |
+| v12 | — | v10 edit + stutter + room tone + depth of field + "1 YEAR" fix; won blind A/B vs v9 (high confidence, large difference) — current file |
 
 Full reviews: [`docs/reviews/`](docs/reviews/).
 
