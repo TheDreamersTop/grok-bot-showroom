@@ -115,3 +115,37 @@
 - Edit identical to v13 (all cut times, J-cut, phone filter). Picture differs from v13 only 68.92-74.52 (+ x264 variance at 35.96-36.21).
 - QA: -16.2 LUFS, LRA 8.1, true peak -1.7 dBTP (4x oversampled -1.65), 0 clicks, no digital silence, whisper 7/7, dings/landing/cuts as v13, A/V 90.750/90.764.
 - cuts/rough-v14.mp4 31845066 bytes. Sheets tests/v14/ (film_om_mouth_1-3 every frame 68.96-74.58, om_shot_v14, take mouth sheets).
+
+## 16:12 TPE — v14 dropped (REVIEW-11)
+- Blind A/B: v13 > v14 (100%): the original ECU old-man shot + slow halting voice is the film's core payoff. Old man stays exactly as v13. Neutral v14 review 7/10 (reviews/REVIEW-11.md).
+- Live: v13 (showroom 68d9eec). Next: v15 from v13 (middle trim + phone drop weight).
+
+## 16:25 TPE — v15 = v13 + tighter middle + phone drop with weight (not pushed)
+- Trims (src/timeline15.py): ice shot 5.0 -> 2.857 s (exactly 1 music-box bar @84 bpm; varispeed ff starts on the bar line), sand shot 5.0 -> 3.409 s (5 western beats @88 bpm, cuts on a beat into the orchestra transition). Total -3.734 s.
+  Toasts keep full 3.6 s life with dings (toast 9 runs into the stutter transition, toast 11 ends 0.56 s before toast 12). Trumpet S9+1.3, ivr4 'Please stay on the line' S11+1.75 (whole, inside the shot). Crack/gust/hiss kept.
+- Shot starts: 9 38.20 | 10 41.06 | 11 42.81 | 12 46.22 | 13 49.72 | 14 55.69 | 15 60.89 | 16 65.19 | 17 67.99 | 18 70.79 | 19 74.99 | 20 77.29 | 21 78.49 | BLACK 83.43 | END 87.03.
+- Phone drop (src/fx15.py, picture15 crumble branch): plate phone + its glow painted out of the pile plate (low-frequency glow swap + inpaint/sand-grain), phone painted out of the hand after release;
+  sprite released at frame 1892 (78.833 s, when the sand front reaches the hand), 8-frame gravity fall (d~t^2), tumble + edge-on->flat, motion blur (up to 9 subframes);
+  impact frame 1900 (79.167 s): grain spray (90 particles, gravity) + puff at landing spot + shake, 6 px hop/1.5 px rebound settle, 40 grains slide down the slope. Crumble itself unchanged. TAU_LAND 0.38 -> 0.6767 so thud/boom/soft-knee follow the impact.
+- QA: -16.2 LUFS, LRA 8.2, true peak -1.9 dBTP (192k astats -1.92), 0 clicks, no digital silence, A/V 87.000/86.997, 2088 frames.
+  Whisper 7/7 lines word-exact (stem + master). Dings vs toast first frame: 5 -7 ms, 7 +10, 9 -15, 11 -2, 21 ding 80.195-80.20 vs first frame 80.208 (scheduled 80.19); 0/3/12/13 detector quirks identical to v13.
+  Thud onset 79.175 (stem) / 79.18 (master) vs impact frame 79.167 (+8..13 ms, < 1 frame); frame-diff spike at 79.167.
+- cuts/rough-v15.mp4 30456595 bytes. Sheets tests/v15/: trim_ice.png, trim_sand.png (every 4th frame), drop_frames.png (every frame 1888-1911).
+
+## 16:35 TPE — v15 rejected in blind A/B (v13 > v15); v16 = v13 + phone drop only (not pushed)
+- v15 trims rejected: shot 10 (~1.75 s underwater) read as a glitch flash, sand felt rushed, lava seemed missing.
+- 'four min—' check (v13 AND v15 identical behaviour — not a file truncation): the final line (ivr2_stutter.wav, 2.737 s, complete in the source,
+  whisper 'minutes.' word-exact) ends 0.513 s before END in both cuts. But (1) the handset band-limit (300-3400 Hz) removes the final /ts/ of 'minutes'
+  (3.4-10 kHz: source -18 dB, v13 master -52 dB), and (2) v13's 0.8 s end fade began at 89.96 s, inside '-nutes' (gain 0.93-1.0 there).
+  So the word is never cut in time, but its last consonants are acoustically missing -> heard as 'min—'.
+- v16 fix (timing unchanged): the closing line keeps a little 3.4-7 kHz 'air' (/ts/ now -31..-33 dB at 90.0-90.15 s); end fade 0.45 s from 90.31 s; room-tone floor continues.
+  Speech (incl. echo tail) ends 90.25 s; final /s/ ends ~90.15 s; file audio ends 90.764 s -> 0.51 s after the tail / 0.61 s after the consonant.
+- Phone drop (src/fx16.py on fx15): release frame 1982 (82.583 s), impact frame 1990 (82.917 s) inside v13's crumble (TAU_LAND 0.6930 in timeline16).
+  Procedural phone sprite: dark body + thin lit edge (bezel), dim cool screen, faint call UI (avatar, name/timer lines, buttons, red end-call).
+  Release frame: smaller edge-on start (16x48, matches the hand phone) + 50% crossfade hand-phone->sprite, full from the next frame (no size/brightness pop).
+  Pile apex rebuilt where the plate phone lay (v15 left a notch): extended slope edges, sand texture from the same depth on the opposite slope, tone-matched.
+- Everything else = v13: same timeline/toasts/IVR/cuts; parts p12_0/24/48 reused, only p16_72 re-rendered. Picture differs from v13 only 82.625-87.125 s
+  (+ x264 variance <=1.4/255 at 35.9-37.0 and 43.9 s).
+- QA: 90.750 s video (2178 fr) / 90.764 s audio; -16.2 LUFS, LRA 8.3, true peak -1.8 dBTP (192k astats -1.84); 0 clicks, no digital silence; whisper 7/7 word-exact.
+  Dings: as v13 (5 -7, 7 +10, 9 -15, 11 -23 ms; 21 onset 83.925-83.935 vs scheduled 83.924, first frame 83.958). Thud onset 82.92 (stem) / 82.925 (master) vs impact frame 82.917 (+3..8 ms). Cuts as v13.
+- cuts/rough-v16.mp4 31550464 bytes. Sheets tests/v16/drop_every_frame.png (1978-2001, every frame), drop_context.png.

@@ -59,3 +59,8 @@ Next: on approval, publish v8 as film.mp4 (+ update "Current file" line and scor
 ## STATE 16:10 TPE
 - Live: v12 (showroom d8fef24, 31537951 bytes). Base: v13. Newest: cuts/rough-v14.mp4 (31845066 bytes) = v13 + mouth-visible old-man CU (v14_om_c, own audio). Alex unchanged (v7_hold_b still measures best).
 - Build v14: venv/bin/python src/sound14.py; src/picture14.py parts p14_48, p14_72 (p12_0, p12_24 reused); concat cuts/list14.txt; src/master14.sh.
+
+## STATE 16:12 TPE
+- Live: v13 (showroom 68d9eec). v14 rejected in A/B (keep v13 old man). Working: v15 from v13 = timeline12/picture12/sound13 lineage.
+- 16:25 TPE: v15 built (cuts/rough-v15.mp4, 87.0 s) = v13 + middle trims + phone drop. Sources: timeline15/sound15/picture15/clock15/fx15, qa/syncqa15. Build: sound15 -> picture15 parts p15_24/48/72 (p12_0 reused) -> cuts/list15.txt -> master14.sh audio/mix15_raw.wav. Live still v13. Not pushed.
+- 16:35 TPE: v15 rejected (trims). v16 = v13 + phone drop (fx16) + closing-line /ts/ air + shorter tail fade. cuts/rough-v16.mp4 (90.75 s). Build: sound16 -> picture16 p16_72 (p12_0/24/48 reused) -> cuts/list16.txt -> master14.sh audio/mix16_raw.wav. Live still v13. Not pushed.
