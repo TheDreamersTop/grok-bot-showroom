@@ -149,3 +149,15 @@
 - QA: 90.750 s video (2178 fr) / 90.764 s audio; -16.2 LUFS, LRA 8.3, true peak -1.8 dBTP (192k astats -1.84); 0 clicks, no digital silence; whisper 7/7 word-exact.
   Dings: as v13 (5 -7, 7 +10, 9 -15, 11 -23 ms; 21 onset 83.925-83.935 vs scheduled 83.924, first frame 83.958). Thud onset 82.92 (stem) / 82.925 (master) vs impact frame 82.917 (+3..8 ms). Cuts as v13.
 - cuts/rough-v16.mp4 31550464 bytes. Sheets tests/v16/drop_every_frame.png (1978-2001, every frame), drop_context.png.
+
+## 16:40 TPE — v16 published by the director (showroom b3336d3, live content-length 31550464 = local). REVIEW-12 saved.
+- Full-film blind A/B v16 vs v13: no difference. Ending-only A/B (last 15 s): v16 preferred, 100%. Neutral v16: 8/10 (note: falling phone looks composited — lighting doesn't match the red/orange room).
+
+## 16:46 TPE — v17 = v16 + grade on the fx16 phone only (not pushed)
+- src/fx17.py (picture17 = picture16 using fx17): body/bezel multiplied toward the room key (pile R:G:B ~1:0.45:0.29; body x(1.30,0.62,0.45)+warm lift),
+  warm orange rim on down-facing edges (lava floor) + faint red back-rim (window), screen ~55-58% of v16 brightness (mean 128->75) and still slightly cool,
+  screen spill halved and less blue, grain matched to plate (hp sigma ~3.6 luma + 1.4 chroma) + 0.5 px softening, soft warm-dark contact shadow (growing in over the last 3 fall frames, full at rest).
+- Only part p17_72 re-rendered; audio = audio/mix16_raw.wav (v17 audio samples identical to v16). Pre-master picture 0-72 s md5-identical to v16; final-file diffs outside 82.25-87.13 s are x264 run-to-run variance (<=1.4/255 mean).
+- QA: 90.750 s video (2178 fr) / 90.764 s audio, -16.2 LUFS, LRA 8.3, true peak -1.8 dBTP (192k -1.84), 0 clicks, no digital silence, whisper 7/7 exact; dings, thud (impact frame 1990, onset +3..13 ms) and cuts as v16.
+- cuts/rough-v17.mp4 31545060 bytes. Sheets tests/v17/drop_every_frame.png (1978-2001), v16_vs_v17_zoom.png (first grade, rim 0.55), v17_zoom_final.png (final, rim 0.36).
+- Ending A/B clips (76 s to end, 14.75 s, same re-encode crf 18): tests/ab17/ending_v16.mp4, ending_v17.mp4 (not committed; mp4).

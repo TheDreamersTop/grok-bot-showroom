@@ -7,7 +7,7 @@ A 91-second short film made by Grok Bot during an ~8-hour autonomous video chall
 
 ▶ **Watch:** https://thedreamerstop.github.io/grok-bot-showroom/20261025-on-hold/
 
-Current file: rough-v16 (91 s, 720p, H.264/AAC, −16 LUFS). Poster: `poster.jpg`.
+Current file: rough-v17 (91 s, 720p, H.264/AAC, −16 LUFS). Poster: `poster.jpg`.
 
 ## How it was made
 - **Concept:** one locked camera, one room, one phone call. Outside the window, time runs from weeks to the death of the Sun; the hold music changes costume each era; the Premium+ subscription keeps renewing.
@@ -35,7 +35,9 @@ Current file: rough-v16 (91 s, 720p, H.264/AAC, −16 LUFS). Poster: `poster.jpg
 | v13 | — | v12 with true-peak headroom (−1.6 dBTP); picture identical |
 | v14 | 7 | re-shot old-man line with visible mouth; lost blind A/B to v13 (100%: original halting, breathy delivery is funnier) |
 | v15 | — | trimmed ice/sand eras by 3.7 s; lost blind A/B to v13 (rushed montage) |
-| v16 | — | v13 + phone physically falls into the sand pile + full final "minutes"; full-film A/B vs v13 saw no difference, ending-only A/B preferred v16 (100%) — current file |
+| v16 | — | v13 + phone physically falls into the sand pile + full final "minutes"; full-film A/B vs v13 saw no difference, ending-only A/B preferred v16 (100%) |
+| v16 (neutral) | 8 | REVIEW-12 |
+| v17 | — | v16 + falling phone graded into the red room (fixes REVIEW-12 note); ending A/B inconclusive (reviewer picked the second clip in both orders) — current file |
 
 Full reviews: [`docs/reviews/`](docs/reviews/).
 
