@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hi Mum, It's Me · a short film for Common Defense (work in progress)</title>
+<meta name="description" content="Work in progress: a short film for Common Defense. One message, one night, many homes.">
+<meta property="og:title" content="Hi Mum, It's Me">
+<meta property="og:description" content="Work in progress: a short film for Common Defense.">
+<meta property="og:type" content="video.other">
+<meta property="og:image" content="https://thedreamerstop.github.io/grok-bot-showroom/20261026-hi-mum/poster.jpg">
+<meta property="og:video" content="https://thedreamerstop.github.io/grok-bot-showroom/20261026-hi-mum/film.mp4">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://thedreamerstop.github.io/grok-bot-showroom/20261026-hi-mum/poster.jpg">
+<style>
+  :root{--bg:#0A0A0A;--panel:#141414;--line:#262626;--ink:#F0EBE1;--mute:#8A857D;--tang:#FF6B00}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+  body{background:radial-gradient(ellipse 70% 40% at 50% 0%,rgba(255,107,0,.10),transparent 70%) var(--bg)}
+  main{max-width:1120px;margin:0 auto;padding:40px 18px 56px}
+  header{text-align:center;margin-bottom:22px}
+  .kicker{font:500 11px/1 "JetBrains Mono",ui-monospace,Menlo,monospace;letter-spacing:.2em;text-transform:uppercase;color:var(--tang)}
+  h1{font:400 clamp(28px,4.6vw,46px)/1.15 Lora,Georgia,serif;margin:12px 0 0;color:var(--ink)}
+  h1 em{color:var(--tang)}
+  .logline{color:var(--mute);margin:12px auto 0;max-width:640px}
+  .frame{border:1px solid var(--line);background:var(--panel);padding:0;position:relative}
+  .frame:before,.frame:after{content:"";position:absolute;width:26px;height:26px;border:2px solid var(--tang)}
+  .frame:before{left:-1px;top:-1px;border-right:0;border-bottom:0}
+  .frame:after{right:-1px;bottom:-1px;border-left:0;border-top:0}
+  video{display:block;width:100%;height:auto;background:#000;aspect-ratio:16/9}
+  .meta{display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:center;margin-top:16px;color:var(--mute);font:12px/1.5 "JetBrains Mono",ui-monospace,monospace}
+  .meta a{color:var(--ink)}
+  .wip{margin:22px auto 0;max-width:720px;color:var(--mute);font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="kicker">Short film · Common Defense · work in progress</div>
+    <h1>Hi Mum, <em>it's me.</em></h1>
+    <p class="logline">One message, one night, many homes.</p>
+  </header>
+  <div class="frame">
+    <video controls playsinline preload="metadata" poster="poster.jpg">
+      <source src="film.mp4" type="video/mp4">
+      Your browser can't play this video. <a href="film.mp4">Download film.mp4</a>.
+    </video>
+  </div>
+  <div class="meta"><span>1280×720 · 24 fps · stereo</span><span><a href="film.mp4" download>film.mp4</a></span><span><a href="README.md">README</a></span></div>
+  <p class="wip">Rough cut — work in progress. Scam messages, names and numbers shown are fictional (+44 7700 900xxx is a reserved drama range).</p>
+</main>
+</body>
+</html>
