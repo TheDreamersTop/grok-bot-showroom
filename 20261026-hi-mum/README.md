@@ -1,13 +1,13 @@
 # Hi Mum, It's Me — a short film for Common Defense
 
-Status: **v8.1, final cut** (`film.mp4`, 62 s, 1280×720, 24 fps, H.264 / AAC stereo, −16 LUFS).
+Status: **v8.2, final cut** (`film.mp4`, 62 s, 1280×720, 24 fps, H.264 / AAC stereo, −16 LUFS).
 
 A message that sounds exactly like your son — written by a machine that read your posts.
 
 - Watch: `index.html` (GitHub Pages) or `film.mp4` directly.
 - All scam messages, names, posts and phone numbers are fictional (+44 7700 900xxx is the Ofcom drama range). No real people's faces or voices.
 
-Also here: `cutdown-15s.mp4` (15 s: hook, banner and silence, "No one. / A machine that read your posts.", end card) and `PRODUCTION_NOTES.md` (sources, licenses, limits).
+Also here: `cutdown-15s.mp4` (14.75 s: hook, banner and silence, "Here's who actually wrote it.", "No one. / A machine that read your posts.", end card) and `PRODUCTION_NOTES.md` (sources, licenses, limits).
 
 ## Credits
 - **Voices:** original synthetic output from Grok Imagine, generated for this film; not cloned from or imitating any real person.
