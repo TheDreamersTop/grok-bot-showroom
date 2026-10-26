@@ -1,8 +1,8 @@
-# Hi Mum, It's Me: final report (rough-v8.2, 26 Oct 2026, TPE)
+# Hi Mum, It's Me: final report (rough-v8.3, 26 Oct 2026, TPE)
 
 **Concept in one sentence:** A text that sounds exactly like Mum's son turns out to have been written by a machine that read her public post. Now that scams are written by AI from what we share, Common Defense is the thing that reads your messages *with you* and warns you before you act.
 
-Final cut: `cuts/rough-v8.2.mp4`: 62.00 s, 1280×720, 24 fps, H.264/AAC, 43.9 MB, −16.0 LUFS, −1.9 dBTP.
+Final cut: `cuts/rough-v8.3.mp4`: 62.00 s, 1280×720, 24 fps, H.264/AAC, 43.8 MB, −16.0 LUFS, −1.9 dBTP.
 Live: https://thedreamerstop.github.io/grok-bot-showroom/20261026-hi-mum/
 
 ## Key revisions v1–v8
@@ -17,7 +17,8 @@ Live: https://thedreamerstop.github.io/grok-bot-showroom/20261026-hi-mum/
 | v7 (60 s) | Tom recast (take09). Lantern contrast fixed with a table. Generated dorm photo hook. SFX locked to the frame. Privacy line added. First full publish under 50 MB. |
 | v8 (61.7 s) | Privacy line 60→92 px (+53%), #F0EBE1, worst-case 15.6:1, on screen 38.88–45.00 s (≈6.1 s), entering 0.5 s after card 2. Triptych replaced by Common Defense's own **Warnings** list (TEXT / CHAT / EMAIL, invented senders, "⚠️ Scam detected" chips), held 3.7 s. Generated hook image replaced by a real CC0 photo. Sync audit (below). |
 | v8.1 (62.00 s) | Truth fix to the founder card. "Our founder was hacked in 2016." became "Our founder lost money in a 2016 hack." (card 4.6 s → 5.1 s). To stay within the 62 s cap: card 2 6.6 → 6.55 s, lanterns 2.4 → 2.35 s (lantern line fades in 0.05 s earlier), end card 4.1 → 4.0 s. Every readable card still passes the reading rule (the variants montage is exempt, as before). Privacy line now 39.38–45.46 s. |
-| v8.2 (62.00 s, final) | Truth fix from COLD-07 (overclaim). The lantern line "Everyone else is now protected." became **"That sender is now flagged for everyone."**, matching the site demo's "Sender added to scam signatures" (lanterns 2.35 → 2.85 s). The time came from the variants cascade, which is texture and not meant to be read (2.6 → 2.1 s). App-screen reasoning text enlarged 22 → 25 px (phone scale) and the REASONING label 16 → 18 px. Its on-screen time is unchanged (5.30 s): there was no slack under the 62 s cap. |
+| v8.2 (62.00 s) | Truth fix from COLD-07 (overclaim). The lantern line "Everyone else is now protected." became **"That sender is now flagged for everyone."**, matching the site demo's "Sender added to scam signatures" (lanterns 2.35 → 2.85 s). The time came from the variants cascade, which is texture and not meant to be read (2.6 → 2.1 s). App-screen reasoning text enlarged 22 → 25 px (phone scale) and the REASONING label 16 → 18 px. Its on-screen time is unchanged (5.30 s): there was no slack under the 62 s cap. |
+| v8.3 (62.00 s, final) | From COLD-08. Mum taps the banner (press scale plus a fingertip ripple), and the separate Common Defense app opens with an iOS-style transition: the opaque app expands out of the banner's rectangle to full screen over 0.35 s. No part of the Messages thread shows through it. The app has its own chrome: status bar, a header band with the Common Defense logo-mark and wordmark, a hairline divider, and its own warm-black background (#161210) instead of the chat app's #0D0D0F. Timings are unchanged: total 62.00 s and every reading time as in v8.2. |
 
 ## Cold-viewer answers by round (reviews/COLD-*.md)
 | Review (cut) | Product understood | Why understood | Strongest / confusing |
@@ -30,7 +31,8 @@ Live: https://thedreamerstop.github.io/grok-bot-showroom/20261026-hi-mum/
 | COLD-06 (v7) | Correct: "scanning your texts, chats and emails to detect and flag AI-generated scam messages" | Correct | Confusing: the privacy line was tiny and dark. This was fixed in v8. |
 | COLD-07 (v8.1), PASSED | Correct: "scans incoming texts, chats and emails to detect and warn you about highly personalized, AI-generated phishing scams" | Correct: AI reads public posts to impersonate loved ones; "defense against AI-native threats" | Felt anxiety at 0:10 and creeped out at 0:30. Brand recalled. Issues: (a) reasoning text too brief, (b) office looks slightly like a 3D render, (c) "Everyone else is now protected" overclaims (fixed in v8.2), (d) voice slightly robotic. |
 | COLD-cutdown (15 s v1) | Brand and why understood | Correct | "No one." arrived without its question at 0:08. Cuts at 0:03 and 0:06–0:07 were abrupt: voice clipped, a glitch slamming into silence. Fixed in cutdown v2 (below). |
-v8.2 and cutdown v2 have **not** had a cold review.
+| COLD-08 (v8.2), PASSED, memorable 8/10 | Correct: "a security app (a firewall for human communication) that scans texts, chats and emails to detect and warn users about AI-generated personalized scams" | Correct: "founder lost money in a 2016 hack; scams evolved from code exploits to AI-generated social engineering…" | Felt dread and familiarity at 0:03–0:10, creeped out at 0:25–0:32, relief at 0:52. Issue: the verdict screen looked overlaid on the Messages app, which iOS doesn't allow (fixed in v8.3). Minor: the cascade at 0:28–0:30 is too fast to read, which is fine as texture. |
+**v8.3 and cutdown v2 have not had a cold review.**
 
 ## Factual claims and sources
 | Claim in film | Source |
@@ -63,6 +65,7 @@ No statistics or numbers about scams are used anywhere in the film. The £480 an
 - **Nobody watched or listened to any cut.** Every check was done by model reviewers (COLD/CD files) or by measurement: contact sheets, frame grabs, WCAG contrast measured from the renderer, sync offsets from the SFX stem, ebur128, volumedetect, and faster-whisper transcripts.
 
 ## v8 measurements
+- v8.3: only the banner-to-app transition and the app background changed. CARDS and contrast re-run: `cuts/CARDS_v83.md`, `cuts/CONTRAST_v83.md`, `cuts/CONTRAST_v83_app.md`. CARDS timings are identical to v8.2. No card text is below 4.5:1. App-screen text runs from 5.94:1 (red "Scam detected" on the verdict box) to 15.67:1. Master −16.0 LUFS, −1.9 dBTP, 43.8 MB.
 - v8.2 lantern line: 7 words, visible 2.58 s (needs 2.55). Contrast 17.3:1 worst case. Reasoning text 25 px, INK #F0EBE1 on the app's near-black panel. Founder card is unchanged (4.82 s, 15.64:1). `cuts/CARDS_v82.md`, `cuts/CONTRAST_v82.md`.
 - (v8.1: only the founder card, card 2, lanterns and end timings changed; picture and sound are otherwise identical)
 - v8.1 founder card: visible 4.82 s for 16 words (needs 4.80). Contrast white 15.64:1 and tangerine 8.2:1 worst case. Card 2 + privacy read together: 6.32 s (needs 6.30). Privacy line alone: 5.83 s. Lanterns 2.08 s (needs 2.05). `cuts/CARDS_v81.md`, `cuts/CONTRAST_v81.md`.
