@@ -1,6 +1,6 @@
 # Hi Mum, It's Me — a short film for Common Defense
 
-Status: **v8, final cut** (`film.mp4`, 62 s, 1280×720, 24 fps, H.264 / AAC stereo, −16 LUFS).
+Status: **v8.1, final cut** (`film.mp4`, 62 s, 1280×720, 24 fps, H.264 / AAC stereo, −16 LUFS).
 
 A message that sounds exactly like your son — written by a machine that read your posts.
 
