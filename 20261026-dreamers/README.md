@@ -1,4 +1,5 @@
-# 20261026-dreamers — 《六十分之一秒》 One Sixtieth of a Second
+# 20261026-dreamers — 《阿嬤的便條紙》 Grandma's Notes
 
 A short film for TheDreamers 夢想家潛意識軟體 (https://www.thedreamers.top/).
-Status: cut v2 (work in progress). Video: one-sixtieth_v2.mp4 (v1 kept for reference: one-sixtieth_v1.mp4)
+Status: cut v3 (work in progress). Video: one-sixtieth_v3.mp4. Earlier cuts kept for reference: one-sixtieth_v1.mp4, one-sixtieth_v2.mp4 (《六十分之一秒》).
+The TheDreamers window shown in the film is a recreation drawn in code after the official demo page.
