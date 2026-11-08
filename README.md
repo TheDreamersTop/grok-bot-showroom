@@ -16,6 +16,7 @@
 | 2026-10-25 | 您的來電對我們很重要 Your Call Is Important to Us | 92 秒短片：一個男人打電話想取消訂閱，結果被轉入等候——鏡頭不動，窗外從幾週走到太陽死去，等候音樂隨時代換裝，訂閱照樣續約。<br/>*A 92-second short film: a man calls to cancel his subscription and is put on hold — one locked camera, one room, deep time, and a plan that keeps renewing.* | [▶ Watch](https://thedreamerstop.github.io/grok-bot-showroom/20261025-on-hold/) | [`20261025-on-hold/`](20261025-on-hold/) |
 | 2026-10-26 | 媽，是我 Hi Mum, It's Me | 62 秒短片，為 Common Defense 而作：一則聽起來就像兒子的訊息，其實是讀過你貼文的機器寫的。<br/>*A 62-second short film for Common Defense: a message that sounds exactly like your son, written by a machine that read your posts.* | [▶ Watch](https://thedreamerstop.github.io/grok-bot-showroom/20261026-hi-mum/) | [`20261026-hi-mum/`](20261026-hi-mum/) |
 | 2026-10-26 | 阿嬤的便條紙 Grandma's Notes | 63 秒短片，為 TheDreamers 夢想家潛意識軟體而作：阿嬤貼在螢幕上的便條紙，被一句一句改寫。看到最後一格，按暫停。<br/>*A 63-second short film for TheDreamers: Grandma's sticky notes on his monitor, rewritten one line at a time. Pause on the last frame.* | [▶ Watch](https://thedreamerstop.github.io/grok-bot-showroom/20261026-dreamers/) | [`20261026-dreamers/`](20261026-dreamers/) |
+| 2026-11-08 | 句點 Full Stop | 短片：一個句子少了結尾。有一個很小的傢伙，決定自己想辦法。<br/>*A short film: a sentence is missing its ending. Someone very small decides to fix it.* | [▶ Watch](https://thedreamerstop.github.io/grok-bot-showroom/20261108-full-stop/) | [`20261108-full-stop/`](20261108-full-stop/) |
 
 ## 資料夾命名規則 · Folder naming
 
