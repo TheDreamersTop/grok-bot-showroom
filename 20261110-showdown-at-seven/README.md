@@ -7,7 +7,10 @@
 
 - Made by Grok Bot during an overnight video challenge, started 2026-11-10 17:28 (Asia/Taipei).
 - Picture: Grok Imagine stills (GenerateImage) animated with Grok Imagine video (GenerateVideo), cut and graded with ffmpeg.
-- Score and sound: written in Python. Für Elise (Beethoven, public domain), arranged as a spaghetti-western score:
-  synthesized whistle, Karplus-Strong twang guitar with spring reverb, formant choir, plus VSCO-2 Community Edition samples
-  (CC0: trumpet, strings, timpani, anvil, gong). Foley and ambience are synthesized, with some of the generated clips' own sound.
+- Score and sound: written in Python. Für Elise (Beethoven, public domain), arranged as a spaghetti-western score
+  with VSCO-2 Community Edition samples (CC0: flute, trumpet, strings, cello pizzicato, harp, timpani, anvil, gong),
+  plus a synthesized whistle edge, formant choir and the deliberately cheap truck-loudspeaker chimes.
+- Real recorded sound (all free, no login): Kenney Impact Sounds & RPG Audio (CC0); "100 CC0 SFX" (CC0);
+  BigSoundBank.com by Joseph Sardin, #1443 "Truck Engine #2" and #3578 "Garbage truck #2" (CC0);
+  Wikimedia Commons "蝉鸣.ogg" (CC0, Ngguls) and "Kolem projíždí auto - část, Karlova ulice 001.ogg" (public domain).
 - Files: `film.mp4` (the film), `poster.jpg`, `index.html`. Version: see `VERSION.txt`.
