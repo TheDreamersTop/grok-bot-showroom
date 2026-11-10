@@ -15,4 +15,5 @@
   Wikimedia Commons "蝉鸣.ogg" (CC0, Ngguls) and "Kolem projíždí auto - část, Karlova ulice 001.ogg" (public domain).
   Western foley: BigSoundBank.com by Joseph Sardin, #2949 "Whip crack #1" and #2950 "Whip crack #2" (CC0);
   Freesound #400593 "Authentic Spurs" by TheAcidRomance (CC0) and #582183 "hawk.wav" by denalwa (CC0).
+  Gear foley: BigSoundBank.com by Joseph Sardin, #1987 "Pistol, Cocking" and #0359 "Heavy chain" (CC0).
 - Files: `film.mp4` (the film), `poster.jpg`, `index.html`. Version: see `VERSION.txt`.
